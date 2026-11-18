@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KPR — Digital design &amp; development</title>
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash.
+      (function () {
+        var theme;
+        try { theme = localStorage.getItem('theme'); } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <meta name="description" content="Independent designer and builder. I design and build websites and apps that move brands forward — from first idea to final pixel.">
+    <meta name="theme-color" content="#161815">
+    <meta name="color-scheme" content="dark light">
+    <!-- The site is already dark; stop the Dark Reader extension from recolouring it. -->
+    <meta name="darkreader-lock">
+    <meta property="og:title" content="KPR — Digital products. Real-world impact.">
+    <meta property="og:description" content="I design and build websites and apps that move brands forward — from first idea to final pixel.">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+  </head>
+  <body id="top">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header wrap">
+      <a class="logo" href="#top" aria-label="KPR, back to top"><span class="logo-mark" aria-hidden="true"></span></a>
+      <p class="label header-tagline">Digital design / Development</p>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#work">Work <span class="nav-count">[04]</span></a>
+        <a href="#info">Info</a>
+      </nav>
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2"/>
+          <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+        </svg>
+      </button>
+      <a class="btn btn--lime header-cta" href="#contact">Get in touch <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="label reveal">Independent designer &amp; builder</p>
+          <h1 id="hero-title" class="hero-title reveal">Digital products.<br>Real-world impact.</h1>
+          <p class="hero-lede reveal">I design and build websites and apps that move brands forward — from first idea to final pixel.</p>
+          <a class="btn btn--lime reveal" href="#work">Explore my work <span aria-hidden="true">↓</span></a>
+        </div>
+
+        <aside class="status-card reveal" aria-label="Current status">
+          <p class="label">Current status</p>
+          <p class="status-line"><span class="status-dot" aria-hidden="true"></span>Open for collaboration</p>
+          <div class="status-meta">
+            <p class="label">Web design<br>Product design</p>
+            <p class="label">Creative dev<br>2026 edition</p>
+          </div>
+        </aside>
+      </section>
+
+      <!-- Selected work -->
+      <section id="work" class="work wrap" aria-labelledby="work-title">
+        <div class="section-bar">
+          <h2 id="work-title" class="label">Selected / Built with intent</h2>
+          <p class="label lime">01 — 04</p>
+        </div>
+
+        <div class="featured">
+          <!-- 01 / Pulse -->
+          <article class="feature reveal">
+            <a class="feature-link" href="#" aria-label="Pulse case study">
+              <div class="feature-media feature-media--dark">
+                <p class="label media-top">Product design / Web app</p>
+
+                <div class="mock mock-pulse" role="img" aria-label="Pulse analytics dashboard showing revenue, customers and conversion rate">
+                  <div class="pulse-side" aria-hidden="true">
+                    <p class="pulse-logo">pulse</p>
+                    <p class="pulse-ws">Workspace</p>
+                    <p class="pulse-nav is-active">Overview</p>
+                    <p class="pulse-nav">Analytics</p>
+                    <p class="pulse-nav">Transactions</p>
+                    <p class="pulse-nav">Accounts</p>
+                    <p class="pulse-nav">Settings</p>
+                  </div>
+                  <div class="pulse-main" aria-hidden="true">
+                    <div class="pulse-head">
+                      <div>
+                        <p class="pulse-title">Overview</p>
+                        <p class="pulse-sub">Your business, at a glance.</p>
+                      </div>
+                      <p class="pulse-range">Last 30 days ⌄</p>
+                    </div>
+                    <div class="pulse-stats">
+                      <div class="pulse-stat is-lime"><span>Total revenue</span><strong>$48,250</strong></div>
+                      <div class="pulse-stat"><span>Active customers</span><strong>2,846</strong></div>
+                      <div class="pulse-stat"><span>Conversion rate</span><strong>6.82%</strong></div>
+                    </div>
+                    <div class="pulse-chart">
+                      <div class="pulse-chart-head"><span>Revenue overview</span><span>+18.6% this month</span></div>
+                      <div class="pulse-bars">
+                        <i style="--h:22%"></i><i style="--h:34%"></i><i style="--h:26%"></i><i style="--h:44%"></i>
+                        <i style="--h:40%"></i><i style="--h:54%"></i><i style="--h:46%"></i><i style="--h:60%"></i>
+                        <i style="--h:50%"></i><i style="--h:68%"></i><i style="--h:62%"></i><i style="--h:80%"></i>
+                        <i style="--h:72%"></i><i class="is-last" style="--h:90%"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="label media-bottom">Analytics without the noise.</p>
+              </div>
+              <div class="feature-info">
+                <h3 class="feature-title">01 / Pulse <span class="arrow" aria-hidden="true">↗</span></h3>
+                <p class="feature-desc">Making business data feel human.</p>
+                <p class="feature-tags">SaaS · UX/UI · Design system</p>
+              </div>
+            </a>
+          </article>
+
+          <!-- 02 / Orbit -->
+          <article class="feature reveal">
+            <a class="feature-link" href="#" aria-label="Orbit case study">
+              <div class="feature-media feature-media--blue">
+                <p class="label media-top">Web design / Development</p>
+
+                <div class="mock mock-orbit" role="img" aria-label="Orbit marketing landing page with the headline Less busywork, more liftoff">
+                  <div class="orbit-nav" aria-hidden="true">
+                    <p class="orbit-logo">orbit<sup>®</sup></p>
+                    <p class="orbit-links"><span>Platform</span><span>Solutions</span><span>Resources</span></p>
+                    <p class="orbit-btn orbit-btn--sm">Sign up ↗</p>
+                  </div>
+                  <div class="orbit-hero" aria-hidden="true">
+                    <p class="orbit-eyebrow">The future is a team sport</p>
+                    <p class="orbit-title">Less busywork.<br>More liftoff.</p>
+                    <p class="orbit-sub">Bring your team, tools, and best ideas together.<br>A brighter workspace for whatever comes next.</p>
+                    <p class="orbit-btn">Start your free trial ↗</p>
+                    <div class="orbit-sticker">
+                      <span class="orbit-sticker-eyebrow">Ready for takeoff</span>
+                      <span class="orbit-sticker-title">Big ideas.<br>One workspace.</span>
+                      <span class="orbit-sticker-foot">● All systems go</span>
+                    </div>
+                  </div>
+                  <div class="orbit-logos" aria-hidden="true">
+                    <span class="orbit-logos-label">In good company</span>
+                    <span>Layers</span><span>Quotient</span><span>Circooles</span><span>Sisyphus</span>
+                  </div>
+                </div>
+
+                <p class="label media-bottom">A new home for ambitious teams.</p>
+              </div>
+              <div class="feature-info">
+                <h3 class="feature-title">02 / Orbit <span class="arrow" aria-hidden="true">↗</span></h3>
+                <p class="feature-desc">A high-converting launch for a better way to work.</p>
+                <p class="feature-tags">Strategy · Website · Development</p>
+              </div>
+            </a>
+          </article>
+        </div>
+
+        <div class="archive">
+          <div class="archive-bar">
+            <p class="label lime">Idea → Interface → Impact</p>
+            <p class="label">A selected collection, not the whole internet.</p>
+          </div>
+          <h3 class="label archive-title">Also in the archive</h3>
+          <ul class="archive-list">
+            <li>
+              <a class="archive-row" href="#">
+                <span class="archive-name">03 / Frame</span>
+                <span class="archive-cat">Portfolio platform · Website</span>
+                <span class="archive-year">2025</span>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </a>
+            </li>
+            <li>
+              <a class="archive-row" href="#">
+                <span class="archive-name">04 / Nomad</span>
+                <span class="archive-cat">Travel planning · Mobile app</span>
+                <span class="archive-year">2024</span>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Info -->
+      <section id="info" class="wrap" aria-labelledby="info-title">
+        <div class="context reveal">
+          <div class="context-copy">
+            <p class="label">A little context</p>
+            <h2 id="info-title" class="context-title">One partner.<br>From zero to shipped.</h2>
+            <p class="context-text">I’m Sam, a digital designer with a builder’s mindset. I work at the intersection of strategy, design, and technology to turn complex problems into useful products.</p>
+          </div>
+          <div class="context-services">
+            <h3 class="label">How I can help</h3>
+            <ul class="services">
+              <li><span>01</span>Web experiences</li>
+              <li><span>02</span>Digital products</li>
+              <li><span>03</span>Creative development</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="process">
+          <h2 class="label">How we get there</h2>
+          <ol class="process-steps">
+            <li class="reveal">
+              <h3>01 / Define</h3>
+              <p>Ask better questions. Map the problem. Set the right direction.</p>
+            </li>
+            <li class="reveal">
+              <h3>02 / Design</h3>
+              <p>Prototype early. Challenge the obvious. Sweat the interactions.</p>
+            </li>
+            <li class="reveal">
+              <h3>03 / Deliver</h3>
+              <p>Build with care. Test in the real world. Keep moving forward.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Contact -->
+      <section id="contact" class="cta" aria-labelledby="cta-title">
+        <div class="wrap">
+          <p class="label">Next up / Your project</p>
+          <h2 id="cta-title" class="cta-title">Got a bold idea?<br>Let’s make it real.</h2>
+          <a class="cta-email" href="mailto:hello@offset.studio">hello@offset.studio <span aria-hidden="true">↗</span></a>
+          <div class="cta-foot">
+            <p class="cta-note">Let’s start with a conversation. No pitch decks required.</p>
+            <p class="label">Remote first / Worldwide</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <p>© <span data-year>2026</span> KPR — Independent by design.</p>
+      <ul class="socials">
+        <li><a href="https://www.linkedin.com/" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://dribbble.com/" rel="noopener">Dribbble <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://github.com/" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></li>
+      </ul>
+      <a class="to-top" href="#top" aria-label="Back to top">↑</a>
+    </footer>
+  </body>
+</html>
