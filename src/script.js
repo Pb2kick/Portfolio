@@ -23,6 +23,10 @@ applyTheme(root.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
 if (toggle) {
   toggle.addEventListener('click', () => {
     const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    // Cross-fade the colours for a moment instead of flipping instantly.
+    root.classList.add('theme-switching');
+    clearTimeout(toggle.fadeTimer);
+    toggle.fadeTimer = setTimeout(() => root.classList.remove('theme-switching'), 450);
     applyTheme(next);
     try { localStorage.setItem('theme', next); } catch (e) { /* storage blocked: theme lasts this visit */ }
   });
@@ -65,21 +69,24 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 (function () {
   const header = document.querySelector('.site-header');
   const progress = document.querySelector('.scroll-progress');
+  const floatTop = document.querySelector('.float-top');
   let ticking = false;
   function onScroll() {
     ticking = false;
     const max = document.documentElement.scrollHeight - innerHeight;
     if (progress) progress.style.setProperty('--progress', max > 0 ? Math.min(1, scrollY / max) : 0);
     if (header) header.classList.toggle('is-scrolled', scrollY > 24);
+    if (floatTop) floatTop.classList.toggle('is-visible', scrollY > innerHeight);
   }
   window.addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
   }, { passive: true });
   onScroll();
 
-  // A soft light follows the cursor across cards (mouse and trackpad only).
+  // A soft light follows the cursor across cards (mouse and trackpad only). It's a
+  // lighting change rather than movement, so it stays on with reduced motion too.
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
-  if (finePointer && !reduceMotion) {
+  if (finePointer) {
     document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .status-card')
       .forEach((el) => el.classList.add('glow'));
     document.addEventListener('pointermove', (e) => {
@@ -90,6 +97,50 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
       card.style.setProperty('--my', (e.clientY - r.top) + 'px');
     }, { passive: true });
   }
+
+  // Screenshots fade in once loaded.
+  document.querySelectorAll('.shot img').forEach((img) => {
+    const done = () => img.classList.add('is-loaded');
+    if (img.complete) done();
+    else { img.addEventListener('load', done, { once: true }); img.addEventListener('error', done, { once: true }); }
+  });
+
+  // Tech chips cascade in, one after another.
+  document.querySelectorAll('.stack-list').forEach((list) => {
+    [...list.children].forEach((li, i) => li.style.setProperty('--i', i));
+  });
+
+  // Copy the email address, with a short confirmation.
+  const toast = document.querySelector('.toast');
+  function showToast(text) {
+    if (!toast) return;
+    toast.textContent = text;
+    toast.classList.add('is-visible');
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toast.classList.remove('is-visible'), 2200);
+  }
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    const label = btn.querySelector('[data-copy-label]');
+    btn.addEventListener('click', async () => {
+      const text = btn.dataset.copy;
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+        // Older browsers or blocked clipboard: fall back to a hidden text field.
+        const field = document.createElement('textarea');
+        field.value = text; field.setAttribute('readonly', ''); field.style.position = 'fixed'; field.style.opacity = '0';
+        document.body.appendChild(field); field.select();
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        field.remove();
+      }
+      showToast(ok ? 'Email copied: ' + text : 'Couldn’t copy. The address is ' + text);
+      if (ok && label) {
+        btn.classList.add('is-copied');
+        label.textContent = 'Copied';
+        clearTimeout(btn.resetTimer);
+        btn.resetTimer = setTimeout(() => { btn.classList.remove('is-copied'); label.textContent = 'Copy'; }, 2000);
+      }
+    });
+  });
 
   // Underline the nav link for the section in view.
   const links = [...document.querySelectorAll('.site-nav a[href^="#"]')];

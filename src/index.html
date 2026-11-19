@@ -87,7 +87,7 @@
             <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
             <video class="spotlight-video" muted loop playsinline controls preload="none" poster="assets/projects/gallus-poster.webp" data-lazy-video
                    aria-label="Gallus video pitch">
-              <source data-src="assets/projects/gallus-pitch.mp4" type="video/mp4">
+              <source src="assets/projects/gallus-pitch.mp4" type="video/mp4">
             </video>
           </div>
           <div class="spotlight-body">
@@ -101,7 +101,7 @@
               <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
             </ul>
             <p class="spotlight-links">
-              <a class="feature-link" href="https://gallus-desktop-demo.onrender.com/" target="_blank" rel="noopener">Desktop web demo <span class="arrow" aria-hidden="true">↗</span></a>
+              <a class="feature-link" href="https://gallus-desktop-demo.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Desktop web demo <span class="arrow" aria-hidden="true">↗</span></a>
               <a class="feature-link" href="https://github.com/Xeldia/FeedSmart" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
             </p>
             <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
@@ -124,7 +124,7 @@
             <div class="feature-info">
               <h3 id="teamflow-title" class="feature-title">02 / TeamFlow
                 <span class="feature-links">
-                  <a class="feature-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener">Live site <span class="arrow" aria-hidden="true">↗</span></a>
+                  <a class="feature-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
                   <a class="feature-link" href="https://github.com/jawee52004/teamflow-project" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
                 </span>
               </h3>
@@ -148,7 +148,7 @@
             <div class="feature-info">
               <h3 id="newshub-title" class="feature-title">03 / NewsHub
                 <span class="feature-links">
-                  <a class="feature-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener">Live site <span class="arrow" aria-hidden="true">↗</span></a>
+                  <a class="feature-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
                   <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
                 </span>
               </h3>
@@ -355,6 +355,10 @@
           <h2 id="cta-title" class="cta-title">Looking for an intern?<br>Let’s build something real.</h2>
           <div class="cta-contacts">
             <a class="cta-email" href="mailto:kenpatrick.ranis@gmail.com">kenpatrick.ranis@gmail.com <span aria-hidden="true">↗</span></a>
+            <button class="copy-btn" type="button" data-copy="kenpatrick.ranis@gmail.com" aria-label="Copy email address">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+              <span data-copy-label>Copy</span>
+            </button>
             <span class="cta-sep" aria-hidden="true">/</span>
             <a class="cta-email" href="https://www.linkedin.com/in/ken-patrick-ranis-48b7a830b/" target="_blank" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a>
           </div>
@@ -367,5 +371,10 @@
       <p><span data-year>2026</span> Ken Patrick Ranis — Independent by design.</p>
       <a class="to-top" href="#top" aria-label="Back to top">↑</a>
     </footer>
+
+    <a class="float-top" href="#top" aria-hidden="true" tabindex="-1">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <div class="toast" role="status" aria-live="polite"></div>
   </body>
 </html>
