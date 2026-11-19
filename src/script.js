@@ -188,14 +188,28 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   const header = document.querySelector('.site-header');
   const progress = document.querySelector('.scroll-progress');
   const floatTop = document.querySelector('.float-top');
+  const footer = document.querySelector('.site-footer');
   let ticking = false;
   function onScroll() {
     ticking = false;
     const max = document.documentElement.scrollHeight - innerHeight;
     if (progress) progress.style.setProperty('--progress', max > 0 ? Math.min(1, scrollY / max) : 0);
     if (header) header.classList.toggle('is-scrolled', scrollY > 24);
-    if (floatTop) floatTop.classList.toggle('is-visible', scrollY > innerHeight);
+    if (floatTop) {
+      floatTop.classList.toggle('is-visible', scrollY > innerHeight);
+      // Once the footer scrolls into view, the button stops on the footer's centre line,
+      // level with the "2026 Ken Patrick Ranis" text, instead of floating over the page.
+      const rest = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.25;
+      let bottom = rest;
+      if (footer) {
+        const f = footer.getBoundingClientRect();
+        const docked = innerHeight - (f.top + f.height / 2) - floatTop.offsetHeight / 2;
+        bottom = Math.max(rest, docked);
+      }
+      floatTop.style.bottom = bottom + 'px';
+    }
   }
+  window.addEventListener('resize', onScroll);
   window.addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
   }, { passive: true });
@@ -286,42 +300,67 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   }
 })();
 
-// ---- 04 / FitCampus: Appetize Android emulator, started only on click ----
+// ---- Screenshot slideshows (FitCampus, AMBOT): cross-fade, loop, dots to jump ----
 (function () {
-  const phone = document.querySelector('[data-appetize]');
-  if (!phone) return;
-  const key = (phone.dataset.appetizeKey || '').trim();
-  if (!key) return; // no key yet: the static app screen stays
-  const cover = phone.querySelector('[data-appetize-cover]');
-  const start = phone.querySelector('[data-appetize-start]');
-  const status = document.querySelector('[data-appetize-status]');
-  if (status) status.textContent = 'Live Android emulator on Appetize';
-  cover.hidden = false;
-
-  // Appetize's free plan doesn't allow embedding, so by default the demo opens on Appetize's
-  // own page in a new tab. With a paid plan, set data-appetize-embed="true" to play it inline.
-  const embed = phone.dataset.appetizeEmbed === 'true';
-  const startLabel = start.querySelector('[data-appetize-start-label]');
-  if (!embed && startLabel) startLabel.textContent = 'Open live demo ↗';
-
-  start.addEventListener('click', () => {
-    const params = new URLSearchParams({ device: phone.dataset.appetizeDevice || 'pixel7', autoplay: 'true' });
-    if (embed) { params.set('scale', 'auto'); params.set('centered', 'both'); params.set('screenOnly', 'true'); }
-    // FitCampus reads this launch extra and opens already signed in as that profile.
-    const profile = (phone.dataset.appetizeProfile || '').trim();
-    if (profile) params.set('params', JSON.stringify({ demoProfile: profile }));
-    const base = 'https://appetize.io/' + (embed ? 'embed/' : 'app/') + encodeURIComponent(key) + '?';
-
-    if (!embed) {
-      window.open(base + params, '_blank', 'noopener');
-      return;
+  document.querySelectorAll('[data-slides]').forEach((box, n) => {
+    const slides = [...box.querySelectorAll('.slide')];
+    if (slides.length < 2) return;
+    let index = 0, timer = null, paused = false;
+    const dots = document.createElement('div');
+    dots.className = 'slide-dots';
+    const buttons = slides.map((_, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Show screenshot ' + (i + 1) + ' of ' + slides.length);
+      b.addEventListener('click', () => { show(i); restart(); });
+      dots.appendChild(b);
+      return b;
+    });
+    box.appendChild(dots);
+    function show(i) {
+      index = (i + slides.length) % slides.length;
+      slides.forEach((s, k) => s.classList.toggle('is-active', k === index));
+      buttons.forEach((b, k) => b.setAttribute('aria-current', String(k === index)));
     }
-    const frame = document.createElement('iframe');
-    frame.src = base + params;
-    frame.title = 'FitCampus running on a cloud Android emulator';
-    frame.allow = 'autoplay; clipboard-read; clipboard-write';
-    phone.appendChild(frame);
-    cover.hidden = true;
+    function restart() {
+      clearInterval(timer);
+      if (!paused) timer = setInterval(() => show(index + 1), 3200);
+    }
+    // Pause while the visitor is looking closely (hover or keyboard focus).
+    box.addEventListener('mouseenter', () => { paused = true; clearInterval(timer); });
+    box.addEventListener('mouseleave', () => { paused = false; restart(); });
+    box.addEventListener('focusin', () => { paused = true; clearInterval(timer); });
+    box.addEventListener('focusout', () => { paused = false; restart(); });
+    show(0);
+    // Offset the second slideshow so the two don't change in lockstep.
+    setTimeout(restart, n * 1600);
+  });
+})();
+
+// ---- "Email" button: copies the address and says so ----
+(function () {
+  const toast = document.querySelector('.toast');
+  function showToast(text) {
+    if (!toast) return;
+    toast.textContent = text;
+    toast.classList.add('is-visible');
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toast.classList.remove('is-visible'), 2400);
+  }
+  document.querySelectorAll('[data-copy]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const text = btn.dataset.copy;
+      let ok = false;
+      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+        // Older browsers or a blocked clipboard: fall back to a hidden text field.
+        const field = document.createElement('textarea');
+        field.value = text; field.setAttribute('readonly', ''); field.style.position = 'fixed'; field.style.opacity = '0';
+        document.body.appendChild(field); field.select();
+        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+        field.remove();
+      }
+      showToast(ok ? 'Email copied to clipboard: ' + text : 'Couldn’t copy it. My email is ' + text);
+    });
   });
 })();
 
@@ -335,8 +374,8 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   const CHEERPJ_LOADER = 'https://cjrtnc.leaningtech.com/5.0/loader.js';
   const stage = game.querySelector('[data-game-stage]');
   const cover = game.querySelector('[data-game-cover]');
-  const start = game.querySelector('[data-game-start]');
-  const hint = game.querySelector('[data-game-hint]');
+  const start = document.querySelector('[data-game-start]');
+  const hint = document.querySelector('[data-game-hint]');
   const fullscreenBtn = document.querySelector('[data-game-fullscreen]');
 
   const touchOnly = window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches;
@@ -450,7 +489,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   function setCover(state, text) {
     cover.dataset.state = state; // idle | loading | quit | ended
     cover.hidden = state === 'playing';
-    start.hidden = state === 'loading' || state === 'ended';
+    start.hidden = !(state === 'idle' || state === 'quit'); // only offered when it can start or resume
     start.disabled = false;
     if (startLabel) startLabel.textContent = state === 'quit' ? 'Play again' : 'Play AMBOT';
     if (text) hint.textContent = text;

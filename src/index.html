@@ -39,7 +39,7 @@
       <a class="logo" href="#top" aria-label="KPR, back to top"><span class="logo-mark" aria-hidden="true"></span></a>
       <p class="label header-tagline">Digital design / Development</p>
       <nav class="site-nav" aria-label="Main">
-        <a href="#work">Work <span class="nav-count">[05]</span></a>
+        <a href="#work">Work</a>
         <a href="#info">Info</a>
       </nav>
       <div class="header-tools">
@@ -115,7 +115,7 @@
               <a class="feature-link" href="https://github.com/Xeldia/FeedSmart" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
             </p>
             <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
-            <p class="project-meta">FeedSmart, AY 2025–2026</p>
+            <p class="project-meta">FeedSmart · 5-person team · AY 2025–2026</p>
           </div>
         </article>
 
@@ -140,7 +140,7 @@
               </h3>
               <p class="feature-desc">A work-management site that keeps a team’s workspaces, tasks and members in one place, with owner, developer and viewer roles.</p>
               <p class="feature-tags">Django · Django REST Framework · Supabase · PostgreSQL</p>
-              <p class="project-meta">Developer on a six-person team</p>
+              <p class="project-meta">3-person team</p>
             </div>
           </article>
 
@@ -175,41 +175,20 @@
         </div>
 
         <div class="live">
-          <!-- 04 / FitCampus: Android emulator -->
+          <!-- 04 / FitCampus: screenshots slideshow; the live demo opens on Appetize (free plan has no embeds) -->
           <article class="live-card reveal" aria-labelledby="fitcampus-title">
-            <!-- Appetize build ID in data-appetize-key. Free plan: opens Appetize in a new tab.
-                 With a paid Appetize plan, set data-appetize-embed="true" to play inside the phone. -->
-            <div class="phone" data-appetize data-appetize-key="b_tns4jileka7ujfwydazwje6xxi" data-appetize-embed="false" data-appetize-device="pixel7" data-appetize-profile="Ken">
-              <div class="phone-screen fc" aria-hidden="true">
-                <div class="fc-top">
-                  <img src="assets/projects/fitcampus-icon.png" alt="">
-                  <p>FitCampus</p>
-                </div>
-                <p class="fc-hello">Today · Wednesday</p>
-                <div class="fc-today">
-                  <p class="fc-today-label">Free slot 1:00–1:45 PM</p>
-                  <p class="fc-today-title">Dorm-friendly upper body</p>
-                  <p class="fc-today-meta">6 exercises · 25 min · No equipment</p>
-                  <p class="fc-start">Start workout</p>
-                </div>
-                <p class="fc-section">This week</p>
-                <div class="fc-week"><i class="is-done">M</i><i class="is-done">T</i><i class="is-today">W</i><i>T</i><i>F</i><i>S</i><i>S</i></div>
-                <p class="fc-section">Filters</p>
-                <p class="fc-chips"><span class="is-on">No equipment</span><span>Quiet</span><span>Gym</span></p>
-                <p class="fc-streak">🔥 4-day streak</p>
-              </div>
-              <div class="live-cover" data-appetize-cover hidden>
-                <button class="live-start" type="button" data-appetize-start>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-                  <span data-appetize-start-label>Launch emulator</span>
-                </button>
-                <p class="live-hint">Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.</p>
+            <div class="phone">
+              <div class="phone-screen slides" data-slides aria-roledescription="carousel" aria-label="FitCampus screenshots">
+                <img class="slide is-active" src="assets/projects/fitcampus/1-splash.webp" width="540" height="960" alt="FitCampus splash screen: the kettlebell logo on orange">
+                <img class="slide" src="assets/projects/fitcampus/2-home.webp" width="540" height="960" loading="lazy" alt="FitCampus home screen greeting Ken, with today's plan and the free-time card">
+                <img class="slide" src="assets/projects/fitcampus/3-categories.webp" width="540" height="960" loading="lazy" alt="FitCampus exercise categories with No equipment, Dorm-friendly, Quiet and Gym filters">
               </div>
             </div>
             <div class="live-info">
               <p class="label">Android app / Kotlin</p>
               <h3 id="fitcampus-title" class="feature-title">04 / FitCampus
                 <span class="feature-links">
+                  <a class="feature-link" href="https://appetize.io/app/b_tns4jileka7ujfwydazwje6xxi?device=pixel7&amp;autoplay=true&amp;params=%7B%22demoProfile%22%3A%22Ken%22%7D" target="_blank" rel="noopener" data-tip="Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.">Live demo <span class="arrow" aria-hidden="true">↗</span></a>
                   <a class="feature-link" href="https://github.com/Pb2kick/FitCampus" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
                 </span>
               </h3>
@@ -220,29 +199,33 @@
                 <li>History, streaks and badges, all stored on the phone</li>
               </ul>
               <p class="feature-tags">Kotlin · Android SDK · Room · SQLite</p>
-              <p class="project-meta" data-appetize-status>Android app</p>
+              <p class="project-meta">2-person team · Live demo on Appetize</p>
             </div>
           </article>
 
-          <!-- 05 / AMBOT: the real Java game, run in the browser by CheerpJ -->
+          <!-- 05 / AMBOT: screenshots slideshow until played; then the real Java game via CheerpJ -->
           <article class="live-card live-card--wide reveal" aria-labelledby="ambot-title">
             <div class="game" data-game>
               <div class="game-stage" data-game-stage></div>
               <div class="live-cover game-cover" data-game-cover data-state="idle">
-                <img class="game-poster" src="games/ambot/poster.png" alt="AMBOT gameplay: the player running across a grassy level">
-                <button class="live-start" type="button" data-game-start>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-                  <span data-game-start-label>Play AMBOT</span>
-                </button>
+                <div class="slides" data-slides aria-roledescription="carousel" aria-label="AMBOT screenshots">
+                  <img class="slide is-active" src="games/ambot/slides/1-menu.png" width="640" height="360" alt="AMBOT main menu: Continue, New Game, World Select, Options, Credits, Quit">
+                  <img class="slide" src="games/ambot/slides/2-run.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: the player running across a grassy level">
+                  <img class="slide" src="games/ambot/slides/3-attack.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: a sword attack on a raised platform">
+                </div>
                 <span class="game-spinner" aria-hidden="true"></span>
-                <p class="live-hint" data-game-hint>The first load downloads a Java runtime, so give it a moment.</p>
               </div>
             </div>
-            <div class="game-controls" role="group" aria-label="Game display">
+            <div class="game-controls" role="group" aria-label="Game controls">
+              <button class="game-btn" type="button" data-game-start>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+                <span data-game-start-label>Play AMBOT</span>
+              </button>
               <button class="game-btn" type="button" data-game-fullscreen>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                 Fullscreen
               </button>
+              <p class="game-hint" data-game-hint role="status">The first load downloads a Java runtime, so give it a moment.</p>
             </div>
             <div class="live-info">
               <p class="label">Java game / OOP2</p>
@@ -254,7 +237,7 @@
               <p class="feature-desc">A 2D side-scrolling platformer in Java and Swing. It started as an unfinished OOP2 group project; I’m restoring and finishing it one world at a time.</p>
               <p class="game-keys"><kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd> attack · <kbd>Esc</kbd> pause</p>
               <p class="feature-tags">Java · Swing · Tiled · JUnit</p>
-              <p class="project-meta">The real Java game, running in WebAssembly through CheerpJ</p>
+              <p class="project-meta">5-person team · The real Java game, running in WebAssembly through CheerpJ</p>
             </div>
           </article>
         </div>
@@ -364,13 +347,13 @@
           </div>
           <h2 id="cta-title" class="cta-title">Looking for an intern?<br>Let’s build something real.</h2>
           <div class="cta-contacts">
-            <a class="cta-email" href="mailto:kenpatrick.ranis@gmail.com">kenpatrick.ranis@gmail.com <span aria-hidden="true">↗</span></a>
+            <button class="cta-email" type="button" data-copy="kenpatrick.ranis@gmail.com" aria-label="Copy my email address">Email <span aria-hidden="true">↗</span></button>
             <span class="cta-sep" aria-hidden="true">/</span>
             <a class="cta-email" href="https://www.linkedin.com/in/ken-patrick-ranis-48b7a830b/" target="_blank" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a>
             <span class="cta-sep" aria-hidden="true">/</span>
             <a class="cta-email" href="https://github.com/Pb2kick" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a>
           </div>
-          <p class="cta-note">Graduating IT student, ready to learn fast and ship real work with your team. Happy to walk you through any of these projects.</p>
+          <p class="cta-note">Graduating IT student building practical software and AI-assisted workflows. Looking for an internship to ship real code and learn from experienced engineering teams.</p>
         </div>
       </section>
     </main>
@@ -379,6 +362,7 @@
       <p><span data-year>2026</span> Ken Patrick Ranis — Independent by design.</p>
     </footer>
 
+    <div class="toast" role="status" aria-live="polite"></div>
     <a class="float-top" href="#top" aria-label="Back to top">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>  </body>

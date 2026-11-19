@@ -390,60 +390,49 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   border-radius: inherit;
 }
 .live-cover[hidden] { display: none; }
-.live-start {
-  display: inline-flex; align-items: center; gap: .5rem;
-  padding: .85rem 1.2rem;
-  font: inherit; font-size: .875rem; font-weight: 600;
-  color: var(--lime-ink); background: var(--lime);
-  border: 0; border-radius: 2px;
-  cursor: pointer;
-  transition: transform .25s var(--ease), background-color .25s var(--ease);
-}
-.live-start:hover { background: var(--lime-hover); transform: translateY(-2px); }
-.live-start[hidden] { display: none; }
-.live-start:disabled { cursor: progress; opacity: .7; transform: none; }
-.live-start svg { width: 1rem; height: 1rem; fill: currentColor; }
-.live-hint { max-width: 19rem; font-size: .6875rem; line-height: 1.4; color: #ecece4; }
-
 .phone {
   position: relative;
   align-self: center;
   width: 100%; max-width: 16.5rem;
-  aspect-ratio: 9 / 19;
   padding: .7rem;
   background: #0c0d0c;
   border-radius: 2.2rem;
   box-shadow: inset 0 0 0 2px #2b2f2a, 0 1.5rem 3rem rgba(0, 0, 0, .3);
-  container-type: inline-size;
 }
-.phone-screen, .phone iframe {
-  position: absolute; inset: .7rem;
-  width: calc(100% - 1.4rem); height: calc(100% - 1.4rem);
-  overflow: hidden;
-  border: 0; border-radius: 1.6rem;
-}
-.phone iframe { z-index: 2; background: #000; }
-.phone .live-cover { inset: .7rem; border-radius: 1.6rem; }
+.phone-screen { position: relative; aspect-ratio: 9 / 16; overflow: hidden; border-radius: 1.6rem; background: #111; }
 
-/* FitCampus home screen mock (colours from the app icon) */
-.fc { padding: 1.4em 1.1em; font-size: 4.2cqi; color: #2a1a10; background: #fff7f2; }
-.fc-top { display: flex; align-items: center; gap: .55em; padding-bottom: .8em; }
-.fc-top img { width: 1.9em; height: 1.9em; border-radius: .5em; }
-.fc-top p { font-size: 1.1em; font-weight: 700; }
-.fc-hello { margin: .3em 0 .6em; font-size: .75em; color: #8a6f60; }
-.fc-today { padding: .9em; color: #fff; background: #ff6a00; border-radius: .9em; }
-.fc-today-label { font-size: .65em; opacity: .85; }
-.fc-today-title { margin: .2em 0; font-size: 1.1em; font-weight: 700; line-height: 1.2; }
-.fc-today-meta { font-size: .65em; }
-.fc-start { display: inline-block; margin-top: .7em; padding: .45em .9em; font-size: .7em; font-weight: 700; color: #ff6a00; background: #fff; border-radius: 2em; }
-.fc-section { margin: 1em 0 .5em; font-size: .7em; font-weight: 700; color: #5a4030; }
-.fc-week { display: flex; justify-content: space-between; }
-.fc-week i { display: grid; place-items: center; width: 1.9em; height: 1.9em; font-size: .7em; font-style: normal; color: #8a6f60; background: #f3e3d9; border-radius: 50%; }
-.fc-week .is-done { color: #b24700; background: #ffd4b8; }
-.fc-week .is-today { color: #fff; background: #ff6a00; }
-.fc-chips span { display: inline-block; margin: 0 .3em .3em 0; padding: .35em .8em; font-size: .62em; border: 1px solid #f0cdb7; border-radius: 2em; }
-.fc-chips .is-on { color: #fff; background: #2a1a10; border-color: #2a1a10; }
-.fc-streak { margin-top: .9em; padding: .7em; font-size: .75em; background: #fff; border-radius: .7em; box-shadow: 0 .2em .6em rgba(80, 30, 0, .08); }
+/* Screenshot slideshows (FitCampus phone, AMBOT box): cross-fade, loop, dots to jump */
+.slides { position: absolute; inset: 0; overflow: hidden; }
+.phone-screen.slides { position: relative; inset: auto; overflow: visible; }
+/* On the phone the dots sit just below the frame, clear of the app's own navigation bar */
+.phone { margin-bottom: 1.9rem; }
+.phone-screen .slide { border-radius: 1.6rem; }
+.phone-screen .slide-dots { bottom: -2.65rem; }
+.slide {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity .8s ease;
+}
+.slide.is-active { opacity: 1; }
+.game .slide { image-rendering: pixelated; }
+.slide-dots {
+  position: absolute; left: 50%; bottom: .7rem; z-index: 2;
+  display: flex; gap: .45rem;
+  padding: .35rem .5rem;
+  background: rgba(0, 0, 0, .4);
+  border-radius: 1rem;
+  transform: translateX(-50%);
+}
+.slide-dots button {
+  width: .5rem; height: .5rem; padding: 0;
+  background: rgba(255, 255, 255, .5);
+  border: 0; border-radius: 50%;
+  cursor: pointer;
+  transition: background-color .25s ease, transform .25s ease;
+}
+.slide-dots button[aria-current="true"] { background: var(--lime); transform: scale(1.3); }
 
 /* AMBOT player */
 .game { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #000; border-radius: 2px; }
@@ -457,17 +446,14 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   animation: spin .9s linear infinite;
 }
 .game-cover[data-state="loading"] .game-spinner { display: block; }
+.game-cover[data-state="loading"] .slides { filter: brightness(.45); }
+.game-cover .slides { z-index: -1; }
 .game-stage canvas { image-rendering: pixelated; } /* keep the pixel art sharp when scaled up */
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .game-spinner { animation-duration: 2.4s; } }
 .game-cover { background: transparent; }
-.game-poster {
-  position: absolute; inset: 0; z-index: -1;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  image-rendering: pixelated;
-  filter: brightness(.55);
-}
+.game-btn[hidden] { display: none; }
+.game-hint { font-size: .75rem; color: var(--muted); }
 .game-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem 1.4rem; }
 .game-btn {
   display: inline-flex; align-items: center; gap: .45rem;
@@ -575,6 +561,20 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 }
 .cta-email:hover { gap: .6rem; color: var(--accent-text); }
 .cta-email span { color: var(--accent-text); }
+button.cta-email { padding: 0; color: inherit; font-family: inherit; background: none; border: 0; cursor: pointer; }
+/* Confirmation after copying the email address */
+.toast {
+  position: fixed; left: 50%; bottom: 1.5rem; z-index: 120;
+  padding: .6rem 1rem;
+  font-size: .8125rem;
+  color: var(--lime-ink); background: var(--lime);
+  border-radius: 2rem;
+  box-shadow: 0 .6rem 1.6rem rgba(0, 0, 0, .3);
+  opacity: 0; transform: translate(-50%, .75rem);
+  transition: opacity .3s ease, transform .3s var(--ease);
+  pointer-events: none;
+}
+.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 .cta-sep { font-size: 1.125rem; color: var(--muted); }
 .cta-note { max-width: 32rem; margin-top: 1.05rem; font-size: .75rem; line-height: 1.5; color: var(--muted); }
 .spotlight-links { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin-bottom: 1rem; }
@@ -583,7 +583,9 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 .site-footer {
   display: grid; grid-template-columns: 1fr;
   align-items: center;
-  padding-block: 1.6rem;
+  /* Sized so the text's centre line sits exactly where the resting back-to-top button's
+     centre is (1.25rem gap + half its 2.75rem height), keeping the two level. */
+  padding-block: 2.2rem;
   font-size: .5625rem;
   color: var(--muted);
 }
@@ -639,7 +641,7 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 
 /* Floating back-to-top, shown once the visitor is a screen down */
 .float-top {
-  position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60;
+  position: fixed; right: var(--gutter); bottom: 1.25rem; z-index: 60; /* lines up with the page's right content edge */
   display: grid; place-items: center;
   width: 2.75rem; height: 2.75rem;
   color: var(--lime-ink); background: var(--lime);
