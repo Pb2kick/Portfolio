@@ -65,6 +65,124 @@ if ('IntersectionObserver' in window) {
 
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// ---- Smooth, eased scrolling for in-page links ("Get in touch", nav, back to top) ----
+// The browser's own smooth scrolling is switched off by reduced-motion settings; this keeps
+// a short, gentle glide there instead of a jump, and a fuller one otherwise.
+(function () {
+  const root = document.documentElement;
+  let frame = null;
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+  function stop() { if (frame) { cancelAnimationFrame(frame); frame = null; root.style.scrollBehavior = ''; } }
+  ['wheel', 'touchstart', 'keydown'].forEach((ev) => window.addEventListener(ev, stop, { passive: true }));
+
+  function glideTo(y, done) {
+    stop();
+    const start = scrollY, distance = y - start;
+    if (Math.abs(distance) < 2) { if (done) done(); return; }
+    const d = Math.abs(distance);
+    const duration = reduceMotion ? Math.min(700, Math.max(400, d * 0.2)) : Math.min(1200, Math.max(600, d * 0.4));
+    const t0 = performance.now();
+    root.style.scrollBehavior = 'auto'; // our animation drives every frame
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / duration);
+      window.scrollTo(0, start + distance * ease(t));
+      if (t < 1) frame = requestAnimationFrame(step);
+      else { frame = null; root.style.scrollBehavior = ''; if (done) done(); }
+    };
+    frame = requestAnimationFrame(step);
+  }
+
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const hash = link.getAttribute('href');
+    if (hash.length < 2) return;
+    const target = hash === '#top' ? document.body : document.querySelector(hash);
+    if (!target) return;
+    e.preventDefault();
+    const margin = hash === '#top' ? 0 : parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+    const y = hash === '#top' ? 0 : target.getBoundingClientRect().top + scrollY - margin;
+    glideTo(Math.max(0, y), () => {
+      // Move keyboard focus to where the visitor landed.
+      if (hash !== '#top') {
+        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+      }
+    });
+    if (history.pushState) history.pushState(null, '', hash === '#top' ? location.pathname : hash);
+  });
+})();
+
+// ---- Hover sounds: a soft synthesized tick on buttons, links and tech chips ----
+// Browsers only allow sound after the visitor's first click or key press, so the ticks
+// start then. The speaker button in the header turns them off (remembered).
+(function () {
+  const toggle = document.querySelector('[data-sound-toggle]');
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let enabled = true;
+  try { enabled = localStorage.getItem('hover-sounds') !== 'off'; } catch (e) { /* storage blocked */ }
+  let ctx = null, last = 0;
+
+  function render() {
+    if (!toggle) return;
+    toggle.setAttribute('aria-pressed', String(enabled));
+    toggle.setAttribute('aria-label', enabled ? 'Turn hover sounds off' : 'Turn hover sounds on');
+  }
+  function unlock() {
+    if (!AC) return;
+    if (!ctx) ctx = new AC();
+    if (ctx.state === 'suspended') ctx.resume();
+  }
+  ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, unlock, { passive: true, capture: true }));
+
+  function tick(freq, volume) {
+    if (!enabled || !ctx || ctx.state !== 'running') return;
+    const nowMs = performance.now();
+    if (nowMs - last < 60) return; // no machine-gun ticks when sweeping across a row
+    last = nowMs;
+    const t = ctx.currentTime, dur = 0.06;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.62, t + dur);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+
+  // Pitch by kind of element: lower for main buttons, higher for small links and chips.
+  function soundFor(el) {
+    if (el.matches('.btn, .live-start')) return [1100, 0.05];
+    if (el.matches('.stack-list li')) return [2400, 0.025];
+    if (el.matches('button')) return [1500, 0.04];
+    return [1900, 0.035];
+  }
+  const HOVERABLE = 'a, button, .stack-list li';
+  document.addEventListener('pointerover', (e) => {
+    if (e.pointerType && e.pointerType !== 'mouse') return;
+    const el = e.target.closest && e.target.closest(HOVERABLE);
+    if (!el || el.closest('[data-game]')) return; // the game has its own sound
+    if (e.relatedTarget && el.contains(e.relatedTarget)) return; // still inside the same element
+    const [freq, vol] = soundFor(el);
+    tick(freq, vol);
+  });
+
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      enabled = !enabled;
+      try { localStorage.setItem('hover-sounds', enabled ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
+      render();
+      if (enabled) { unlock(); last = 0; tick(1500, 0.045); } // a tick to confirm sounds are on
+    });
+  }
+  render();
+})();
+
 // ---- Subtle effects: reading progress, frosted header, cursor glow, active nav ----
 (function () {
   const header = document.querySelector('.site-header');

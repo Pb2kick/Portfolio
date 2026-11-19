@@ -175,10 +175,16 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   mask: url("kpr-logo.png") center / contain no-repeat;
 }
 
+.header-tools { display: flex; align-items: center; gap: .5rem; margin-left: 1.5rem; }
+/* Speaker icon shows the current state: waves when on, a cross when off */
+.sound-toggle .icon-sound-off,
+.sound-toggle[aria-pressed="false"] .icon-sound-on { display: none; }
+.sound-toggle[aria-pressed="false"] .icon-sound-off { display: block; }
+.sound-toggle:hover { transform: none; }
 .theme-toggle {
   display: grid; place-items: center;
   width: 2.5rem; height: 2.5rem;
-  margin-left: 1.5rem;
+  margin-left: 0;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 50%;
@@ -703,7 +709,7 @@ html.theme-switching *::after {
   .site-header { grid-template-columns: auto 1fr auto auto; gap: 1rem; }
   .header-tagline { display: none; }
   .site-nav { gap: 1.5rem; justify-self: end; }
-  .theme-toggle { margin-left: .5rem; }
+  .header-tools { margin-left: .5rem; }
   .header-cta { min-width: 0; }
 
   .hero { grid-template-columns: 1fr; padding-bottom: 2.5rem; }
@@ -719,7 +725,8 @@ html.theme-switching *::after {
 @media (max-width: 640px) {
   .site-header { grid-template-columns: auto 1fr auto; gap: .6rem; }
   .site-nav { display: none; }
-  .theme-toggle { justify-self: end; margin-left: 0; width: 2.4rem; height: 2.4rem; }
+  .header-tools { justify-self: end; margin-left: 0; gap: .4rem; }
+  .theme-toggle { width: 2.4rem; height: 2.4rem; }
   .header-cta { padding: .7rem .85rem; font-size: .8125rem; }
 
   .featured { grid-template-columns: 1fr; gap: 2.5rem; }
