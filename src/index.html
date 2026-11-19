@@ -85,9 +85,13 @@
           <div class="spotlight-media">
             <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
             <video class="spotlight-video" muted loop playsinline preload="none" data-lazy-video
-                   aria-label="Gallus promo video showing the farm app's screens">
-              <source data-src="assets/projects/gallus-promo.mp4" type="video/mp4">
+                   aria-label="Gallus video pitch">
+              <source data-src="assets/projects/gallus-pitch.mp4" type="video/mp4">
             </video>
+            <button class="video-toggle video-sound" type="button" data-video-sound aria-pressed="false" aria-label="Turn sound on">
+              <svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </button>
             <button class="video-toggle" type="button" data-video-toggle aria-label="Pause video">
               <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
               <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
@@ -104,47 +108,28 @@
               <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
             </ul>
             <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
-            <p class="project-meta">Team capstone, AY 2025–2026 · Private repository</p>
+            <p class="project-meta">FeedSmart, AY 2025–2026 · Private repository</p>
           </div>
         </article>
 
         <div class="featured">
           <!-- 02 / TeamFlow -->
           <article class="feature reveal" aria-labelledby="teamflow-title">
-            <div class="feature-media feature-media--tf">
+            <a class="feature-media feature-media--tf" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" aria-label="Open the TeamFlow live site">
               <p class="label media-top">Web app / Team project</p>
-
-              <div class="mock mock-tf" role="img" aria-label="TeamFlow workspace board with tasks sorted into To do, In progress and Done">
-                <div class="tf-nav" aria-hidden="true">
-                  <img class="tf-logo" src="assets/projects/teamflow-logo.png" alt="">
-                  <p class="tf-brand">Team<b>Flow</b></p>
-                  <p class="tf-ws">Capstone workspace ⌄</p>
-                  <p class="tf-avatars"><i></i><i></i><i></i><span>+3</span></p>
-                </div>
-                <div class="tf-board" aria-hidden="true">
-                  <div class="tf-col">
-                    <p class="tf-col-head">To do <span>3</span></p>
-                    <div class="tf-card"><span class="tf-tag tf-tag--o">Owner</span><p>Write sprint goals</p></div>
-                    <div class="tf-card"><span class="tf-tag">Dev</span><p>Task due-date picker</p></div>
-                    <div class="tf-card"><span class="tf-tag tf-tag--v">Viewer</span><p>Review release notes</p></div>
-                  </div>
-                  <div class="tf-col">
-                    <p class="tf-col-head">In progress <span>2</span></p>
-                    <div class="tf-card"><span class="tf-tag tf-tag--o">Owner</span><p>Invite members by email</p><i class="tf-bar"><b style="width:65%"></b></i></div>
-                    <div class="tf-card"><span class="tf-tag">Dev</span><p>Role permissions</p><i class="tf-bar"><b style="width:40%"></b></i></div>
-                  </div>
-                  <div class="tf-col">
-                    <p class="tf-col-head">Done <span>2</span></p>
-                    <div class="tf-card is-done"><span class="tf-tag">Dev</span><p>Email confirmation</p></div>
-                    <div class="tf-card is-done"><span class="tf-tag">Dev</span><p>Create workspaces</p></div>
-                  </div>
-                </div>
-              </div>
-
+              <figure class="shot">
+                <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>teamflow-n88w.onrender.com</span></div>
+                <img src="assets/projects/teamflow-screenshot.webp" width="1200" height="750" loading="lazy"
+                     alt="TeamFlow sign-in page: a login form beside the TeamFlow logo and the line Streamline your team's workflow">
+              </figure>
               <p class="label media-bottom">Streamline your team’s workflow.</p>
-            </div>
+            </a>
             <div class="feature-info">
-              <h3 id="teamflow-title" class="feature-title">02 / TeamFlow</h3>
+              <h3 id="teamflow-title" class="feature-title">02 / TeamFlow
+                <span class="feature-links">
+                  <a class="feature-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener">Live site <span class="arrow" aria-hidden="true">↗</span></a>
+                </span>
+              </h3>
               <p class="feature-desc">A work-management site that keeps a team’s workspaces, tasks and members in one place, with owner, developer and viewer roles.</p>
               <p class="feature-tags">Django · Django REST Framework · Supabase · PostgreSQL</p>
               <p class="project-meta">Developer on a six-person team · Private repository</p>
@@ -153,37 +138,21 @@
 
           <!-- 03 / NewsHub -->
           <article class="feature reveal" aria-labelledby="newshub-title">
-            <div class="feature-media feature-media--news">
+            <a class="feature-media feature-media--news" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" aria-label="Open the NewsHub live site">
               <p class="label media-top">Full-stack web app</p>
-
-              <div class="mock mock-news" role="img" aria-label="NewsHub feed with local news stories and an election card">
-                <div class="nh-nav" aria-hidden="true">
-                  <img class="nh-logo" src="assets/projects/newshub-logo.png" alt="">
-                  <p class="nh-brand">NewsHub</p>
-                  <p class="nh-links"><span class="is-active">News</span><span>Elections</span><span>Profile</span></p>
-                </div>
-                <div class="nh-body" aria-hidden="true">
-                  <div class="nh-feed">
-                    <p class="nh-chip">📍 Near you</p>
-                    <div class="nh-story nh-story--lead"><i class="nh-thumb"></i><div><p class="nh-kicker">Local</p><p class="nh-head">City council approves new bike lanes downtown</p><p class="nh-meta">5 min read</p></div></div>
-                    <div class="nh-story"><i class="nh-thumb nh-thumb--b"></i><div><p class="nh-kicker">Community</p><p class="nh-head">Barangay clean-up drive this weekend</p></div></div>
-                    <div class="nh-story"><i class="nh-thumb nh-thumb--c"></i><div><p class="nh-kicker">Weather</p><p class="nh-head">Rain expected through Thursday</p></div></div>
-                  </div>
-                  <div class="nh-side">
-                    <p class="nh-side-label">Election</p>
-                    <p class="nh-side-title">Student council 2026</p>
-                    <p class="nh-cand"><i></i>Candidate A</p>
-                    <p class="nh-cand"><i></i>Candidate B</p>
-                    <p class="nh-vote">Verify &amp; vote</p>
-                  </div>
-                </div>
-              </div>
-
-              <p class="label media-bottom">Local news and elections, verified.</p>
-            </div>
+              <figure class="shot">
+                <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>newshub-s1dh.onrender.com</span></div>
+                <img src="assets/projects/newshub-screenshot.webp" width="1200" height="750" loading="lazy"
+                     alt="NewsHub sign-in page with the headline Your voice in every election and its secure, location-aware features">
+              </figure>
+              <p class="label media-bottom">Your voice in every election.</p>
+            </a>
             <div class="feature-info">
               <h3 id="newshub-title" class="feature-title">03 / NewsHub
-                <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                <span class="feature-links">
+                  <a class="feature-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener">Live site <span class="arrow" aria-hidden="true">↗</span></a>
+                  <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                </span>
               </h3>
               <p class="feature-desc">A civic news and election platform: location-aware news, candidate pages, a verified voting flow and an admin dashboard.</p>
               <p class="feature-tags">React 19 · Spring Boot · PostgreSQL · Supabase Auth · Tailwind CSS</p>
@@ -200,8 +169,9 @@
         <div class="live">
           <!-- 04 / FitCampus: Android emulator -->
           <article class="live-card reveal" aria-labelledby="fitcampus-title">
-            <!-- To enable the live emulator, paste your Appetize public key into data-appetize-key. -->
-            <div class="phone" data-appetize data-appetize-key="" data-appetize-device="pixel7">
+            <!-- Appetize build ID in data-appetize-key. Free plan: opens Appetize in a new tab.
+                 With a paid Appetize plan, set data-appetize-embed="true" to play inside the phone. -->
+            <div class="phone" data-appetize data-appetize-key="b_tns4jileka7ujfwydazwje6xxi" data-appetize-embed="false" data-appetize-device="pixel7" data-appetize-profile="Ken">
               <div class="phone-screen fc" aria-hidden="true">
                 <div class="fc-top">
                   <img src="assets/projects/fitcampus-icon.png" alt="">
@@ -223,9 +193,9 @@
               <div class="live-cover" data-appetize-cover hidden>
                 <button class="live-start" type="button" data-appetize-start>
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-                  Launch emulator
+                  <span data-appetize-start-label>Launch emulator</span>
                 </button>
-                <p class="live-hint">Runs the real app on a cloud Android phone.</p>
+                <p class="live-hint">Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.</p>
               </div>
             </div>
             <div class="live-info">
@@ -246,12 +216,13 @@
           <article class="live-card live-card--wide reveal" aria-labelledby="ambot-title">
             <div class="game" data-game>
               <div class="game-stage" data-game-stage></div>
-              <div class="live-cover game-cover" data-game-cover>
+              <div class="live-cover game-cover" data-game-cover data-state="idle">
                 <img class="game-poster" src="games/ambot/poster.png" alt="AMBOT gameplay: the player running across a grassy level">
                 <button class="live-start" type="button" data-game-start>
                   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-                  Play AMBOT
+                  <span data-game-start-label>Play AMBOT</span>
                 </button>
+                <span class="game-spinner" aria-hidden="true"></span>
                 <p class="live-hint" data-game-hint>The first load downloads a Java runtime, so give it a moment.</p>
               </div>
             </div>

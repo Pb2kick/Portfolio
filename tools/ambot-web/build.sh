@@ -9,7 +9,9 @@
 #      has no javax.sound mixers;
 #   2. the game starts in its borderless fullscreen mode, so it fills the player box;
 #   3. frames scale by any factor (ambot.web.WebFit), not only whole numbers, so
-#      there are no black bars around the game.
+#      there are no black bars around the game;
+#   4. Quit pauses the game behind the page's "Play again" cover (ambot.web.WebSession)
+#      instead of ending the Java runtime, so it can be played again without a reload.
 # It then compiles for Java 17 (the newest version CheerpJ runs reliably) and writes:
 #   src/games/ambot/ambot.jar       the game
 #   src/games/ambot/audio/...       the WAV files the page plays
@@ -30,7 +32,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 cp -r "$AMBOT/src" "$WORK/src"
 mkdir -p "$WORK/src/ambot/web" "$WORK/classes"
-cp "$HERE/WebAudio.java" "$HERE/WebFit.java" "$WORK/src/ambot/web/"
+cp "$HERE/WebAudio.java" "$HERE/WebFit.java" "$HERE/WebSession.java" "$WORK/src/ambot/web/"
 
 # patch <file> <exact text> <replacement>: fails loudly if the text is no longer there
 patch_line() {
@@ -43,6 +45,7 @@ patch_line() {
 patch_line ambot/core/Game.java 'SampledAudio.createOrSilent()' 'new ambot.web.WebAudio()'
 patch_line ambot/core/Game.java 'if (progress.data().fullscreen()) window.toggleFullscreen();' 'if (!window.isFullscreen()) window.toggleFullscreen();'
 patch_line ambot/core/Screen.java 'ScaleMath.fitDevice(' 'ambot.web.WebFit.fitDevice('
+patch_line ambot/core/Game.java 'public void quit() {' 'public void quit() { if (ambot.web.WebSession.quit()) return;'
 
 # relative paths: on Windows, javac.exe cannot resolve Git Bash's /tmp paths inside @files
 (cd "$WORK" && find src -name '*.java' > sources.txt && "$JAVAC" --release 17 -encoding UTF-8 -nowarn -d classes @sources.txt)

@@ -99,6 +99,17 @@ function writePref(key, value) {
     });
   }
 
+  // The pitch has narration: it autoplays muted, and this button turns the sound on.
+  const soundBtn = document.querySelector('[data-video-sound]');
+  if (soundBtn) {
+    soundBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      soundBtn.setAttribute('aria-pressed', String(!video.muted));
+      soundBtn.setAttribute('aria-label', video.muted ? 'Turn sound on' : 'Turn sound off');
+      if (!video.muted && video.paused) { userPaused = false; play(); }
+    });
+  }
+
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -123,18 +134,31 @@ function writePref(key, value) {
   if (status) status.textContent = 'Live Android emulator · Private repository';
   cover.hidden = false;
 
+  // Appetize's free plan doesn't allow embedding, so by default the demo opens on Appetize's
+  // own page in a new tab. With a paid plan, set data-appetize-embed="true" to play it inline.
+  const embed = phone.dataset.appetizeEmbed === 'true';
+  const startLabel = start.querySelector('[data-appetize-start-label]');
+  if (!embed && startLabel) startLabel.textContent = 'Open live demo ↗';
+
   start.addEventListener('click', () => {
-    const params = new URLSearchParams({
-      device: phone.dataset.appetizeDevice || 'pixel7',
-      scale: 'auto', centered: 'both', screenOnly: 'true', autoplay: 'true',
-    });
+    const params = new URLSearchParams({ device: phone.dataset.appetizeDevice || 'pixel7', autoplay: 'true' });
+    if (embed) { params.set('scale', 'auto'); params.set('centered', 'both'); params.set('screenOnly', 'true'); }
+    // FitCampus reads this launch extra and opens already signed in as that profile.
+    const profile = (phone.dataset.appetizeProfile || '').trim();
+    if (profile) params.set('params', JSON.stringify({ demoProfile: profile }));
+    const base = 'https://appetize.io/' + (embed ? 'embed/' : 'app/') + encodeURIComponent(key) + '?';
+
+    if (!embed) {
+      window.open(base + params, '_blank', 'noopener');
+      return;
+    }
     const frame = document.createElement('iframe');
-    frame.src = 'https://appetize.io/embed/' + encodeURIComponent(key) + '?' + params;
+    frame.src = base + params;
     frame.title = 'FitCampus running on a cloud Android emulator';
     frame.allow = 'autoplay; clipboard-read; clipboard-write';
     phone.appendChild(frame);
     cover.hidden = true;
-  }, { once: true });
+  });
 })();
 
 // ---- 05 / AMBOT: the real Java game, run in the browser by CheerpJ ----
@@ -228,11 +252,22 @@ function writePref(key, value) {
 
   // CheerpJ passes its library object first, then the Java arguments.
   const last = (args, n) => Array.prototype.slice.call(args, -n);
+  // The first sound the game asks for (the menu music) means its first frame is up:
+  // that is when the loading cover lifts, so CheerpJ's own loading screen is never seen.
+  let ready = false, onReady = null, replayResolve = null;
+  function markReady() {
+    if (ready) return;
+    ready = true;
+    if (onReady) onReady();
+  }
   const natives = {
-    async Java_ambot_web_WebAudio_jsPlaySfx() { const [p, l] = last(arguments, 2); playSfx(String(p), l); },
-    async Java_ambot_web_WebAudio_jsPlayMusic() { const [p, l] = last(arguments, 2); playMusic(String(p), l); },
+    async Java_ambot_web_WebAudio_jsPlaySfx() { markReady(); const [p, l] = last(arguments, 2); playSfx(String(p), l); },
+    async Java_ambot_web_WebAudio_jsPlayMusic() { markReady(); const [p, l] = last(arguments, 2); playMusic(String(p), l); },
     async Java_ambot_web_WebAudio_jsStopMusic() { stopMusic(); },
     async Java_ambot_web_WebAudio_jsMusicVolume() { setMusicLevel(last(arguments, 1)[0]); },
+    // Quit from the game's menu: pause behind the cover instead of ending Java (WebSession.java).
+    async Java_ambot_web_WebSession_jsQuit() { showQuitCover(); },
+    async Java_ambot_web_WebSession_jsAwaitReplay() { return new Promise((resolve) => { replayResolve = resolve; }); },
   };
 
   // --- controls ---
@@ -262,6 +297,37 @@ function writePref(key, value) {
   });
   renderSoundUi();
 
+  // The Java display keeps the size it was created at (Java doesn't follow later resizes),
+  // and CSS scales it to fill the box, the resized box, or the whole screen in fullscreen.
+  let baseW = 0, baseH = 0;
+  function fitStage() {
+    if (!baseW) return;
+    const w = game.clientWidth, h = game.clientHeight;
+    const s = Math.min(w / baseW, h / baseH);
+    stage.style.transform = 'translate(' + (w - baseW * s) / 2 + 'px,' + (h - baseH * s) / 2 + 'px) scale(' + s + ')';
+  }
+  function focusGame() {
+    const target = stage.querySelector('textarea') || stage.querySelector('canvas');
+    if (target) target.focus({ preventScroll: true });
+  }
+  window.addEventListener('resize', fitStage);
+  document.addEventListener('fullscreenchange', () => { fitStage(); focusGame(); });
+
+  const startLabel = start.querySelector('[data-game-start-label]');
+  function setCover(state, text) {
+    cover.dataset.state = state; // idle | loading | quit | ended
+    cover.hidden = state === 'playing';
+    start.hidden = state === 'loading' || state === 'ended';
+    start.disabled = false;
+    if (startLabel) startLabel.textContent = state === 'quit' ? 'Play again' : 'Play AMBOT';
+    if (text) hint.textContent = text;
+  }
+  function showQuitCover() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    if (sound.ctx) sound.ctx.suspend(); // the game still thinks its music is on, so pause it, don't stop it
+    setCover('quit', 'Thanks for playing! Jump back in any time.');
+  }
+
   // Space and the arrow keys would scroll the page while the game has focus.
   window.addEventListener('keydown', (e) => {
     if (game.contains(document.activeElement) && [' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -281,29 +347,43 @@ function writePref(key, value) {
 
   let initialised = false;
   start.addEventListener('click', async () => {
-    start.disabled = true;
-    hint.textContent = 'Starting the Java runtime…';
+    // "Play again" after Quit: the game is paused in Java, waiting for this click.
+    if (cover.dataset.state === 'quit') {
+      setCover('playing');
+      if (sound.ctx) sound.ctx.resume();
+      const resume = replayResolve;
+      replayResolve = null;
+      if (resume) resume();
+      focusGame();
+      return;
+    }
+
+    setCover('loading', 'Loading AMBOT…');
     audioContext(); // created inside the click, so the browser allows sound
+    onReady = () => setTimeout(() => { setCover('playing'); focusGame(); }, 400);
     try {
       if (!initialised) {
         await loadScript(CHEERPJ_LOADER);
         await window.cheerpjInit({ version: 17, natives });
-        // The web build scales its frame to whatever size the display is (tools/ambot-web/WebFit.java).
-        window.cheerpjCreateDisplay(-1, -1, stage);
+        baseW = Math.round(game.clientWidth);
+        baseH = Math.round(game.clientHeight);
+        stage.style.width = baseW + 'px';
+        stage.style.height = baseH + 'px';
+        // The web build scales its frame to fill this display (tools/ambot-web/WebFit.java).
+        window.cheerpjCreateDisplay(baseW, baseH, stage);
         initialised = true;
+        // Safety net in case no sound call ever arrives: lift the cover a while after drawing starts.
+        const waitForCanvas = setInterval(() => {
+          if (stage.querySelector('canvas')) { clearInterval(waitForCanvas); setTimeout(markReady, 8000); }
+        }, 1000);
       }
-      cover.hidden = true;
       await window.cheerpjRunJar('/app/games/ambot/ambot.jar');
-      // The game was quit from its menu.
+      // Only reached if Java ends for some other reason (Quit no longer exits).
       stopMusic();
-      cover.hidden = false;
-      start.hidden = true;
-      hint.textContent = 'Thanks for playing! Reload the page to play again.';
+      setCover('ended', 'The game has closed. Reload the page to play again.');
     } catch (err) {
       console.error('AMBOT failed to start', err);
-      cover.hidden = false;
-      start.disabled = false;
-      hint.textContent = 'The game could not start in this browser. Try reloading the page.';
+      setCover('ended', 'The game could not start in this browser. Try reloading the page.');
     }
   });
 })();
