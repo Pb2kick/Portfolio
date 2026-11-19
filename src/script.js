@@ -61,6 +61,50 @@ if ('IntersectionObserver' in window) {
 
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// ---- Subtle effects: reading progress, frosted header, cursor glow, active nav ----
+(function () {
+  const header = document.querySelector('.site-header');
+  const progress = document.querySelector('.scroll-progress');
+  let ticking = false;
+  function onScroll() {
+    ticking = false;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    if (progress) progress.style.setProperty('--progress', max > 0 ? Math.min(1, scrollY / max) : 0);
+    if (header) header.classList.toggle('is-scrolled', scrollY > 24);
+  }
+  window.addEventListener('scroll', () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
+  }, { passive: true });
+  onScroll();
+
+  // A soft light follows the cursor across cards (mouse and trackpad only).
+  const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (finePointer && !reduceMotion) {
+    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .status-card')
+      .forEach((el) => el.classList.add('glow'));
+    document.addEventListener('pointermove', (e) => {
+      const card = e.target.closest && e.target.closest('.glow');
+      if (!card) return;
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    }, { passive: true });
+  }
+
+  // Underline the nav link for the section in view.
+  const links = [...document.querySelectorAll('.site-nav a[href^="#"]')];
+  const targets = links.map((a) => document.querySelector(a.hash)).filter(Boolean);
+  if ('IntersectionObserver' in window && targets.length) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const link = links.find((a) => a.hash === '#' + entry.target.id);
+        if (link) link.classList.toggle('is-active', entry.isIntersecting);
+      });
+    }, { rootMargin: '-45% 0px -45% 0px' });
+    targets.forEach((t) => io.observe(t));
+  }
+})();
+
 // ---- 01 / Gallus: promo video, loaded only when it scrolls into view ----
 (function () {
   // The video uses the browser's own controls (seek bar, volume, fullscreen). It starts
