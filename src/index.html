@@ -38,7 +38,7 @@
       <a class="logo" href="#top" aria-label="KPR, back to top"><span class="logo-mark" aria-hidden="true"></span></a>
       <p class="label header-tagline">Digital design / Development</p>
       <nav class="site-nav" aria-label="Main">
-        <a href="#work">Work <span class="nav-count">[04]</span></a>
+        <a href="#work">Work <span class="nav-count">[05]</span></a>
         <a href="#info">Info</a>
       </nav>
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
@@ -77,125 +77,209 @@
       <section id="work" class="work wrap" aria-labelledby="work-title">
         <div class="section-bar">
           <h2 id="work-title" class="label">Selected / Built with intent</h2>
-          <p class="label lime">01 — 04</p>
+          <p class="label lime">01 — 05</p>
         </div>
+
+        <!-- 01 / Gallus: capstone spotlight -->
+        <article class="spotlight reveal" aria-labelledby="gallus-title">
+          <div class="spotlight-media">
+            <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
+            <video class="spotlight-video" muted loop playsinline preload="none" data-lazy-video
+                   aria-label="Gallus promo video showing the farm app's screens">
+              <source data-src="assets/projects/gallus-promo.mp4" type="video/mp4">
+            </video>
+            <button class="video-toggle" type="button" data-video-toggle aria-label="Pause video">
+              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+            </button>
+          </div>
+          <div class="spotlight-body">
+            <p class="label">Capstone project / Mobile + desktop</p>
+            <h3 id="gallus-title" class="spotlight-title">01 / Gallus</h3>
+            <p class="spotlight-lede">Farm management for layer-hen farms that keeps working when the internet doesn’t.</p>
+            <p class="spotlight-text">Gallus (FeedSmart) helps small Philippine poultry farms track flocks, daily egg and mortality records, feed and inventory. Staff record on an Android app, and the owner’s Windows desktop app runs the farm’s local sync server, with Supabase for sign-in and cloud backup.</p>
+            <ul class="points">
+              <li>Offline-first: local SQLite with queued sync that survives reconnects</li>
+              <li>Role-based access for owners, attendants, warehouse staff and supervisors</li>
+              <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
+            </ul>
+            <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
+            <p class="project-meta">Team capstone, AY 2025–2026 · Private repository</p>
+          </div>
+        </article>
 
         <div class="featured">
-          <!-- 01 / Pulse -->
-          <article class="feature reveal">
-            <a class="feature-link" href="#" aria-label="Pulse case study">
-              <div class="feature-media feature-media--dark">
-                <p class="label media-top">Product design / Web app</p>
+          <!-- 02 / TeamFlow -->
+          <article class="feature reveal" aria-labelledby="teamflow-title">
+            <div class="feature-media feature-media--tf">
+              <p class="label media-top">Web app / Team project</p>
 
-                <div class="mock mock-pulse" role="img" aria-label="Pulse analytics dashboard showing revenue, customers and conversion rate">
-                  <div class="pulse-side" aria-hidden="true">
-                    <p class="pulse-logo">pulse</p>
-                    <p class="pulse-ws">Workspace</p>
-                    <p class="pulse-nav is-active">Overview</p>
-                    <p class="pulse-nav">Analytics</p>
-                    <p class="pulse-nav">Transactions</p>
-                    <p class="pulse-nav">Accounts</p>
-                    <p class="pulse-nav">Settings</p>
+              <div class="mock mock-tf" role="img" aria-label="TeamFlow workspace board with tasks sorted into To do, In progress and Done">
+                <div class="tf-nav" aria-hidden="true">
+                  <img class="tf-logo" src="assets/projects/teamflow-logo.png" alt="">
+                  <p class="tf-brand">Team<b>Flow</b></p>
+                  <p class="tf-ws">Capstone workspace ⌄</p>
+                  <p class="tf-avatars"><i></i><i></i><i></i><span>+3</span></p>
+                </div>
+                <div class="tf-board" aria-hidden="true">
+                  <div class="tf-col">
+                    <p class="tf-col-head">To do <span>3</span></p>
+                    <div class="tf-card"><span class="tf-tag tf-tag--o">Owner</span><p>Write sprint goals</p></div>
+                    <div class="tf-card"><span class="tf-tag">Dev</span><p>Task due-date picker</p></div>
+                    <div class="tf-card"><span class="tf-tag tf-tag--v">Viewer</span><p>Review release notes</p></div>
                   </div>
-                  <div class="pulse-main" aria-hidden="true">
-                    <div class="pulse-head">
-                      <div>
-                        <p class="pulse-title">Overview</p>
-                        <p class="pulse-sub">Your business, at a glance.</p>
-                      </div>
-                      <p class="pulse-range">Last 30 days ⌄</p>
-                    </div>
-                    <div class="pulse-stats">
-                      <div class="pulse-stat is-lime"><span>Total revenue</span><strong>$48,250</strong></div>
-                      <div class="pulse-stat"><span>Active customers</span><strong>2,846</strong></div>
-                      <div class="pulse-stat"><span>Conversion rate</span><strong>6.82%</strong></div>
-                    </div>
-                    <div class="pulse-chart">
-                      <div class="pulse-chart-head"><span>Revenue overview</span><span>+18.6% this month</span></div>
-                      <div class="pulse-bars">
-                        <i style="--h:22%"></i><i style="--h:34%"></i><i style="--h:26%"></i><i style="--h:44%"></i>
-                        <i style="--h:40%"></i><i style="--h:54%"></i><i style="--h:46%"></i><i style="--h:60%"></i>
-                        <i style="--h:50%"></i><i style="--h:68%"></i><i style="--h:62%"></i><i style="--h:80%"></i>
-                        <i style="--h:72%"></i><i class="is-last" style="--h:90%"></i>
-                      </div>
-                    </div>
+                  <div class="tf-col">
+                    <p class="tf-col-head">In progress <span>2</span></p>
+                    <div class="tf-card"><span class="tf-tag tf-tag--o">Owner</span><p>Invite members by email</p><i class="tf-bar"><b style="width:65%"></b></i></div>
+                    <div class="tf-card"><span class="tf-tag">Dev</span><p>Role permissions</p><i class="tf-bar"><b style="width:40%"></b></i></div>
+                  </div>
+                  <div class="tf-col">
+                    <p class="tf-col-head">Done <span>2</span></p>
+                    <div class="tf-card is-done"><span class="tf-tag">Dev</span><p>Email confirmation</p></div>
+                    <div class="tf-card is-done"><span class="tf-tag">Dev</span><p>Create workspaces</p></div>
                   </div>
                 </div>
+              </div>
 
-                <p class="label media-bottom">Analytics without the noise.</p>
-              </div>
-              <div class="feature-info">
-                <h3 class="feature-title">01 / Pulse <span class="arrow" aria-hidden="true">↗</span></h3>
-                <p class="feature-desc">Making business data feel human.</p>
-                <p class="feature-tags">SaaS · UX/UI · Design system</p>
-              </div>
-            </a>
+              <p class="label media-bottom">Streamline your team’s workflow.</p>
+            </div>
+            <div class="feature-info">
+              <h3 id="teamflow-title" class="feature-title">02 / TeamFlow</h3>
+              <p class="feature-desc">A work-management site that keeps a team’s workspaces, tasks and members in one place, with owner, developer and viewer roles.</p>
+              <p class="feature-tags">Django · Django REST Framework · Supabase · PostgreSQL</p>
+              <p class="project-meta">Developer on a six-person team · Private repository</p>
+            </div>
           </article>
 
-          <!-- 02 / Orbit -->
-          <article class="feature reveal">
-            <a class="feature-link" href="#" aria-label="Orbit case study">
-              <div class="feature-media feature-media--blue">
-                <p class="label media-top">Web design / Development</p>
+          <!-- 03 / NewsHub -->
+          <article class="feature reveal" aria-labelledby="newshub-title">
+            <div class="feature-media feature-media--news">
+              <p class="label media-top">Full-stack web app</p>
 
-                <div class="mock mock-orbit" role="img" aria-label="Orbit marketing landing page with the headline Less busywork, more liftoff">
-                  <div class="orbit-nav" aria-hidden="true">
-                    <p class="orbit-logo">orbit<sup>®</sup></p>
-                    <p class="orbit-links"><span>Platform</span><span>Solutions</span><span>Resources</span></p>
-                    <p class="orbit-btn orbit-btn--sm">Sign up ↗</p>
+              <div class="mock mock-news" role="img" aria-label="NewsHub feed with local news stories and an election card">
+                <div class="nh-nav" aria-hidden="true">
+                  <img class="nh-logo" src="assets/projects/newshub-logo.png" alt="">
+                  <p class="nh-brand">NewsHub</p>
+                  <p class="nh-links"><span class="is-active">News</span><span>Elections</span><span>Profile</span></p>
+                </div>
+                <div class="nh-body" aria-hidden="true">
+                  <div class="nh-feed">
+                    <p class="nh-chip">📍 Near you</p>
+                    <div class="nh-story nh-story--lead"><i class="nh-thumb"></i><div><p class="nh-kicker">Local</p><p class="nh-head">City council approves new bike lanes downtown</p><p class="nh-meta">5 min read</p></div></div>
+                    <div class="nh-story"><i class="nh-thumb nh-thumb--b"></i><div><p class="nh-kicker">Community</p><p class="nh-head">Barangay clean-up drive this weekend</p></div></div>
+                    <div class="nh-story"><i class="nh-thumb nh-thumb--c"></i><div><p class="nh-kicker">Weather</p><p class="nh-head">Rain expected through Thursday</p></div></div>
                   </div>
-                  <div class="orbit-hero" aria-hidden="true">
-                    <p class="orbit-eyebrow">The future is a team sport</p>
-                    <p class="orbit-title">Less busywork.<br>More liftoff.</p>
-                    <p class="orbit-sub">Bring your team, tools, and best ideas together.<br>A brighter workspace for whatever comes next.</p>
-                    <p class="orbit-btn">Start your free trial ↗</p>
-                    <div class="orbit-sticker">
-                      <span class="orbit-sticker-eyebrow">Ready for takeoff</span>
-                      <span class="orbit-sticker-title">Big ideas.<br>One workspace.</span>
-                      <span class="orbit-sticker-foot">● All systems go</span>
-                    </div>
-                  </div>
-                  <div class="orbit-logos" aria-hidden="true">
-                    <span class="orbit-logos-label">In good company</span>
-                    <span>Layers</span><span>Quotient</span><span>Circooles</span><span>Sisyphus</span>
+                  <div class="nh-side">
+                    <p class="nh-side-label">Election</p>
+                    <p class="nh-side-title">Student council 2026</p>
+                    <p class="nh-cand"><i></i>Candidate A</p>
+                    <p class="nh-cand"><i></i>Candidate B</p>
+                    <p class="nh-vote">Verify &amp; vote</p>
                   </div>
                 </div>
+              </div>
 
-                <p class="label media-bottom">A new home for ambitious teams.</p>
-              </div>
-              <div class="feature-info">
-                <h3 class="feature-title">02 / Orbit <span class="arrow" aria-hidden="true">↗</span></h3>
-                <p class="feature-desc">A high-converting launch for a better way to work.</p>
-                <p class="feature-tags">Strategy · Website · Development</p>
-              </div>
-            </a>
+              <p class="label media-bottom">Local news and elections, verified.</p>
+            </div>
+            <div class="feature-info">
+              <h3 id="newshub-title" class="feature-title">03 / NewsHub
+                <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+              </h3>
+              <p class="feature-desc">A civic news and election platform: location-aware news, candidate pages, a verified voting flow and an admin dashboard.</p>
+              <p class="feature-tags">React 19 · Spring Boot · PostgreSQL · Supabase Auth · Tailwind CSS</p>
+            </div>
           </article>
         </div>
 
-        <div class="archive">
-          <div class="archive-bar">
-            <p class="label lime">Idea → Interface → Impact</p>
-            <p class="label">A selected collection, not the whole internet.</p>
-          </div>
-          <h3 class="label archive-title">Also in the archive</h3>
-          <ul class="archive-list">
-            <li>
-              <a class="archive-row" href="#">
-                <span class="archive-name">03 / Frame</span>
-                <span class="archive-cat">Portfolio platform · Website</span>
-                <span class="archive-year">2025</span>
-                <span class="arrow" aria-hidden="true">↗</span>
-              </a>
-            </li>
-            <li>
-              <a class="archive-row" href="#">
-                <span class="archive-name">04 / Nomad</span>
-                <span class="archive-cat">Travel planning · Mobile app</span>
-                <span class="archive-year">2024</span>
-                <span class="arrow" aria-hidden="true">↗</span>
-              </a>
-            </li>
-          </ul>
+        <!-- Live demos -->
+        <div class="live-bar">
+          <p class="label lime">Try it live</p>
+          <p class="label">Both run right here in your browser. Nothing to install.</p>
+        </div>
+
+        <div class="live">
+          <!-- 04 / FitCampus: Android emulator -->
+          <article class="live-card reveal" aria-labelledby="fitcampus-title">
+            <!-- To enable the live emulator, paste your Appetize public key into data-appetize-key. -->
+            <div class="phone" data-appetize data-appetize-key="" data-appetize-device="pixel7">
+              <div class="phone-screen fc" aria-hidden="true">
+                <div class="fc-top">
+                  <img src="assets/projects/fitcampus-icon.png" alt="">
+                  <p>FitCampus</p>
+                </div>
+                <p class="fc-hello">Today · Wednesday</p>
+                <div class="fc-today">
+                  <p class="fc-today-label">Free slot 1:00–1:45 PM</p>
+                  <p class="fc-today-title">Dorm-friendly upper body</p>
+                  <p class="fc-today-meta">6 exercises · 25 min · No equipment</p>
+                  <p class="fc-start">Start workout</p>
+                </div>
+                <p class="fc-section">This week</p>
+                <div class="fc-week"><i class="is-done">M</i><i class="is-done">T</i><i class="is-today">W</i><i>T</i><i>F</i><i>S</i><i>S</i></div>
+                <p class="fc-section">Filters</p>
+                <p class="fc-chips"><span class="is-on">No equipment</span><span>Quiet</span><span>Gym</span></p>
+                <p class="fc-streak">🔥 4-day streak</p>
+              </div>
+              <div class="live-cover" data-appetize-cover hidden>
+                <button class="live-start" type="button" data-appetize-start>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+                  Launch emulator
+                </button>
+                <p class="live-hint">Runs the real app on a cloud Android phone.</p>
+              </div>
+            </div>
+            <div class="live-info">
+              <p class="label">Android app / Kotlin</p>
+              <h3 id="fitcampus-title" class="feature-title">04 / FitCampus</h3>
+              <p class="feature-desc">An offline workout planner that fits training into the free time between a student’s classes.</p>
+              <ul class="points">
+                <li>75 guided exercises, filterable by equipment, space and noise</li>
+                <li>Weekly plan sized to class-timetable gaps, with reminders</li>
+                <li>History, streaks and badges, all stored on the phone</li>
+              </ul>
+              <p class="feature-tags">Kotlin · Android SDK · Room · SQLite</p>
+              <p class="project-meta" data-appetize-status>Live emulator coming soon · Private repository</p>
+            </div>
+          </article>
+
+          <!-- 05 / AMBOT: the real Java game, run in the browser by CheerpJ -->
+          <article class="live-card live-card--wide reveal" aria-labelledby="ambot-title">
+            <div class="game" data-game>
+              <div class="game-stage" data-game-stage></div>
+              <div class="live-cover game-cover" data-game-cover>
+                <img class="game-poster" src="games/ambot/poster.png" alt="AMBOT gameplay: the player running across a grassy level">
+                <button class="live-start" type="button" data-game-start>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+                  Play AMBOT
+                </button>
+                <p class="live-hint" data-game-hint>The first load downloads a Java runtime, so give it a moment.</p>
+              </div>
+            </div>
+            <div class="game-controls" role="group" aria-label="Game sound and display">
+              <button class="game-btn" type="button" data-game-mute aria-pressed="false">
+                <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                <span data-game-mute-label>Mute</span>
+              </button>
+              <label class="game-volume">
+                <span>Volume</span>
+                <input type="range" min="0" max="100" value="70" data-game-volume aria-label="Game volume">
+                <output data-game-volume-out>70%</output>
+              </label>
+              <button class="game-btn" type="button" data-game-fullscreen>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                Fullscreen
+              </button>
+            </div>
+            <div class="live-info">
+              <p class="label">Java game / OOP2</p>
+              <h3 id="ambot-title" class="feature-title">05 / AMBOT</h3>
+              <p class="feature-desc">A 2D side-scrolling platformer in Java and Swing. It started as an unfinished OOP2 group project; I’m restoring and finishing it one world at a time.</p>
+              <p class="game-keys"><kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd> attack · <kbd>Esc</kbd> pause</p>
+              <p class="feature-tags">Java · Swing · Tiled · JUnit</p>
+              <p class="project-meta">The real Java game, running in WebAssembly through CheerpJ · Private repository</p>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -204,33 +288,33 @@
         <div class="context reveal">
           <div class="context-copy">
             <p class="label">A little context</p>
-            <h2 id="info-title" class="context-title">One partner.<br>From zero to shipped.</h2>
-            <p class="context-text">I’m Sam, a digital designer with a builder’s mindset. I work at the intersection of strategy, design, and technology to turn complex problems into useful products.</p>
+            <h2 id="info-title" class="context-title">Graduating IT student.<br>Looking for an internship.</h2>
+            <p class="context-text">I’m Ken Patrick Ranis, an IT student in my final year, looking for an internship where I can learn from a real team and ship real work. I build across the stack: web apps with React, Django and Spring Boot, Android apps in Kotlin, and desktop software in Java. I like taking a project from first commit to something people can actually use.</p>
           </div>
           <div class="context-services">
-            <h3 class="label">How I can help</h3>
+            <h3 class="label">What I work with</h3>
             <ul class="services">
-              <li><span>01</span>Web experiences</li>
-              <li><span>02</span>Digital products</li>
-              <li><span>03</span>Creative development</li>
+              <li><span>01</span>Web apps: React, Django, Spring Boot</li>
+              <li><span>02</span>Mobile: Kotlin, Capacitor</li>
+              <li><span>03</span>Desktop &amp; games: Java, Tauri</li>
             </ul>
           </div>
         </div>
 
         <div class="process">
-          <h2 class="label">How we get there</h2>
+          <h2 class="label">How I work</h2>
           <ol class="process-steps">
             <li class="reveal">
-              <h3>01 / Define</h3>
-              <p>Ask better questions. Map the problem. Set the right direction.</p>
+              <h3>01 / Learn</h3>
+              <p>Read the codebase first. Ask good questions. Understand the problem before writing the fix.</p>
             </li>
             <li class="reveal">
-              <h3>02 / Design</h3>
-              <p>Prototype early. Challenge the obvious. Sweat the interactions.</p>
+              <h3>02 / Build</h3>
+              <p>Ship in small, tested steps. Keep the code clear for the next person who reads it.</p>
             </li>
             <li class="reveal">
-              <h3>03 / Deliver</h3>
-              <p>Build with care. Test in the real world. Keep moving forward.</p>
+              <h3>03 / Improve</h3>
+              <p>Take feedback seriously. Refactor, restore and finish what I start.</p>
             </li>
           </ol>
         </div>
@@ -251,11 +335,10 @@
     </main>
 
     <footer class="site-footer wrap">
-      <p>© <span data-year>2026</span> KPR — Independent by design.</p>
+      <p><span data-year>2026</span> Ken Patrick Ranis — Independent by design.</p>
       <ul class="socials">
-        <li><a href="https://www.linkedin.com/" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a></li>
-        <li><a href="https://dribbble.com/" rel="noopener">Dribbble <span aria-hidden="true">↗</span></a></li>
-        <li><a href="https://github.com/" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.linkedin.com/in/ken-patrick-ranis-48b7a830b/" target="_blank" rel="noopener">LinkedIn <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://github.com/Pb2kick" target="_blank" rel="noopener">GitHub <span aria-hidden="true">↗</span></a></li>
       </ul>
       <a class="to-top" href="#top" aria-label="Back to top">↑</a>
     </footer>
