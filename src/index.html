@@ -16,7 +16,7 @@
       })();
     </script>
     <meta name="description" content="Independent designer and builder. I design and build websites and apps that move brands forward — from first idea to final pixel.">
-    <meta name="theme-color" content="#161815">
+    <meta name="theme-color" content="#121412">
     <meta name="color-scheme" content="dark light">
     <!-- The site is already dark; stop the Dark Reader extension from recolouring it. -->
     <meta name="darkreader-lock">
@@ -27,14 +27,14 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="script.js" defer></script>
   </head>
   <body id="top">
     <a class="skip-link" href="#main">Skip to content</a>
 
-    <header class="site-header wrap">
+    <header class="site-header wrap band-dark">
       <a class="logo" href="#top" aria-label="KPR, back to top"><span class="logo-mark" aria-hidden="true"></span></a>
       <p class="label header-tagline">Digital design / Development</p>
       <nav class="site-nav" aria-label="Main">
@@ -55,17 +55,17 @@
 
     <main id="main">
       <!-- Hero -->
-      <section class="hero wrap" aria-labelledby="hero-title">
+      <section class="hero wrap band-dark" aria-labelledby="hero-title">
         <div class="hero-copy">
           <p class="label reveal">Independent designer &amp; builder</p>
-          <h1 id="hero-title" class="hero-title reveal">Digital products.<br>Real-world impact.</h1>
+          <h1 id="hero-title" class="hero-title reveal">Digital products.<br><span class="hero-accent">Real-world impact.</span></h1>
           <p class="hero-lede reveal">I design and build websites and apps that move brands forward — from first idea to final pixel.</p>
           <a class="btn btn--lime reveal" href="#work">Explore my work <span aria-hidden="true">↓</span></a>
         </div>
 
         <aside class="status-card reveal" aria-label="Current status">
           <p class="label">Current status</p>
-          <p class="status-line"><span class="status-dot" aria-hidden="true"></span>Open for collaboration</p>
+          <p class="status-line"><span class="status-dot" aria-hidden="true"></span>Open for Internships &amp; Opportunities</p>
           <div class="status-meta">
             <p class="label">Web design<br>Product design</p>
             <p class="label">Creative dev<br>2026 edition</p>
@@ -84,18 +84,10 @@
         <article class="spotlight reveal" aria-labelledby="gallus-title">
           <div class="spotlight-media">
             <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
-            <video class="spotlight-video" muted loop playsinline preload="none" data-lazy-video
+            <video class="spotlight-video" muted loop playsinline controls preload="none" poster="assets/projects/gallus-poster.webp" data-lazy-video
                    aria-label="Gallus video pitch">
               <source data-src="assets/projects/gallus-pitch.mp4" type="video/mp4">
             </video>
-            <button class="video-toggle video-sound" type="button" data-video-sound aria-pressed="false" aria-label="Turn sound on">
-              <svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            </button>
-            <button class="video-toggle" type="button" data-video-toggle aria-label="Pause video">
-              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
-              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-            </button>
           </div>
           <div class="spotlight-body">
             <p class="label">Capstone project / Mobile + desktop</p>
@@ -291,8 +283,66 @@
         </div>
       </section>
 
+      <!-- Technologies -->
+      <section id="stack" class="stack wrap" aria-labelledby="stack-title">
+        <div class="section-bar">
+          <h2 id="stack-title" class="label">Tools / Technologies I build with</h2>
+          <p class="label lime">Across my projects</p>
+        </div>
+        <div class="stack-groups">
+            <div class="stack-group reveal">
+              <h3 class="label">Languages</h3>
+              <ul class="stack-list">
+                <li><i class="tech-icon" style="--icon: url('assets/tech/openjdk.svg')" aria-hidden="true"></i>Java</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/kotlin.svg')" aria-hidden="true"></i>Kotlin</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/python.svg')" aria-hidden="true"></i>Python</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/typescript.svg')" aria-hidden="true"></i>TypeScript</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/javascript.svg')" aria-hidden="true"></i>JavaScript</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/rust.svg')" aria-hidden="true"></i>Rust</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/html5.svg')" aria-hidden="true"></i>HTML</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/css.svg')" aria-hidden="true"></i>CSS</li>
+              </ul>
+            </div>
+            <div class="stack-group reveal">
+              <h3 class="label">Frameworks &amp; libraries</h3>
+              <ul class="stack-list">
+                <li><i class="tech-icon" style="--icon: url('assets/tech/react.svg')" aria-hidden="true"></i>React</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/springboot.svg')" aria-hidden="true"></i>Spring Boot</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/django.svg')" aria-hidden="true"></i>Django</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/tailwindcss.svg')" aria-hidden="true"></i>Tailwind CSS</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/vite.svg')" aria-hidden="true"></i>Vite</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/capacitor.svg')" aria-hidden="true"></i>Capacitor</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/tauri.svg')" aria-hidden="true"></i>Tauri</li>
+              </ul>
+            </div>
+            <div class="stack-group reveal">
+              <h3 class="label">Data, platforms &amp; tools</h3>
+              <ul class="stack-list">
+                <li><i class="tech-icon" style="--icon: url('assets/tech/postgresql.svg')" aria-hidden="true"></i>PostgreSQL</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/sqlite.svg')" aria-hidden="true"></i>SQLite</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/supabase.svg')" aria-hidden="true"></i>Supabase</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/android.svg')" aria-hidden="true"></i>Android</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/git.svg')" aria-hidden="true"></i>Git</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/github.svg')" aria-hidden="true"></i>GitHub</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/vercel.svg')" aria-hidden="true"></i>Vercel</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/render.svg')" aria-hidden="true"></i>Render</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/junit5.svg')" aria-hidden="true"></i>JUnit 5</li>
+              </ul>
+            </div>
+            <div class="stack-group reveal">
+              <h3 class="label">AI tools</h3>
+              <ul class="stack-list">
+                <li><i class="tech-icon" style="--icon: url('assets/tech/claude.svg')" aria-hidden="true"></i>Claude</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/antigravity.svg')" aria-hidden="true"></i>Antigravity</li>
+                <li><i class="tech-icon" style="--icon: url('assets/tech/codex.svg')" aria-hidden="true"></i>Codex</li>
+              </ul>
+            </div>
+        </div>
+        <p class="stack-note">Logos from Simple Icons. Antigravity and Codex use generic marks.</p>
+      </section>
+
       <!-- Contact -->
-      <section id="contact" class="cta" aria-labelledby="cta-title">
+      <section id="contact" class="cta band-dark" aria-labelledby="cta-title">
         <div class="wrap">
           <p class="label">Next up / Your project</p>
           <h2 id="cta-title" class="cta-title">Got a bold idea?<br>Let’s make it real.</h2>

@@ -11,7 +11,7 @@ const systemLight = window.matchMedia ? matchMedia('(prefers-color-scheme: light
 function applyTheme(theme) {
   root.setAttribute('data-theme', theme);
   if (toggle) toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-  if (themeColor) themeColor.setAttribute('content', theme === 'dark' ? '#161815' : '#f3f2ec');
+  if (themeColor) themeColor.setAttribute('content', '#121412'); // the header is dark in both themes
 }
 
 function savedTheme() {
@@ -70,55 +70,45 @@ function writePref(key, value) {
 
 // ---- 01 / Gallus: promo video, loaded only when it scrolls into view ----
 (function () {
+  // The video uses the browser's own controls (seek bar, volume, fullscreen). It starts
+  // muted when it scrolls into view and pauses when it scrolls away, unless the visitor
+  // paused it themselves.
   const video = document.querySelector('[data-lazy-video]');
-  const toggle = document.querySelector('[data-video-toggle]');
   if (!video) return;
   let loaded = false;
-  let userPaused = reduceMotion; // reduced motion: never autoplay, wait for a click
+  let userPaused = reduceMotion; // reduced motion: never autoplay, wait for the visitor
+  let autoPausing = false;
 
-  function setPausedUi(paused) {
-    if (!toggle) return;
-    toggle.classList.toggle('is-paused', paused);
-    toggle.setAttribute('aria-label', paused ? 'Play video' : 'Pause video');
-  }
   function load() {
     if (loaded) return;
     loaded = true;
     video.querySelectorAll('source[data-src]').forEach((s) => { s.src = s.dataset.src; });
+    video.preload = 'metadata';
     video.load();
   }
-  function play() { load(); video.play().catch(() => setPausedUi(true)); }
+  function play() { load(); video.play().catch(() => {}); }
 
-  video.addEventListener('playing', () => { video.classList.add('is-ready'); setPausedUi(false); });
-  video.addEventListener('pause', () => setPausedUi(true));
-  setPausedUi(userPaused);
-
-  if (toggle) {
-    toggle.addEventListener('click', () => {
-      if (video.paused) { userPaused = false; play(); } else { userPaused = true; video.pause(); }
-    });
-  }
-
-  // The pitch has narration: it autoplays muted, and this button turns the sound on.
-  const soundBtn = document.querySelector('[data-video-sound]');
-  if (soundBtn) {
-    soundBtn.addEventListener('click', () => {
-      video.muted = !video.muted;
-      soundBtn.setAttribute('aria-pressed', String(!video.muted));
-      soundBtn.setAttribute('aria-label', video.muted ? 'Turn sound on' : 'Turn sound off');
-      if (!video.muted && video.paused) { userPaused = false; play(); }
-    });
-  }
+  video.addEventListener('play', () => { userPaused = false; });
+  video.addEventListener('pause', () => {
+    if (autoPausing) autoPausing = false;
+    else userPaused = true; // paused from the controls
+  });
 
   if ('IntersectionObserver' in window) {
     new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) { if (!userPaused) play(); }
-        else if (!video.paused) video.pause();
+        if (entry.isIntersecting) {
+          load(); // so the controls work even when it doesn't autoplay
+          if (!userPaused) play();
+        } else if (!video.paused) {
+          autoPausing = true;
+          video.pause();
+        }
       });
     }, { threshold: 0.35 }).observe(video);
-  } else if (!userPaused) {
-    play();
+  } else {
+    load();
+    if (!userPaused) play();
   }
 })();
 
