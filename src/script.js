@@ -121,7 +121,7 @@ function writePref(key, value) {
   const cover = phone.querySelector('[data-appetize-cover]');
   const start = phone.querySelector('[data-appetize-start]');
   const status = document.querySelector('[data-appetize-status]');
-  if (status) status.textContent = 'Live Android emulator · Private repository';
+  if (status) status.textContent = 'Live Android emulator on Appetize';
   cover.hidden = false;
 
   // Appetize's free plan doesn't allow embedding, so by default the demo opens on Appetize's
