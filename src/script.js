@@ -61,13 +61,6 @@ if ('IntersectionObserver' in window) {
 
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function readPref(key, fallback) {
-  try { const v = localStorage.getItem(key); return v === null ? fallback : v; } catch (e) { return fallback; }
-}
-function writePref(key, value) {
-  try { localStorage.setItem(key, String(value)); } catch (e) { /* storage blocked: lasts this visit only */ }
-}
-
 // ---- 01 / Gallus: promo video, loaded only when it scrolls into view ----
 (function () {
   // The video uses the browser's own controls (seek bar, volume, fullscreen). It starts
@@ -153,8 +146,8 @@ function writePref(key, value) {
 
 // ---- 05 / AMBOT: the real Java game, run in the browser by CheerpJ ----
 // CheerpJ has no Java audio, so the game's web build (tools/ambot-web) hands every
-// sound to the page through the native methods below. That is also what lets the
-// page's mute and volume controls apply to the game.
+// sound to the page through the native methods below, at the levels set in the
+// game's own Options menu.
 (function () {
   const game = document.querySelector('[data-game]');
   if (!game) return;
@@ -163,10 +156,6 @@ function writePref(key, value) {
   const cover = game.querySelector('[data-game-cover]');
   const start = game.querySelector('[data-game-start]');
   const hint = game.querySelector('[data-game-hint]');
-  const muteBtn = document.querySelector('[data-game-mute]');
-  const muteLabel = document.querySelector('[data-game-mute-label]');
-  const volume = document.querySelector('[data-game-volume]');
-  const volumeOut = document.querySelector('[data-game-volume-out]');
   const fullscreenBtn = document.querySelector('[data-game-fullscreen]');
 
   const touchOnly = window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(pointer: fine)').matches;
@@ -176,8 +165,6 @@ function writePref(key, value) {
   const sound = {
     ctx: null, master: null, buffers: new Map(),
     music: null, musicPath: null, musicToken: 0,
-    volume: Number(readPref('ambot-volume', '70')) / 100,
-    muted: readPref('ambot-muted', 'false') === 'true',
   };
   const levelGain = (level) => Math.pow(Math.max(0, Math.min(10, Number(level) || 0)) / 10, 2);
 
@@ -188,13 +175,9 @@ function writePref(key, value) {
       sound.ctx = new AC();
       sound.master = sound.ctx.createGain();
       sound.master.connect(sound.ctx.destination);
-      applyMaster();
     }
     if (sound.ctx.state === 'suspended') sound.ctx.resume();
     return sound.ctx;
-  }
-  function applyMaster() {
-    if (sound.master) sound.master.gain.setTargetAtTime(sound.muted ? 0 : sound.volume, sound.ctx.currentTime, 0.02);
   }
   function decoded(path) {
     const url = 'games/ambot' + path; // the game asks for e.g. /audio/sfx/jump.wav
@@ -260,32 +243,11 @@ function writePref(key, value) {
     async Java_ambot_web_WebSession_jsAwaitReplay() { return new Promise((resolve) => { replayResolve = resolve; }); },
   };
 
-  // --- controls ---
-  function renderSoundUi() {
-    const pct = Math.round(sound.volume * 100);
-    volume.value = pct;
-    volumeOut.textContent = pct + '%';
-    muteBtn.setAttribute('aria-pressed', String(sound.muted));
-    muteLabel.textContent = sound.muted ? 'Unmute' : 'Mute';
-  }
-  muteBtn.addEventListener('click', () => {
-    sound.muted = !sound.muted;
-    writePref('ambot-muted', sound.muted);
-    applyMaster();
-    renderSoundUi();
-  });
-  volume.addEventListener('input', () => {
-    sound.volume = Number(volume.value) / 100;
-    if (sound.muted && sound.volume > 0) { sound.muted = false; writePref('ambot-muted', false); }
-    writePref('ambot-volume', volume.value);
-    applyMaster();
-    renderSoundUi();
-  });
+  // --- controls --- (volume lives in the game's own Options menu)
   fullscreenBtn.addEventListener('click', () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else if (game.requestFullscreen) game.requestFullscreen().catch(() => {});
   });
-  renderSoundUi();
 
   // The Java display keeps the size it was created at (Java doesn't follow later resizes),
   // and CSS scales it to fill the box, the resized box, or the whole screen in fullscreen.
