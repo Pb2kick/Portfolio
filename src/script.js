@@ -110,38 +110,6 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
     [...list.children].forEach((li, i) => li.style.setProperty('--i', i));
   });
 
-  // Copy the email address, with a short confirmation.
-  const toast = document.querySelector('.toast');
-  function showToast(text) {
-    if (!toast) return;
-    toast.textContent = text;
-    toast.classList.add('is-visible');
-    clearTimeout(showToast.timer);
-    showToast.timer = setTimeout(() => toast.classList.remove('is-visible'), 2200);
-  }
-  document.querySelectorAll('[data-copy]').forEach((btn) => {
-    const label = btn.querySelector('[data-copy-label]');
-    btn.addEventListener('click', async () => {
-      const text = btn.dataset.copy;
-      let ok = false;
-      try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
-        // Older browsers or blocked clipboard: fall back to a hidden text field.
-        const field = document.createElement('textarea');
-        field.value = text; field.setAttribute('readonly', ''); field.style.position = 'fixed'; field.style.opacity = '0';
-        document.body.appendChild(field); field.select();
-        try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
-        field.remove();
-      }
-      showToast(ok ? 'Email copied: ' + text : 'Couldn’t copy. The address is ' + text);
-      if (ok && label) {
-        btn.classList.add('is-copied');
-        label.textContent = 'Copied';
-        clearTimeout(btn.resetTimer);
-        btn.resetTimer = setTimeout(() => { btn.classList.remove('is-copied'); label.textContent = 'Copy'; }, 2000);
-      }
-    });
-  });
-
   // Underline the nav link for the section in view.
   const links = [...document.querySelectorAll('.site-nav a[href^="#"]')];
   const targets = links.map((a) => document.querySelector(a.hash)).filter(Boolean);
