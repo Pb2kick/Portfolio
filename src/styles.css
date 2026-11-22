@@ -498,7 +498,7 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 /* ---------- Info ---------- */
 #info { margin-top: 2.9rem; }
 .context {
-  display: grid; grid-template-columns: 1fr 15rem;
+  display: grid; grid-template-columns: 1fr 13rem 15rem;
   gap: 3rem;
   background: var(--surface);
   border: 1px solid var(--card-border);
@@ -515,6 +515,19 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   border-bottom: 1px solid var(--line);
 }
 .services li:first-child { padding-top: .2rem; }
+
+/* OJT details: same divider rows as "What I work with", label over value */
+.context-ojt { padding-top: .1rem; }
+.context-ojt > .label { font-size: .5625rem; margin-bottom: 1.2rem; }
+.ojt-list { margin: 0; }
+.ojt-list > div { padding: .7rem 0 .75rem; border-bottom: 1px solid var(--line); }
+.ojt-list > div:first-child { padding-top: .2rem; }
+.ojt-list dt {
+  font-size: .5625rem; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: .2rem;
+}
+.ojt-list dd { margin: 0; font-size: .8125rem; }
+.ojt-resume { margin-top: 1.3rem; }
 
 .process { padding: 2.1rem 0 3rem; }
 .process > .label { font-size: .5625rem; margin-bottom: 1.6rem; }
@@ -726,6 +739,13 @@ html.theme-switching *::after {
 }
 
 /* ---------- Responsive ---------- */
+/* Context card: three columns get too tight for the headline, so stack
+   the intro on top with OJT details and "What I work with" side by side. */
+@media (max-width: 1180px) {
+  .context { grid-template-columns: 1fr 1fr; }
+  .context-copy { grid-column: 1 / -1; }
+}
+
 @media (max-width: 860px) {
   .site-header { grid-template-columns: auto 1fr auto auto; gap: 1rem; }
   .header-tagline { display: none; }
@@ -736,7 +756,7 @@ html.theme-switching *::after {
   .hero { grid-template-columns: 1fr; padding-bottom: 2.5rem; }
   .portrait-card { max-width: 20rem; justify-self: start; }
 
-  .context { grid-template-columns: 1fr; gap: 2rem; padding: 1.5rem; }
+  .context { gap: 2rem; padding: 1.5rem; }
   .spotlight { grid-template-columns: 1fr; gap: 1.2rem; }
   .spotlight-body { padding: 0 .3rem .4rem; }
   .live { grid-template-columns: 1fr; }
@@ -754,6 +774,7 @@ html.theme-switching *::after {
   .live-bar { flex-direction: column; gap: .5rem; }
 
   .stack-groups { grid-template-columns: 1fr; }
+  .context { grid-template-columns: 1fr; }
   .process-steps { grid-template-columns: 1fr; gap: 1.6rem; }
   .process-steps p { max-width: 16rem; }
 
