@@ -1,0 +1,7 @@
+# Only src/ is served. Keep local and private files out of CLI uploads.
+.env*
+resume/
+.superpowers/
+.claude/
+tools/
+node_modules/
