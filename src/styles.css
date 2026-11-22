@@ -207,13 +207,14 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   transition: transform .3s var(--ease);
 }
 .site-nav a:hover::after { transform: scaleX(1); }
+.nav-count { color: var(--muted); }
 .header-cta { min-width: 8.75rem; justify-content: flex-start; }
 
 /* ---------- Hero ---------- */
 .hero {
   display: grid;
-  grid-template-columns: 1fr minmax(15rem, 18rem);
-  align-items: end;
+  grid-template-columns: 1fr minmax(14rem, 15rem);
+  align-items: start;                          /* card top lines up with the hero label */
   gap: 2rem;
   padding-top: 1.8rem;
   padding-bottom: 3rem;
@@ -240,10 +241,11 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   border-radius: 2px;
   justify-self: end;
   width: 100%;
+  margin-top: -.25rem;                         /* sits a touch above the label, like the mockup */
 }
 .portrait-frame {
   margin: 0 0 .85rem;
-  aspect-ratio: 1 / 1.05;                     /* slightly taller than square, like the mockup */
+  aspect-ratio: 1 / 1.1;                      /* taller than square, like the mockup */
   overflow: hidden;
   /* dark studio backdrop behind the transparent cut-out photo */
   background:
@@ -251,7 +253,7 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 }
 .portrait-frame img {
   display: block; width: 100%; height: 100%;
-  object-fit: cover; object-position: 50% 20%; /* keep the face and shoulder figure in frame */
+  object-fit: cover; object-position: 50% 0;   /* photo is pre-cropped 1 : 1.1 to fill the frame */
   filter: saturate(.92) contrast(1.03);
   transition: transform .8s var(--ease), filter .8s var(--ease);
 }
@@ -263,7 +265,7 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 }
 .portrait-status {
   display: flex; align-items: center; gap: .45rem;
-  color: var(--accent-text); font-size: .8125rem;
+  color: var(--accent-text); font-size: .75rem;
 }
 .portrait-status .status-dot { width: .5rem; height: .5rem; flex: none; }
 .status-dot {
