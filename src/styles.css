@@ -159,6 +159,9 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   position: relative;
   background: var(--header-bg);
 }
+.header-name { color: var(--text); }
+/* Below 960px the full line wraps beside the nav, so only the name stays. */
+@media (max-width: 960px) { .header-role { display: none; } }
 .site-header::after {
   content: ""; position: absolute; left: var(--gutter); right: var(--gutter); bottom: 0;
   height: 1px; background: var(--header-line);
