@@ -498,8 +498,8 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 /* ---------- Info ---------- */
 #info { margin-top: 2.9rem; }
 .context {
-  display: grid; grid-template-columns: 1fr 13rem 15rem;
-  gap: 3rem;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4rem;
   background: var(--surface);
   border: 1px solid var(--card-border);
   padding: 1.45rem 2.2rem 2.5rem 1.4rem;
@@ -507,26 +507,20 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 .context-copy .label { font-size: .5625rem; margin-bottom: 1.6rem; }
 .context-title { font-size: clamp(1.5rem, 3.2vw, 1.75rem); font-weight: 300; line-height: 1.3; text-transform: uppercase; margin-bottom: 1.2rem; }
 .context-text { max-width: 18.75rem; font-size: .6875rem; line-height: 1.45; color: var(--text-soft); }
-.context-services { padding-top: .1rem; }
-.context-services .label { font-size: .5625rem; margin-bottom: 1.2rem; }
-.services li {
-  display: flex; gap: .45rem; font-size: .8125rem;
-  padding: .85rem 0 .9rem;
-  border-bottom: 1px solid var(--line);
-}
-.services li:first-child { padding-top: .2rem; }
-
-/* OJT details: same divider rows as "What I work with", label over value */
+/* OJT details: fills the right half as divider rows, label left and value right */
 .context-ojt { padding-top: .1rem; }
 .context-ojt > .label { font-size: .5625rem; margin-bottom: 1.2rem; }
 .ojt-list { margin: 0; }
-.ojt-list > div { padding: .7rem 0 .75rem; border-bottom: 1px solid var(--line); }
+.ojt-list > div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1.5rem;
+  padding: .85rem 0 .9rem; border-bottom: 1px solid var(--line);
+}
 .ojt-list > div:first-child { padding-top: .2rem; }
 .ojt-list dt {
   font-size: .5625rem; letter-spacing: .02em; text-transform: uppercase;
-  color: var(--muted); margin-bottom: .2rem;
+  color: var(--muted); flex: none;
 }
-.ojt-list dd { margin: 0; font-size: .8125rem; }
+.ojt-list dd { margin: 0; font-size: .8125rem; text-align: right; }
 .ojt-resume { margin-top: 1.3rem; }
 
 .process { padding: 2.1rem 0 3rem; }
@@ -739,11 +733,11 @@ html.theme-switching *::after {
 }
 
 /* ---------- Responsive ---------- */
-/* Context card: three columns get too tight for the headline, so stack
-   the intro on top with OJT details and "What I work with" side by side. */
+/* Context card: two columns get too tight for the headline, so stack
+   the OJT details under the intro. */
 @media (max-width: 1180px) {
-  .context { grid-template-columns: 1fr 1fr; }
-  .context-copy { grid-column: 1 / -1; }
+  .context { grid-template-columns: 1fr; gap: 2.2rem; }
+  .context-ojt { max-width: 30rem; }
 }
 
 @media (max-width: 860px) {
@@ -774,7 +768,6 @@ html.theme-switching *::after {
   .live-bar { flex-direction: column; gap: .5rem; }
 
   .stack-groups { grid-template-columns: 1fr; }
-  .context { grid-template-columns: 1fr; }
   .process-steps { grid-template-columns: 1fr; gap: 1.6rem; }
   .process-steps p { max-width: 16rem; }
 
