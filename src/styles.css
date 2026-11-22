@@ -207,7 +207,6 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   transition: transform .3s var(--ease);
 }
 .site-nav a:hover::after { transform: scaleX(1); }
-.nav-count { color: var(--muted); }
 .header-cta { min-width: 8.75rem; justify-content: flex-start; }
 
 /* ---------- Hero ---------- */
