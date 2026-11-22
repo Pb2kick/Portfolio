@@ -219,7 +219,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   // lighting change rather than movement, so it stays on with reduced motion too.
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (finePointer) {
-    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .status-card')
+    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .portrait-card')
       .forEach((el) => el.classList.add('glow'));
     document.addEventListener('pointermove', (e) => {
       const card = e.target.closest && e.target.closest('.glow');
