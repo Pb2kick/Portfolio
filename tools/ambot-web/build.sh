@@ -46,10 +46,14 @@ patch_line ambot/core/Game.java 'SampledAudio.createOrSilent()' 'new ambot.web.W
 patch_line ambot/core/Game.java 'if (progress.data().fullscreen()) window.toggleFullscreen();' 'if (!window.isFullscreen()) window.toggleFullscreen();'
 patch_line ambot/core/Screen.java 'ScaleMath.fitDevice(' 'ambot.web.WebFit.fitDevice('
 patch_line ambot/core/Game.java 'public void quit() {' 'public void quit() { if (ambot.web.WebSession.quit()) return;'
+# tell the page when the first real frame is on screen, so its loading cover lifts then (not on a black canvas)
+patch_line ambot/core/Screen.java 'g2.setTransform(t);' 'g2.setTransform(t); ambot.web.WebSession.painted();'
 
 # relative paths: on Windows, javac.exe cannot resolve Git Bash's /tmp paths inside @files
 (cd "$WORK" && find src -name '*.java' > sources.txt && "$JAVAC" --release 17 -encoding UTF-8 -nowarn -d classes @sources.txt)
 cp -r "$AMBOT/resources/." "$WORK/classes/"
+# the page plays every sound itself (WebAudio), so keep the ~26 MB of WAV out of the jar CheerpJ downloads
+rm -rf "$WORK/classes/audio"
 
 mkdir -p "$OUT"
 rm -f "$OUT/ambot.jar"

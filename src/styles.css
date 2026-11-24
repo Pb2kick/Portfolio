@@ -474,7 +474,9 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 .game-cover .slides { z-index: -1; }
 .game-stage canvas { image-rendering: pixelated; } /* keep the pixel art sharp when scaled up */
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .game-spinner { animation-duration: 2.4s; } }
+/* A loading indicator is essential motion: keep it turning (slowly) even when animations are off,
+   or the cover looks frozen while the game loads. Beats the global "animation: none !important". */
+@media (prefers-reduced-motion: reduce) { .game-spinner { animation: spin 2.4s linear infinite !important; } }
 .game-cover { background: transparent; }
 .game-btn[hidden] { display: none; }
 .game-hint { font-size: .75rem; color: var(--muted); }

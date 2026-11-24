@@ -445,8 +445,8 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 
   // CheerpJ passes its library object first, then the Java arguments.
   const last = (args, n) => Array.prototype.slice.call(args, -n);
-  // The first sound the game asks for (the menu music) means its first frame is up:
-  // that is when the loading cover lifts, so CheerpJ's own loading screen is never seen.
+  // The loading cover lifts when the game reports its first painted frame (WebSession.painted
+  // in the web build), so neither CheerpJ's own loading screen nor a black canvas is ever seen.
   let ready = false, onReady = null, replayResolve = null;
   function markReady() {
     if (ready) return;
@@ -454,13 +454,17 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
     if (onReady) onReady();
   }
   const natives = {
-    async Java_ambot_web_WebAudio_jsPlaySfx() { markReady(); const [p, l] = last(arguments, 2); playSfx(String(p), l); },
-    async Java_ambot_web_WebAudio_jsPlayMusic() { markReady(); const [p, l] = last(arguments, 2); playMusic(String(p), l); },
+    async Java_ambot_web_WebAudio_jsPlaySfx() { const [p, l] = last(arguments, 2); playSfx(String(p), l); },
+    async Java_ambot_web_WebAudio_jsPlayMusic() { const [p, l] = last(arguments, 2); playMusic(String(p), l); },
     async Java_ambot_web_WebAudio_jsStopMusic() { stopMusic(); },
     async Java_ambot_web_WebAudio_jsMusicVolume() { setMusicLevel(last(arguments, 1)[0]); },
     // Quit from the game's menu: pause behind the cover instead of ending Java (WebSession.java).
     async Java_ambot_web_WebSession_jsQuit() { showQuitCover(); },
     async Java_ambot_web_WebSession_jsAwaitReplay() { return new Promise((resolve) => { replayResolve = resolve; }); },
+    // The first frame has been painted: wait for the browser to show it, then lift the cover.
+    async Java_ambot_web_WebSession_jsFirstFrame() {
+      requestAnimationFrame(() => requestAnimationFrame(markReady));
+    },
   };
 
   // --- controls --- (volume lives in the game's own Options menu)
@@ -530,13 +534,14 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
       return;
     }
 
-    setCover('loading', 'Loading AMBOT…');
+    setCover('loading', 'Downloading the Java runtime… (only slow the first time)');
     audioContext(); // created inside the click, so the browser allows sound
-    onReady = () => setTimeout(() => { setCover('playing'); focusGame(); }, 400);
+    onReady = () => { setCover('playing', 'Esc pauses. If the keys stop working, click the game.'); focusGame(); };
     try {
       if (!initialised) {
         await loadScript(CHEERPJ_LOADER);
         await window.cheerpjInit({ version: 17, natives });
+        hint.textContent = 'Starting AMBOT…';
         baseW = Math.round(game.clientWidth);
         baseH = Math.round(game.clientHeight);
         stage.style.width = baseW + 'px';
@@ -546,7 +551,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
         initialised = true;
         // Safety net in case no sound call ever arrives: lift the cover a while after drawing starts.
         const waitForCanvas = setInterval(() => {
-          if (stage.querySelector('canvas')) { clearInterval(waitForCanvas); setTimeout(markReady, 8000); }
+          if (stage.querySelector('canvas')) { clearInterval(waitForCanvas); setTimeout(markReady, 20000); }
         }, 1000);
       }
       await window.cheerpjRunJar('/app/games/ambot/ambot.jar');
