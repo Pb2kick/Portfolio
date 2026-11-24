@@ -114,7 +114,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   });
 })();
 
-// ---- Hover sounds: a soft synthesized tick on buttons, links and tech chips ----
+// ---- Hover sounds: a short synthesized 8-bit blip on buttons, links and tech chips ----
 // Browsers only allow sound after the visitor's first click or key press, so the ticks
 // start then. The speaker button in the header turns them off (remembered).
 (function () {
@@ -141,26 +141,31 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
     const nowMs = performance.now();
     if (nowMs - last < 60) return; // no machine-gun ticks when sweeping across a row
     last = nowMs;
-    const t = ctx.currentTime, dur = 0.06;
+    // An 8-bit "blip": a square wave that steps up a fifth after 30 ms, softened by a low-pass
+    // filter so it stays crisp without being harsh. Matches the pixel-art game on the page.
+    const t = ctx.currentTime, dur = 0.07;
     const osc = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
     const gain = ctx.createGain();
-    osc.type = 'sine';
+    osc.type = 'square';
     osc.frequency.setValueAtTime(freq, t);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.62, t + dur);
+    osc.frequency.setValueAtTime(freq * 1.5, t + 0.03);
+    filter.type = 'lowpass';
+    filter.frequency.value = 3200;
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(volume, t + 0.006);
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.003);
     gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(gain).connect(ctx.destination);
+    osc.connect(filter).connect(gain).connect(ctx.destination);
     osc.start(t);
     osc.stop(t + dur + 0.02);
   }
 
   // Pitch by kind of element: lower for main buttons, higher for small links and chips.
   function soundFor(el) {
-    if (el.matches('.btn, .live-start')) return [1100, 0.05];
-    if (el.matches('.stack-list li')) return [2400, 0.025];
-    if (el.matches('button')) return [1500, 0.04];
-    return [1900, 0.035];
+    if (el.matches('.btn, .live-start')) return [520, 0.045];
+    if (el.matches('.stack-list li')) return [990, 0.02];
+    if (el.matches('button')) return [660, 0.035];
+    return [784, 0.03];
   }
   const HOVERABLE = 'a, button, .stack-list li';
   document.addEventListener('pointerover', (e) => {
@@ -177,7 +182,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
       enabled = !enabled;
       try { localStorage.setItem('hover-sounds', enabled ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
       render();
-      if (enabled) { unlock(); last = 0; tick(1500, 0.045); } // a tick to confirm sounds are on
+      if (enabled) { unlock(); last = 0; tick(660, 0.04); } // a blip to confirm sounds are on
     });
   }
   render();
