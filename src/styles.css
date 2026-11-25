@@ -93,6 +93,13 @@
 /* Fluid root size: 16px on mobile/laptops, scaling gently on large screens up to 22px. */
 html { scroll-behavior: smooth; font-size: clamp(16px, 0.92rem + 0.25vw, 22px); }
 
+/* Lenis smooth scrolling (script.js). From lenis@1.1.13/dist/lenis.css, minus its rule that
+   switches off pointer events on every iframe while scrolling. */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }

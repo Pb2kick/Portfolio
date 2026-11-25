@@ -93,6 +93,11 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
     }
     const d = Math.abs(distance);
     const duration = Math.min(1200, Math.max(600, d * 0.4));
+    // With Lenis running, let it drive the glide so wheel input and the glide never fight.
+    if (window.kprLenis) {
+      window.kprLenis.scrollTo(y, { duration: duration / 1000, easing: ease, onComplete: () => { if (done) done(); } });
+      return;
+    }
     const t0 = performance.now();
     root.style.scrollBehavior = 'auto'; // our animation drives every frame
     const step = (now) => {
@@ -1064,6 +1069,33 @@ window.kprIntro = (function () {
       else doneCallbacks.push(fn);
     },
   };
+})();
+
+// ---- Lenis: smooth, weighted scrolling across the whole page ----
+// Wheel and trackpad input glide instead of jumping; touch keeps the phone's own native
+// scrolling. Off with reduced motion, and simply absent if the CDN script didn't load.
+window.kprLenis = null;
+(function () {
+  if (reduceMotion || typeof window.Lenis !== 'function') return;
+  const lenis = new Lenis({ lerp: 0.1, smoothWheel: true, wheelMultiplier: 1 });
+  window.kprLenis = lenis;
+
+  // One clock for everything: drive Lenis from GSAP's ticker so ScrollTrigger effects stay
+  // in step with the smoothed position. Without GSAP, run it on its own frame loop.
+  if (window.gsap) {
+    if (window.ScrollTrigger) lenis.on('scroll', window.ScrollTrigger.update);
+    window.gsap.ticker.add((time) => lenis.raf(time * 1000));
+    window.gsap.ticker.lagSmoothing(0);
+  } else {
+    const loop = (time) => { lenis.raf(time); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  }
+
+  // Hold the page still while the intro is up, then hand scrolling back.
+  if (window.kprIntro && window.kprIntro.isActive()) {
+    lenis.stop();
+    window.kprIntro.whenDone(() => lenis.start());
+  }
 })();
 
 // ---- Subtle effects: reading progress, frosted header, cursor glow, active nav ----
