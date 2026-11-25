@@ -1108,37 +1108,42 @@
       return (px / W - 0.5) * 2 * HALF_H_AT_Z0 * aspect;
     }
 
-    // Flowing 3D coil round the mark with a vertical wave and helical pitch, so the dragon passes
-    // behind and in front of KPR. The arc spans ~245 deg: at ~330 deg the tail came back round to
-    // within ~30 deg of the head and the body ran straight through the head and neck.
+    // The diamond round the KPR mark, in screen px ({ cx, cy, r }, r = centre-to-tip), measured
+    // every frame by script.js. The coil is traced just outside it so the logo stays clear.
+    let diamond = null;
+    function headScaleNow() {
+      return debugOverride
+        ? debugOverride.headScale
+        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
+    }
+    // How far outside the diamond the spine runs: half the head's width (cheeks and antlers,
+    // ~0.62 head units) in px, plus a little air, so even the head never crosses the edge.
+    function pathMarginPx() {
+      const pxPerWorld = H / (2 * HALF_H_AT_Z0);
+      return headScaleNow() * 0.75 * pxPerWorld * 1.15 + 14;
+    }
+
+    // The coil follows the outer edge of the diamond. A slightly rounded diamond (L^1.25 norm)
+    // always encloses the real one, so the body bends smoothly at the tips instead of kinking,
+    // and the swim wave only pushes outward. Depth swings the dragon in front of and behind the
+    // logo, but each point is placed so its projection lands on the traced path, so perspective
+    // never pulls it inside the diamond. The arc spans ~245 deg so the tail never meets the head.
     function evalCoilPoint(u, headAngle, timeSec) {
-      const aspect = W / H;
-      const centerLiftY = (liftPx / H) * 2 * HALF_H_AT_Z0;
       const spanRad = TAU * 0.68;
       const a = headAngle - u * spanRad;
-
-      const rxFactor = aspect < 0.85 ? 0.68 : 0.46;
-      const baseRx = Math.min(HALF_H_AT_Z0 * aspect * rxFactor, 2.45) * squeeze * fitScale * (1.0 + u * 0.08);
-      const baseRy = Math.min(baseRx * 0.60, HALF_H_AT_Z0 * 0.39, 1.30) * squeeze * fitScale;
-      const baseRz = Math.min(1.75, baseRx * 0.76) * squeeze;
-
-      const waveAmp = (0.06 + 0.16 * smoothstep(0.0, 0.35, u)) * fitScale * squeeze;
-      const swimY = Math.sin(u * 9.0 - timeSec * 4.4) * waveAmp;
-      const swimR = Math.cos(u * 7.0 - timeSec * 3.6) * waveAmp * 0.65;
-      // Helical S-pitch separates head height cleanly from the trailing coil so the roaring silhouette stays unobstructed
-      const helixY = (0.48 - u) * baseRy * 0.72;
-
-      const lx = Math.cos(a) * (baseRx + swimR);
-      const ly = Math.sin(a) * baseRy * 0.72 + Math.sin(a * 2.0 + 0.4) * baseRy * 0.30 + helixY + swimY;
-      const lz = Math.sin(a) * baseRz;
-
-      const tilt = -0.22;
-      const ct = Math.cos(tilt), st = Math.sin(tilt);
-      return {
-        x: lx * ct - ly * st,
-        y: centerLiftY + lx * st + ly * ct,
-        z: lz,
-      };
+      const d = diamond || { cx: W / 2, cy: H / 2 - liftPx, r: Math.min(W, H) * 0.3 };
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const P = 1.25;
+      const norm = Math.pow(Math.pow(Math.abs(ca), P) + Math.pow(Math.abs(sa), P), 1 / P);
+      const edge = d.r / norm;
+      const margin = pathMarginPx();
+      const swimOut = (0.5 + 0.5 * Math.sin(u * 9.0 - timeSec * 4.4)) * margin * 0.22 * smoothstep(0.0, 0.3, u);
+      const rad = edge + margin + swimOut;
+      const sx = d.cx + ca * rad;
+      const sy = d.cy + sa * rad;
+      const z = Math.sin(a + 0.5) * 1.1; // > 0: in front of the logo, < 0: behind it
+      const k = (9.2 - z) / 9.2;         // undo perspective so the projection lands on (sx, sy)
+      return { x: pxToWorldX(sx) * k, y: pxToWorldY(sy) * k, z };
     }
 
     function updateState(dt, nowMs, phase, phaseAtMs) {
@@ -1246,9 +1251,7 @@
     const spineFrames = new Array(BODY_RINGS);
     function buildDynamicGeometry(nowMs) {
       const tSec = nowMs * 0.001;
-      const headScale = debugOverride
-        ? debugOverride.headScale
-        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
+      const headScale = headScaleNow();
       const bodyLen = debugOverride ? debugOverride.bodyLen : 11.4 * (0.74 + 0.26 * fitScale);
 
       const spinePts = debugOverride
@@ -1273,7 +1276,24 @@
         }
 
         let ux, uy, uz;
-        if (i === 0) {
+        // Circling the diamond: the back faces outward and the belly toward the logo, so the
+        // dorsal spikes and spirit wisps never reach in over KPR. "Outward" is measured on screen,
+        // from the diamond's centre (scaled to this point's depth) to the spine point.
+        let outward = null;
+        if (diamond && !lunge && !debugOverride) {
+          const p = spinePts[i];
+          const k = (9.2 - p.z) / 9.2;
+          let ox = p.x - pxToWorldX(diamond.cx) * k;
+          let oy = p.y - pxToWorldY(diamond.cy) * k;
+          const dotOF = ox * fx + oy * fy;
+          ox -= fx * dotOF; oy -= fy * dotOF;
+          let oz = -fz * dotOF;
+          const ol = Math.hypot(ox, oy, oz);
+          if (ol > 1e-4) outward = [ox / ol, oy / ol, oz / ol];
+        }
+        if (outward) {
+          ux = outward[0]; uy = outward[1]; uz = outward[2];
+        } else if (i === 0) {
           const worldUpX = debugOverride && debugOverride.up ? debugOverride.up[0] : -fx * 0.16;
           const worldUpY = debugOverride && debugOverride.up ? debugOverride.up[1] : 1.0;
           const worldUpZ = debugOverride && debugOverride.up ? debugOverride.up[2] : 0.12;
@@ -1405,9 +1425,10 @@
           const wave1 = Math.sin(t * 4.2 - tSec * 4.8 + w * 0.7) * 0.14 * t;
           const wave2 = Math.cos(t * 3.0 - tSec * 3.8) * 0.11 * t;
           // Sweeps boldly outward horizontally, dips slightly, then flicks up & down at the calligraphic tip
-          const lx = sd * (0.36 + Math.pow(t, 0.76) * 1.58);
+          // Swept back along the head rather than fanned wide, so they don't reach into the diamond
+          const lx = sd * (0.32 + Math.pow(t, 0.76) * 0.72);
           const ly = 0.22 - Math.sin(t * Math.PI * 1.1) * 0.10 + Math.sin(Math.max(0, t - 0.55) * 6.0) * 0.26 + wave1;
-          const lz = 1.08 - Math.pow(t, 1.2) * 1.15 + wave2;
+          const lz = 1.08 - Math.pow(t, 1.1) * 2.2 + wave2;
           wPts.push({
             x: hx + (f0.rx * lx + f0.ux * ly + f0.fx * lz) * headScale,
             y: hy + (f0.ry * lx + f0.uy * ly + f0.fy * lz) * headScale,
@@ -1652,6 +1673,11 @@
         liftPx = px;
         fitScale = fit;
       },
+      // { cx, cy, r } in screen px: the diamond's centre and centre-to-tip distance
+      setDiamond(d) {
+        diamond = d;
+      },
+      pathMarginPx,
       reset() {
         hist.length = 0;
         orbitAngle = 0.85;
