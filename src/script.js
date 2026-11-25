@@ -11,7 +11,7 @@ const systemLight = window.matchMedia ? matchMedia('(prefers-color-scheme: light
 function applyTheme(theme) {
   root.setAttribute('data-theme', theme);
   if (toggle) toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-  if (themeColor) themeColor.setAttribute('content', '#121412'); // the header is dark in both themes
+  if (themeColor) themeColor.setAttribute('content', '#050605'); // the header is Razer dark in both themes
 }
 
 function savedTheme() {
@@ -50,13 +50,16 @@ window.kprStartReveals = function () {
   window.kprStartReveals.started = true;
   const revealItems = document.querySelectorAll('.reveal');
   if (!('IntersectionObserver' in window)) {
-    revealItems.forEach((item) => item.classList.add('is-visible'));
+    revealItems.forEach((item) => item.classList.add('is-visible', 'is-settled'));
     return;
   }
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (!entry.isIntersecting) return;
       entry.target.classList.add('is-visible');
+      if (entry.target.classList.contains('stack-group')) {
+        setTimeout(() => entry.target.classList.add('is-settled'), 650);
+      }
       observer.unobserve(entry.target);
     });
   }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
@@ -72,8 +75,6 @@ if (!root.classList.contains('motion')) window.kprStartReveals();
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---- Smooth, eased scrolling for in-page links ("Get in touch", nav, back to top) ----
-// The browser's own smooth scrolling is switched off by reduced-motion settings; this keeps
-// a short, gentle glide there instead of a jump, and a fuller one otherwise.
 (function () {
   const root = document.documentElement;
   let frame = null;
@@ -85,9 +86,13 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   function glideTo(y, done) {
     stop();
     const start = scrollY, distance = y - start;
-    if (Math.abs(distance) < 2) { if (done) done(); return; }
+    if (reduceMotion || Math.abs(distance) < 2) {
+      window.scrollTo(0, y);
+      if (done) done();
+      return;
+    }
     const d = Math.abs(distance);
-    const duration = reduceMotion ? Math.min(700, Math.max(400, d * 0.2)) : Math.min(1200, Math.max(600, d * 0.4));
+    const duration = Math.min(1200, Math.max(600, d * 0.4));
     const t0 = performance.now();
     root.style.scrollBehavior = 'auto'; // our animation drives every frame
     const step = (now) => {
@@ -111,76 +116,224 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
     const y = hash === '#top' ? 0 : target.getBoundingClientRect().top + scrollY - margin;
     glideTo(Math.max(0, y), () => {
       // Move keyboard focus to where the visitor landed.
-      if (hash !== '#top') {
-        if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
-        target.focus({ preventScroll: true });
-      }
+      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
     });
     if (history.pushState) history.pushState(null, '', hash === '#top' ? location.pathname : hash);
   });
 })();
 
-// ---- Hover sounds: a short synthesized 8-bit blip on buttons, links and tech chips ----
-// Browsers only allow sound after the visitor's first click or key press, so the ticks
-// start then. The speaker button in the header turns them off (remembered).
-(function () {
+// ---- Site Web Audio (tactile Razer UI ticks + cold-steel Dragonblade SFX) ----
+// Browsers only allow sound after the visitor's first click or key press, so auto-loaded
+// intros run visually until interacted with, while explicit clicks/replays play full SFX.
+const siteAudio = (function () {
   const toggle = document.querySelector('[data-sound-toggle]');
   const AC = window.AudioContext || window.webkitAudioContext;
   let enabled = true;
   try { enabled = localStorage.getItem('hover-sounds') !== 'off'; } catch (e) { /* storage blocked */ }
-  let ctx = null, last = 0;
+  let ctx = null, last = 0, noiseBuf = null;
 
   function render() {
     if (!toggle) return;
     toggle.setAttribute('aria-pressed', String(enabled));
-    toggle.setAttribute('aria-label', enabled ? 'Turn hover sounds off' : 'Turn hover sounds on');
+    toggle.setAttribute('aria-label', enabled ? 'Turn UI sounds off' : 'Turn UI sounds on');
   }
   function unlock() {
-    if (!AC) return;
+    if (!AC) return null;
     if (!ctx) ctx = new AC();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    return ctx;
   }
   ['pointerdown', 'keydown', 'touchstart'].forEach((ev) => window.addEventListener(ev, unlock, { passive: true, capture: true }));
 
-  function tick(freq, volume) {
-    if (!enabled || !ctx || ctx.state !== 'running') return;
-    const nowMs = performance.now();
-    if (nowMs - last < 60) return; // no machine-gun ticks when sweeping across a row
-    last = nowMs;
-    // An 8-bit "blip": a square wave that steps up a fifth after 30 ms, softened by a low-pass
-    // filter so it stays crisp without being harsh. Matches the pixel-art game on the page.
-    const t = ctx.currentTime, dur = 0.07;
-    const osc = ctx.createOscillator();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, t);
-    osc.frequency.setValueAtTime(freq * 1.5, t + 0.03);
-    filter.type = 'lowpass';
-    filter.frequency.value = 3200;
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(volume, t + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    osc.connect(filter).connect(gain).connect(ctx.destination);
-    osc.start(t);
-    osc.stop(t + dur + 0.02);
+  function getNoiseBuffer() {
+    if (!ctx) return null;
+    if (!noiseBuf) {
+      const len = Math.floor(ctx.sampleRate * 0.5);
+      noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    }
+    return noiseBuf;
   }
 
-  // Pitch by kind of element: lower for main buttons, higher for small links and chips.
-  function soundFor(el) {
-    if (el.matches('.btn, .live-start')) return [520, 0.045];
-    if (el.matches('.stack-list li')) return [990, 0.02];
-    if (el.matches('button')) return [660, 0.035];
-    return [784, 0.03];
+  // Subtle dampened Razer optical-switch / stealth HUD micro-tick (no pixel square waves)
+  function playHoverTick(bodyFreq, clickFreq, volume) {
+    if (!enabled || !ctx || ctx.state !== 'running') return;
+    const nowMs = performance.now();
+    if (nowMs - last < 55) return; // no machine-gun ticks when sweeping across a row
+    last = nowMs;
+    const t = ctx.currentTime;
+
+    // 1) Crisp 12 ms tactile switch transient
+    const noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer();
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(clickFreq, t);
+    bp.Q.value = 3.2;
+    const nGain = ctx.createGain();
+    nGain.gain.setValueAtTime(0.0001, t);
+    nGain.gain.exponentialRampToValueAtTime(volume * 0.7, t + 0.0015);
+    nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.013);
+    noise.connect(bp).connect(nGain).connect(ctx.destination);
+    noise.start(t);
+    noise.stop(t + 0.018);
+
+    // 2) Short damped low-mid keyswitch body ("thock")
+    const body = ctx.createOscillator();
+    const bGain = ctx.createGain();
+    body.type = 'sine';
+    body.frequency.setValueAtTime(bodyFreq, t);
+    body.frequency.exponentialRampToValueAtTime(Math.max(48, bodyFreq * 0.34), t + 0.02);
+    bGain.gain.setValueAtTime(0.0001, t);
+    bGain.gain.exponentialRampToValueAtTime(volume, t + 0.002);
+    bGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.022);
+    body.connect(bGain).connect(ctx.destination);
+    body.start(t);
+    body.stop(t + 0.026);
   }
-  const HOVERABLE = 'a, button, .stack-list li';
+
+  function playUiConfirm() {
+    if (!enabled || !ctx || ctx.state !== 'running') return;
+    last = 0;
+    playHoverTick(195, 2900, 0.045);
+    const t = ctx.currentTime + 0.028;
+    const ping = ctx.createOscillator();
+    const pGain = ctx.createGain();
+    ping.type = 'sine';
+    ping.frequency.setValueAtTime(1480, t);
+    pGain.gain.setValueAtTime(0.0001, t);
+    pGain.gain.exponentialRampToValueAtTime(0.018, t + 0.003);
+    pGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+    ping.connect(pGain).connect(ctx.destination);
+    ping.start(t);
+    ping.stop(t + 0.065);
+  }
+
+  function playUnsheathe() {
+    if (!enabled || !ctx || ctx.state !== 'running') return;
+    const t = ctx.currentTime;
+
+    // Scabbard steel draw friction
+    const src = ctx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 5.5;
+    filter.frequency.setValueAtTime(3000, t);
+    filter.frequency.exponentialRampToValueAtTime(6400, t + 0.20);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.035);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(t);
+    src.stop(t + 0.24);
+
+    // Fixed inharmonic cold-steel resonance partials ("shing")
+    [2920, 4410, 6080].forEach((freq, idx) => {
+      const mode = ctx.createOscillator();
+      const mGain = ctx.createGain();
+      mode.type = 'sine';
+      mode.frequency.setValueAtTime(freq * 0.992, t);
+      mode.frequency.exponentialRampToValueAtTime(freq, t + 0.03);
+      mGain.gain.setValueAtTime(0.0001, t);
+      mGain.gain.exponentialRampToValueAtTime(0.012 / (idx + 1), t + 0.012);
+      mGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+      mode.connect(mGain).connect(ctx.destination);
+      mode.start(t);
+      mode.stop(t + 0.30);
+    });
+  }
+
+  function playKatanaSlash(step) {
+    if (!enabled || !ctx || ctx.state !== 'running') return;
+    const t = ctx.currentTime;
+    const isCleave = step === 3;
+    const dur = isCleave ? 0.28 : 0.16;
+
+    // 1) Doppler air-whip (accelerates past listener: low -> high peak -> low tail)
+    const air = ctx.createBufferSource();
+    air.buffer = getNoiseBuffer();
+    const airFilter = ctx.createBiquadFilter();
+    airFilter.type = 'bandpass';
+    airFilter.Q.value = isCleave ? 1.55 : 1.85;
+    airFilter.frequency.setValueAtTime(520, t);
+    airFilter.frequency.exponentialRampToValueAtTime(step === 2 ? 3200 : 2850, t + 0.042);
+    airFilter.frequency.exponentialRampToValueAtTime(isCleave ? 260 : 380, t + dur);
+    const airGain = ctx.createGain();
+    airGain.gain.setValueAtTime(0.0001, t);
+    airGain.gain.exponentialRampToValueAtTime(isCleave ? 0.22 : 0.14, t + 0.032);
+    airGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    air.connect(airFilter).connect(airGain).connect(ctx.destination);
+    air.start(t);
+    air.stop(t + dur + 0.03);
+
+    // 2) Sharp metallic blade impact transient (> 5 kHz steel bite)
+    const bite = ctx.createBufferSource();
+    bite.buffer = getNoiseBuffer();
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 5200;
+    const biteGain = ctx.createGain();
+    biteGain.gain.setValueAtTime(0.0001, t + 0.02);
+    biteGain.gain.exponentialRampToValueAtTime(isCleave ? 0.09 : 0.055, t + 0.026);
+    biteGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.052);
+    bite.connect(hp).connect(biteGain).connect(ctx.destination);
+    bite.start(t + 0.018);
+    bite.stop(t + 0.06);
+
+    // 3) Fixed inharmonic steel blade ring (no cartoon downward pitch sweep)
+    const modes = step === 1 ? [2760, 4190, 5840]
+      : step === 2 ? [3040, 4610, 6390]
+      : [2540, 3880, 5420, 7120];
+    const ringTail = isCleave ? 0.42 : 0.20;
+    modes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq * 1.006, t + 0.02);
+      osc.frequency.exponentialRampToValueAtTime(freq, t + 0.045);
+      g.gain.setValueAtTime(0.0001, t + 0.02);
+      g.gain.exponentialRampToValueAtTime((isCleave ? 0.022 : 0.014) / (1 + idx * 0.65), t + 0.028);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + ringTail);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(t + 0.02);
+      osc.stop(t + ringTail + 0.02);
+    });
+
+    // 4) Low-end air displacement punch on the final Dragonblade cleave
+    if (isCleave) {
+      const sub = ctx.createOscillator();
+      const subGain = ctx.createGain();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(96, t + 0.02);
+      sub.frequency.exponentialRampToValueAtTime(34, t + 0.21);
+      subGain.gain.setValueAtTime(0.0001, t + 0.02);
+      subGain.gain.exponentialRampToValueAtTime(0.17, t + 0.032);
+      subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+      sub.connect(subGain).connect(ctx.destination);
+      sub.start(t + 0.02);
+      sub.stop(t + 0.26);
+    }
+  }
+
+  // Tactile switch profiles by element weight
+  function soundFor(el) {
+    if (el.matches('.btn')) return [185, 2700, 0.042];
+    if (el.matches('.stack-list li, .cert-card')) return [295, 3600, 0.022];
+    if (el.matches('button')) return [225, 3100, 0.032];
+    return [255, 3300, 0.026];
+  }
+  const HOVERABLE = 'a, button, .stack-list li, .cert-card';
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType && e.pointerType !== 'mouse') return;
     const el = e.target.closest && e.target.closest(HOVERABLE);
     if (!el || el.closest('[data-game]')) return; // the game has its own sound
     if (e.relatedTarget && el.contains(e.relatedTarget)) return; // still inside the same element
-    const [freq, vol] = soundFor(el);
-    tick(freq, vol);
+    const [bodyFreq, clickFreq, vol] = soundFor(el);
+    playHoverTick(bodyFreq, clickFreq, vol);
   });
 
   if (toggle) {
@@ -188,10 +341,362 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
       enabled = !enabled;
       try { localStorage.setItem('hover-sounds', enabled ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
       render();
-      if (enabled) { unlock(); last = 0; tick(660, 0.04); } // a blip to confirm sounds are on
+      if (enabled) { unlock(); playUiConfirm(); }
     });
   }
   render();
+
+  return {
+    unlock,
+    playUnsheathe,
+    playKatanaSlash,
+    isEnabled: () => enabled,
+  };
+})();
+
+// ---- Genji Shimada Dragonblade Splash Intro ----
+// Zero polygon seam while intact; Slash 1 shatters the diamond reticle, Slash 2 shears
+// the KPR mark into two halves, and Slash 3 cleaves the viewport open into the Hero.
+window.kprIntro = (function () {
+  const splash = document.querySelector('[data-intro-splash]');
+  const canvas = document.querySelector('[data-intro-canvas]');
+  const skipBtn = document.querySelector('[data-intro-skip]');
+  const replayBtn = document.querySelector('[data-intro-replay]');
+  const ctx2d = canvas ? canvas.getContext('2d') : null;
+
+  let active = root.classList.contains('intro-pending') && !!splash && !!ctx2d;
+  const doneCallbacks = [];
+  let raf = 0, runToken = 0, timers = [], activeCleanup = null;
+
+  function markSeen() {
+    try { sessionStorage.setItem('kpr-intro-seen', '1'); } catch (e) {}
+  }
+  function notifyDone() {
+    active = false;
+    while (doneCallbacks.length) {
+      const fn = doneCallbacks.shift();
+      try { fn(); } catch (e) {}
+    }
+  }
+  function clearTimers() {
+    timers.forEach((id) => clearTimeout(id));
+    timers = [];
+    if (raf) { cancelAnimationFrame(raf); raf = 0; }
+  }
+
+  function startSequence(options = {}) {
+    if (!splash || !ctx2d) { notifyDone(); return; }
+    if (activeCleanup) activeCleanup();
+    clearTimers();
+
+    const token = ++runToken;
+    const isReplay = !!options.replay;
+    const returnFocusTo = isReplay ? document.activeElement : null;
+    active = true;
+
+    let W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+    function sizeCanvas() {
+      W = innerWidth;
+      H = innerHeight;
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.round(W * dpr));
+      canvas.height = Math.max(1, Math.round(H * dpr));
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    sizeCanvas();
+
+    splash.classList.remove('is-charging', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+    splash.hidden = false;
+    splash.removeAttribute('aria-hidden');
+    splash.classList.add('is-active');
+    root.classList.remove('intro-pending');
+    root.style.overflow = 'hidden';
+
+    requestAnimationFrame(() => {
+      if (token === runToken) splash.classList.add('is-charging');
+      if (!isReplay && skipBtn) skipBtn.focus({ preventScroll: true });
+    });
+
+    if (isReplay) siteAudio.unlock();
+    siteAudio.playUnsheathe();
+
+    const onSplashPointer = (e) => {
+      if (e.target.closest && e.target.closest('[data-intro-skip]')) return;
+      siteAudio.unlock();
+    };
+    splash.addEventListener('pointerdown', onSplashPointer);
+
+    const slashes = [];
+    const sparks = [];
+    let shake = 0;
+
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    const quadPt = (p0, cp, p1, t) => {
+      const m = 1 - t;
+      return {
+        x: m * m * p0.x + 2 * m * t * cp.x + t * t * p1.x,
+        y: m * m * p0.y + 2 * m * t * cp.y + t * t * p1.y,
+      };
+    };
+
+    function spawnSparks(x, y, vxBase, vyBase, count, speedScale = 1) {
+      for (let i = 0; i < count; i++) {
+        const spread = (Math.random() - 0.5) * 1.45;
+        const speed = (220 + Math.random() * 580) * speedScale;
+        const angle = Math.atan2(vyBase, vxBase) + spread;
+        sparks.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 0.25 + Math.random() * 0.42,
+          age: 0,
+          width: 1.2 + Math.random() * 2.2,
+          color: Math.random() > 0.35 ? '#44d62c' : (Math.random() > 0.4 ? '#28f0b4' : '#eaffea'),
+        });
+      }
+    }
+
+    function spawnRingBurst(cx, cy, radius, count) {
+      for (let i = 0; i < count; i++) {
+        const a = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+        const px = cx + Math.cos(a) * radius * 0.7;
+        const py = cy + Math.sin(a) * radius * 0.7;
+        spawnSparks(px, py, Math.cos(a), Math.sin(a), 1, 0.85);
+      }
+    }
+
+    function addSlash(spec) {
+      const now = performance.now();
+      slashes.push({ ...spec, born: now });
+      const p0 = spec.p0(), cp = spec.cp(), p1 = spec.p1();
+      const dx = p1.x - p0.x, dy = p1.y - p0.y;
+      for (let k = 0; k < 5; k++) {
+        const pt = quadPt(p0, cp, p1, 0.2 + k * 0.16);
+        spawnSparks(pt.x, pt.y, dx, dy, spec.cleave ? 9 : 5, spec.cleave ? 1.25 : 0.9);
+      }
+      shake = spec.cleave ? 10 : 6;
+      siteAudio.playKatanaSlash(spec.step);
+    }
+
+    function drawCrescent(p0, cp, p1, tStart, tEnd, maxW, alpha) {
+      const steps = 28;
+      if (tEnd <= tStart + 0.01) return;
+      const topPts = [], botPts = [];
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const t = tStart + (tEnd - tStart) * u;
+        const pt = quadPt(p0, cp, p1, t);
+        const next = quadPt(p0, cp, p1, Math.min(1, t + 0.01));
+        const prev = quadPt(p0, cp, p1, Math.max(0, t - 0.01));
+        let tx = next.x - prev.x, ty = next.y - prev.y;
+        const len = Math.hypot(tx, ty) || 1;
+        tx /= len; ty /= len;
+        const nx = -ty, ny = tx;
+        const profile = Math.pow(Math.sin(u * Math.PI), 0.75) * maxW;
+        topPts.push({ x: pt.x + nx * profile * 0.85, y: pt.y + ny * profile * 0.85 });
+        botPts.push({ x: pt.x - nx * profile * 0.35, y: pt.y - ny * profile * 0.35 });
+      }
+      ctx2d.save();
+      ctx2d.globalAlpha = alpha;
+      ctx2d.beginPath();
+      ctx2d.moveTo(topPts[0].x, topPts[0].y);
+      for (let i = 1; i < topPts.length; i++) ctx2d.lineTo(topPts[i].x, topPts[i].y);
+      for (let i = botPts.length - 1; i >= 0; i--) ctx2d.lineTo(botPts[i].x, botPts[i].y);
+      ctx2d.closePath();
+
+      ctx2d.shadowColor = '#44d62c';
+      ctx2d.shadowBlur = 28;
+      ctx2d.fillStyle = '#44d62c';
+      ctx2d.fill();
+
+      ctx2d.shadowBlur = 10;
+      ctx2d.shadowColor = '#28f0b4';
+      ctx2d.fillStyle = '#edffea';
+      ctx2d.globalAlpha = alpha * 0.92;
+      ctx2d.fill();
+      ctx2d.restore();
+    }
+
+    let lastFrame = performance.now();
+    function tickFrame(now) {
+      if (token !== runToken) return;
+      const dt = Math.min(0.05, (now - lastFrame) / 1000);
+      lastFrame = now;
+
+      ctx2d.clearRect(0, 0, W, H);
+
+      if (shake > 0.2) {
+        const sx = (Math.random() - 0.5) * shake * 2;
+        const sy = (Math.random() - 0.5) * shake * 2;
+        splash.querySelectorAll('.intro-mark').forEach((m) => {
+          m.style.transform = `translate(calc(-50% + ${sx.toFixed(1)}px), calc(-50% + ${sy.toFixed(1)}px))`;
+        });
+        shake *= 0.80;
+      } else if (shake > 0) {
+        shake = 0;
+        splash.querySelectorAll('.intro-mark').forEach((m) => { m.style.transform = ''; });
+      }
+
+      for (let i = slashes.length - 1; i >= 0; i--) {
+        const s = slashes[i];
+        const age = (now - s.born) / 1000;
+        if (age > s.life) { slashes.splice(i, 1); continue; }
+        const prog = age / s.life;
+        const tEnd = easeOutCubic(Math.min(1, prog * 2.15));
+        const tStart = Math.max(0, (prog - 0.14) * 1.15);
+        const alpha = Math.max(0, 1 - Math.pow(prog, 1.8));
+        drawCrescent(s.p0(), s.cp(), s.p1(), tStart, tEnd, s.width * (1 - prog * 0.45), alpha);
+      }
+
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const sp = sparks[i];
+        sp.age += dt;
+        if (sp.age >= sp.life) { sparks.splice(i, 1); continue; }
+        sp.x += sp.vx * dt;
+        sp.y += sp.vy * dt;
+        sp.vx *= 0.94;
+        sp.vy *= 0.94;
+        const alpha = 1 - sp.age / sp.life;
+        ctx2d.save();
+        ctx2d.globalAlpha = alpha;
+        ctx2d.strokeStyle = sp.color;
+        ctx2d.shadowColor = '#44d62c';
+        ctx2d.shadowBlur = 10;
+        ctx2d.lineWidth = sp.width;
+        ctx2d.beginPath();
+        ctx2d.moveTo(sp.x, sp.y);
+        ctx2d.lineTo(sp.x - sp.vx * 0.032, sp.y - sp.vy * 0.032);
+        ctx2d.stroke();
+        ctx2d.restore();
+      }
+
+      raf = requestAnimationFrame(tickFrame);
+    }
+    raf = requestAnimationFrame(tickFrame);
+
+    // 1) Slash 1: cuts across & physically shatters the diamond cyber-reticle
+    timers.push(setTimeout(() => {
+      if (token !== runToken) return;
+      addSlash({
+        step: 1, life: 0.40, width: Math.max(16, Math.min(W, H) * 0.036),
+        p0: () => ({ x: W * 0.76, y: H * 0.20 }),
+        cp: () => ({ x: W * 0.46, y: H * 0.44 }),
+        p1: () => ({ x: W * 0.24, y: H * 0.80 }),
+      });
+      timers.push(setTimeout(() => {
+        if (token !== runToken) return;
+        splash.classList.add('is-slash-1');
+        spawnRingBurst(W * 0.5, H * 0.5, Math.min(W, H) * 0.22, 20);
+      }, 55));
+    }, 460));
+
+    // 2) Slash 2: counter-cuts straight through KPR, physically shearing the letters in half
+    timers.push(setTimeout(() => {
+      if (token !== runToken) return;
+      addSlash({
+        step: 2, life: 0.42, width: Math.max(18, Math.min(W, H) * 0.04),
+        p0: () => ({ x: W * 0.22, y: H * 0.30 }),
+        cp: () => ({ x: W * 0.52, y: H * 0.47 }),
+        p1: () => ({ x: W * 0.78, y: H * 0.70 }),
+      });
+      timers.push(setTimeout(() => {
+        if (token !== runToken) return;
+        splash.classList.add('is-slash-2');
+        spawnSparks(W * 0.5, H * 0.5, 1, 0.36, 22, 1.05);
+      }, 55));
+    }, 780));
+
+    // 3) Slash 3: sweeping Dragonblade cleave parts the entire viewport open (no ruler line)
+    timers.push(setTimeout(() => {
+      if (token !== runToken) return;
+      addSlash({
+        step: 3, cleave: true, life: 0.48, width: Math.max(24, Math.min(W, H) * 0.052),
+        p0: () => ({ x: W * 1.04, y: H * 0.14 }),
+        cp: () => ({ x: W * 0.50, y: H * 0.50 }),
+        p1: () => ({ x: -W * 0.04, y: H * 0.86 }),
+      });
+      timers.push(setTimeout(() => {
+        if (token !== runToken) return;
+        splash.classList.add('is-cleaved');
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (token !== runToken) return;
+            splash.classList.add('is-parting');
+            if (!isReplay) notifyDone();
+          });
+        });
+      }, 75));
+    }, 1120));
+
+    // 4) Finish and remove overlay cleanly
+    timers.push(setTimeout(() => {
+      if (token !== runToken) return;
+      finish(false);
+    }, 1920));
+
+    function finish(skipped) {
+      if (token !== runToken) return;
+      runToken++;
+      clearTimers();
+      markSeen();
+      const finalizeHide = () => {
+        splash.classList.remove('is-active', 'is-charging', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+        splash.hidden = true;
+        splash.setAttribute('aria-hidden', 'true');
+        root.style.overflow = '';
+        if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+        if (returnFocusTo && returnFocusTo.focus) returnFocusTo.focus({ preventScroll: true });
+      };
+      if (skipped) {
+        splash.classList.add('is-skipping');
+        if (!isReplay) notifyDone();
+        setTimeout(finalizeHide, 240);
+      } else {
+        finalizeHide();
+      }
+      cleanupListeners();
+    }
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); finish(true); }
+    };
+    const onSkip = () => finish(true);
+    function cleanupListeners() {
+      window.removeEventListener('resize', sizeCanvas);
+      window.removeEventListener('keydown', onKey);
+      splash.removeEventListener('pointerdown', onSplashPointer);
+      if (skipBtn) skipBtn.removeEventListener('click', onSkip);
+      activeCleanup = null;
+    }
+
+    window.addEventListener('resize', sizeCanvas);
+    window.addEventListener('keydown', onKey);
+    if (skipBtn) skipBtn.addEventListener('click', onSkip);
+    activeCleanup = () => {
+      clearTimers();
+      cleanupListeners();
+      root.style.overflow = '';
+    };
+  }
+
+  if (active) {
+    startSequence({ replay: false });
+  } else {
+    root.classList.remove('intro-pending');
+    if (splash) { splash.hidden = true; splash.setAttribute('aria-hidden', 'true'); }
+  }
+
+  if (replayBtn) {
+    replayBtn.addEventListener('click', () => startSequence({ replay: true }));
+  }
+
+  return {
+    isActive: () => active,
+    whenDone(fn) {
+      if (!active) fn();
+      else doneCallbacks.push(fn);
+    },
+  };
 })();
 
 // ---- Subtle effects: reading progress, frosted header, cursor glow, active nav ----
@@ -230,7 +735,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   // lighting change rather than movement, so it stays on with reduced motion too.
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (finePointer) {
-    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .portrait-card')
+    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .cert-card, .context, .portrait-card')
       .forEach((el) => el.classList.add('glow'));
     document.addEventListener('pointermove', (e) => {
       const card = e.target.closest && e.target.closest('.glow');
@@ -281,7 +786,6 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   function load() {
     if (loaded) return;
     loaded = true;
-    video.querySelectorAll('source[data-src]').forEach((s) => { s.src = s.dataset.src; });
     video.preload = 'metadata';
     video.load();
   }

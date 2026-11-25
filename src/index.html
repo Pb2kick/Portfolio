@@ -18,18 +18,30 @@
       // over within 3 s (slow or blocked CDN), fall back to the plain CSS animations.
       (function () {
         var c = document.documentElement.classList;
+        var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         window.kprMotionOff = function () {
           if (!c.contains('motion') || c.contains('motion-ready')) return;
           c.remove('motion');
           if (window.kprStartReveals) window.kprStartReveals();
         };
-        if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        window.kprIntroOff = function () {
+          c.remove('intro-pending');
+          var el = document.querySelector('[data-intro-splash]');
+          if (el) { el.hidden = true; el.setAttribute('aria-hidden', 'true'); }
+        };
+        if (reduced) return;
         c.add('motion');
         setTimeout(window.kprMotionOff, 3000);
+        var seen = false;
+        try { seen = sessionStorage.getItem('kpr-intro-seen') === '1'; } catch (e) {}
+        if (!seen) {
+          c.add('intro-pending');
+          setTimeout(window.kprIntroOff, 6000);
+        }
       })();
     </script>
     <meta name="description" content="Independent designer and builder. I design and build websites and apps that move brands forward — from first idea to final pixel.">
-    <meta name="theme-color" content="#121412">
+    <meta name="theme-color" content="#050605">
     <meta name="color-scheme" content="dark light">
     <!-- The site is already dark; stop the Dark Reader extension from recolouring it. -->
     <meta name="darkreader-lock">
@@ -49,6 +61,54 @@
     <script src="motion.js" defer></script>
   </head>
   <body id="top">
+    <div class="intro-splash" data-intro-splash role="dialog" aria-modal="true" aria-label="Genji Dragonblade intro" hidden>
+      <!-- Intact unclipped stage: zero polygon seam before blades strike -->
+      <div class="intro-whole" aria-hidden="true">
+        <div class="intro-grid"></div>
+        <div class="intro-hud intro-hud--tl">
+          <span class="intro-hud-tag">SYS // KPR-01</span>
+          <span class="intro-hud-sub">CHROMA RAZER BLADE</span>
+        </div>
+        <div class="intro-hud intro-hud--br">
+          <span class="intro-hud-sub">龍撃剣 // READY</span>
+        </div>
+        <div class="intro-mark">
+          <div class="intro-reticle intro-reticle--whole"></div>
+          <div class="intro-reticle intro-reticle--shard-a"></div>
+          <div class="intro-reticle intro-reticle--shard-b"></div>
+          <span class="intro-logo intro-logo--whole"></span>
+          <span class="intro-logo intro-logo--shard-top"></span>
+          <span class="intro-logo intro-logo--shard-bot"></span>
+        </div>
+      </div>
+
+      <!-- Screen halves: hidden until the final cleave actively tears the viewport open -->
+      <div class="intro-half intro-half--top" aria-hidden="true">
+        <div class="intro-grid"></div>
+        <div class="intro-hud intro-hud--tl">
+          <span class="intro-hud-tag">SYS // KPR-01</span>
+          <span class="intro-hud-sub">CHROMA RAZER BLADE</span>
+        </div>
+        <div class="intro-mark">
+          <span class="intro-logo intro-logo--shard-top is-forced"></span>
+        </div>
+      </div>
+      <div class="intro-half intro-half--bottom" aria-hidden="true">
+        <div class="intro-grid"></div>
+        <div class="intro-hud intro-hud--br">
+          <span class="intro-hud-sub">龍撃剣 // READY</span>
+        </div>
+        <div class="intro-mark">
+          <span class="intro-logo intro-logo--shard-bot is-forced"></span>
+        </div>
+      </div>
+
+      <canvas class="intro-canvas" data-intro-canvas aria-hidden="true"></canvas>
+      <button class="intro-skip" type="button" data-intro-skip aria-label="Skip intro animation">
+        Skip <kbd aria-hidden="true">Esc</kbd>
+      </button>
+    </div>
+
     <div class="scroll-progress" aria-hidden="true"></div>
     <a class="skip-link" href="#main">Skip to content</a>
 
@@ -58,9 +118,15 @@
       <nav class="site-nav" aria-label="Main">
         <a href="#work">Work</a>
         <a href="#info">Info</a>
+        <a href="#certifications">Certs</a>
       </nav>
       <div class="header-tools">
-        <button class="theme-toggle sound-toggle" type="button" data-sound-toggle aria-pressed="true" aria-label="Turn hover sounds off">
+        <button class="theme-toggle intro-replay" type="button" data-intro-replay aria-label="Replay sword slash intro" title="Replay slash intro">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19.5 4.5 9.5 14.5"/><path d="M19.5 4.5 16.5 9.5 14.5 7.5 19.5 4.5z"/><path d="M8 13l3 3"/><path d="M9.5 14.5 5 19"/><path d="M4.5 9.5c2.2-2.2 5.3-3.2 8.2-2.9"/>
+          </svg>
+        </button>
+        <button class="theme-toggle sound-toggle" type="button" data-sound-toggle aria-pressed="true" aria-label="Turn UI sounds off">
           <svg class="icon-sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>
           </svg>
@@ -354,6 +420,85 @@
             </div>
         </div>
         <p class="stack-note">Logos from Simple Icons. Antigravity and Codex use generic marks.</p>
+      </section>
+
+      <!-- Certifications -->
+      <section id="certifications" class="certs wrap" aria-labelledby="certs-title">
+        <div class="section-bar">
+          <h2 id="certs-title" class="label">Credentials / Verified certifications</h2>
+          <p class="label lime">07 earned</p>
+        </div>
+        <div class="certs-grid">
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">Cloud</span>
+              <span class="label">AWS Academy</span>
+            </div>
+            <h3 class="cert-title">AWS Academy Graduate — Cloud Architecting</h3>
+            <p class="cert-meta">Training Badge · Verified via Credly</p>
+            <a class="feature-link cert-link" href="https://www.credly.com/badges/13411c87-d22e-49dd-9912-55ff76198ec3/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">Cloud</span>
+              <span class="label">AWS Academy</span>
+            </div>
+            <h3 class="cert-title">AWS Academy Graduate — Cloud Foundations</h3>
+            <p class="cert-meta">Training Badge · Verified via Credly</p>
+            <a class="feature-link cert-link" href="https://www.credly.com/badges/1e07ce1f-c949-442d-9d5a-a8b3bf7eae73/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">AI</span>
+              <span class="label">AWS Academy</span>
+            </div>
+            <h3 class="cert-title">AWS Academy Graduate — Generative AI Foundations</h3>
+            <p class="cert-meta">Training Badge · Verified via Credly</p>
+            <a class="feature-link cert-link" href="https://www.credly.com/badges/97e0552f-0e5f-4835-a3a7-376931bf3eb6/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">AI</span>
+              <span class="label">IBM SkillsBuild</span>
+            </div>
+            <h3 class="cert-title">Artificial Intelligence Fundamentals</h3>
+            <p class="cert-meta">Credential Badge · Verified via Credly</p>
+            <a class="feature-link cert-link" href="https://www.credly.com/badges/3f9145d7-0feb-42cd-8941-d9586ded21f6/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">Java / OOP</span>
+              <span class="label">CodeChum · CIT-U</span>
+            </div>
+            <h3 class="cert-title">Java Object-Oriented Programming</h3>
+            <p class="cert-meta">Course Certificate · #10004</p>
+            <a class="feature-link cert-link" href="https://citu.codechum.com/certificates/10004" target="_blank" rel="noopener">View certificate <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">AI</span>
+              <span class="label">ASEAN Foundation</span>
+            </div>
+            <h3 class="cert-title">ASEAN AI-Ready Certificate</h3>
+            <p class="cert-meta">Program Certificate</p>
+            <a class="feature-link cert-link" href="https://drive.google.com/file/d/1j4S4Mkx3tsy-fn5HbDKeiOfBX41udHHW/view?usp=sharing" target="_blank" rel="noopener">View certificate <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+
+          <article class="cert-card reveal">
+            <div class="cert-top">
+              <span class="cert-badge">Design</span>
+              <span class="label">Canva Design School</span>
+            </div>
+            <h3 class="cert-title">Graphic Design Essentials</h3>
+            <p class="cert-meta">Certification Award</p>
+            <a class="feature-link cert-link" href="https://www.canva.com/design-school/certification-award/8273b1c9-0dac-48ad-be4e-5637fcb4cb5e" target="_blank" rel="noopener">View certificate <span class="arrow" aria-hidden="true">↗</span></a>
+          </article>
+        </div>
       </section>
 
       <!-- Contact -->

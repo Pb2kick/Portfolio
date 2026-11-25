@@ -14,6 +14,8 @@
 
   function setUp() {
     if (!html.classList.contains('motion')) return;
+    // Drop the pre-GSAP visibility lock before GSAP reads computed visibility for .from() tweens.
+    html.classList.add('motion-ready');
     const show = (els) => els.forEach((el) => el.classList.add('is-visible'));
     const all = (sel) => [...document.querySelectorAll(sel)];
 
@@ -21,23 +23,26 @@
     const heroItems = all('.hero-copy > .reveal, .portrait-card');
     show(heroItems);
     const headline = SplitText.create('.hero-title .line > span', { type: 'words,chars' });
-    gsap.timeline({ defaults: { ease: 'power3.out' } })
+    const heroTl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } })
       .from('.hero-copy > .label', { autoAlpha: 0, y: 12, duration: 0.6 }, 0)
       .from(headline.chars, { yPercent: 110, duration: 0.9, stagger: 0.02, ease: 'power4.out' }, 0.1)
-      .from('.hero-copy > .reveal:not(.label)', { autoAlpha: 0, y: 16, duration: 0.7, stagger: 0.1, clearProps: 'transform' }, 0.55)
-      .from('.portrait-card', { autoAlpha: 0, y: 24, duration: 0.9, clearProps: 'transform' }, 0.3)
-      .from('.portrait-frame', { clipPath: 'inset(100% 0% 0% 0%)', duration: 1.1, ease: 'power3.inOut', clearProps: 'clipPath' }, 0.35);
+      .from('.hero-copy > .reveal:not(.label)', { autoAlpha: 0, y: 16, duration: 0.7, stagger: 0.1, clearProps: 'transform,opacity,visibility' }, 0.55)
+      .from('.portrait-card', { autoAlpha: 0, y: 24, duration: 0.9, clearProps: 'transform,opacity,visibility' }, 0.3)
+      .from('.portrait-frame img', { clipPath: 'inset(100% 0% 0% 0%)', duration: 1.1, ease: 'power3.inOut', clearProps: 'clipPath' }, 0.35);
 
     // ---- Project cards wipe up into view; the screenshots drift for depth ----
     const cards = all('.spotlight, .feature, .live-card');
     cards.forEach((card) => {
-      gsap.from(card, {
-        autoAlpha: 0, y: 40, clipPath: 'inset(0% 0% 100% 0%)', duration: 1, ease: 'power3.out',
-        // nothing left on the card afterwards: a transform here would trap the game's fullscreen
-        clearProps: 'transform,clipPath',
-        scrollTrigger: { trigger: card, start: 'top 88%', once: true },
-        onStart: () => show([card]),
-      });
+      gsap.fromTo(card,
+        { autoAlpha: 0, y: 40, clipPath: 'inset(0% 0% 100% 0%)' },
+        {
+          autoAlpha: 1, y: 0, clipPath: 'inset(0% 0% 0% 0%)',
+          duration: 1, ease: 'power3.out',
+          // nothing left on the card afterwards: a transform here would trap the game's fullscreen
+          clearProps: 'transform,clipPath,opacity,visibility',
+          scrollTrigger: { trigger: card, start: 'top 90%', once: true },
+          onStart: () => show([card]),
+        });
     });
     all('.shot').forEach((shot) => {
       gsap.fromTo(shot, { '--par-y': '18px' }, {
@@ -54,6 +59,11 @@
       once: true,
       onEnter: (batch) => {
         show(batch); // the tech chips cascade in from the CSS once their group is visible
+        batch.forEach((el) => {
+          if (el.classList.contains('stack-group')) {
+            setTimeout(() => el.classList.add('is-settled'), 650);
+          }
+        });
         gsap.to(batch, { autoAlpha: 1, y: 0, duration: 0.8, stagger: 0.08, ease: 'power3.out', clearProps: 'transform' });
       },
     });
@@ -106,6 +116,13 @@
       }).observe(document.body);
     }
 
-    html.classList.add('motion-ready');
+    if (window.kprIntro && window.kprIntro.whenDone) {
+      window.kprIntro.whenDone(() => {
+        ScrollTrigger.refresh();
+        heroTl.play(0);
+      });
+    } else {
+      heroTl.play(0);
+    }
   }
 })();
