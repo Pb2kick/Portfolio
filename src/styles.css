@@ -262,42 +262,151 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 .hero-lede { max-width: 21rem; font-size: .9375rem; line-height: 1.45; margin-bottom: 1.9rem; padding-left: .2rem; color: var(--text-soft); }
 .hero-copy .btn { margin-left: .2rem; }
 
-.portrait-card {
+/* Hero status line, typed out by the TextType port in script.js. min-height keeps the hero from
+   jumping as lines are typed and deleted. */
+.hero-type { min-height: 1.35em; font-size: .8125rem; font-weight: 600; letter-spacing: .06em; }
+.text-type { position: relative; display: inline-block; white-space: pre-wrap; }
+.text-type__sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.text-type__char { position: relative; }
+.text-type__caret { display: inline-block; width: 0; }
+.text-type__cursor { position: absolute; top: 0; left: 0; white-space: pre; pointer-events: none; will-change: transform; }
+.text-type__blink { display: inline-block; }
+.text-type__shape {
+  display: inline-block; margin-left: .12em;
+  width: max(2px, .09em); height: 1.15em; vertical-align: -.22em;
+  border-radius: 1px; background-color: currentColor;
+}
+
+/* ---------- Profile card (port of React Bits' ProfileCard, MIT, reactbits.dev) ----------
+   A tilting frame round the portrait: a light that follows the pointer, a foil sheen in the
+   site's greens, and a footer with the OJT status and a Contact link. script.js drives the
+   --pc-* variables; without it the card sits flat and still. */
+.profile-card {
+  --pc-light-x: 50%; --pc-light-y: 50%;
+  --pc-pointer-x: 50%; --pc-pointer-y: 50%;
+  --pc-band-x: 50%; --pc-band-y: 50%;
+  --pc-reach: 0; --pc-rotate-x: 0deg; --pc-rotate-y: 0deg;
+  --pc-shift-x: 0px; --pc-shift-y: 0px; --pc-tilt: 0; --pc-active: 0;
+  --pc-radius: 0px; --pc-parallax: 6px; --pc-holo: .55; --pc-glare: .45;
+  --pc-frame: var(--surface);
+  --pc-frame-edge: var(--card-border);
+  --pc-ink: var(--text);
+  --pc-muted: var(--muted);
+  --pc-shade: rgba(0, 0, 0, .4);
+  --pc-sheen: rgba(234, 255, 234, .16);
+  --pc-blend: color-dodge;
+  /* dark studio backdrop with a soft green backlight behind the cut-out portrait */
+  --pc-backdrop: radial-gradient(75% 70% at 50% 35%, rgba(68, 214, 44, .16) 0%, #242a24 52%, #0a0c0a 100%);
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--card-border);
-  padding: .9rem .9rem 1rem;
-  border-radius: 0;
   justify-self: end;
   width: 100%;
   margin-top: -.25rem;
+  perspective: 1000px;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
 }
-.portrait-frame {
-  margin: 0 0 .85rem;
+:root[data-theme="light"] .profile-card { --pc-shade: rgba(24, 24, 27, .14); --pc-sheen: rgba(255, 255, 255, 0); --pc-blend: multiply; }
+.profile-card__body {
+  position: relative;
+  display: flex; flex-direction: column; gap: .55rem;
+  padding: .55rem;
+  background: var(--pc-frame);
+  box-shadow: 0 22px 44px -20px rgba(0, 0, 0, .7), 0 6px 16px -8px rgba(0, 0, 0, .4);
+  transform: rotateX(var(--pc-rotate-x)) rotateY(var(--pc-rotate-y));
+  will-change: transform;
+}
+.profile-card__tile {
+  position: relative;
+  margin: 0;
   aspect-ratio: 1 / 1.1;
-  overflow: hidden;
+  background: var(--pc-backdrop);
   clip-path: var(--chamfer-md);
-  /* dark studio backdrop with subtle Razer green backlight behind the cut-out portrait */
-  background:
-    radial-gradient(75% 70% at 50% 35%, rgba(68, 214, 44, .16) 0%, #242a24 52%, #0a0c0a 100%);
+  overflow: hidden;
+  isolation: isolate;
 }
-.portrait-frame img {
-  display: block; width: 100%; height: 100%;
-  object-fit: cover; object-position: 50% 0;
+.profile-card__sheen, .profile-card__holo, .profile-card__scrim, .profile-card__tile-rim,
+.profile-card__glare, .profile-card__shade, .profile-card__rim {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.profile-card__sheen {
+  background: radial-gradient(farthest-corner circle at calc(var(--pc-light-x) - 10px) calc(var(--pc-light-y) - 10px), var(--pc-sheen) 0%, transparent 55%);
+  opacity: calc(var(--pc-holo) * var(--pc-active));
+}
+/* The foil: React Bits' rainbow spectrum, re-tuned to the site's acid green and teal. */
+.profile-card__holo {
+  --pc-spectrum: repeating-linear-gradient(0deg,
+    hsl(110, 90%, 62%) 5%, hsl(150, 95%, 62%) 10%, hsl(170, 95%, 66%) 15%,
+    hsl(95, 85%, 70%) 20%, hsl(130, 90%, 58%) 25%, hsl(160, 90%, 70%) 30%, hsl(110, 90%, 62%) 35%);
+  --pc-bars: repeating-linear-gradient(-45deg,
+    #0a120a 0%, hsl(130, 12%, 58%) 3.8%, hsl(140, 30%, 66%) 4.5%, hsl(130, 12%, 58%) 5.2%, #0a120a 10%, #0a120a 12%);
+  --pc-falloff: radial-gradient(farthest-corner circle at var(--pc-pointer-x) var(--pc-pointer-y),
+    hsla(0, 0%, 0%, .1) 12%, hsla(0, 0%, 0%, .15) 20%, hsla(0, 0%, 0%, .25) 120%);
+  background-image: var(--pc-spectrum), var(--pc-bars), var(--pc-falloff);
+  background-position: 0 var(--pc-band-y), var(--pc-band-x) var(--pc-band-y), center;
+  background-size: 500% 500%, 300% 300%, 200% 200%;
+  background-blend-mode: color, hard-light;
+  mix-blend-mode: var(--pc-blend);
+  filter: brightness(calc(.66 + .19 * var(--pc-active))) contrast(calc(1.33 + .17 * var(--pc-active))) saturate(calc(.33 + .17 * var(--pc-active)));
+  opacity: calc(var(--pc-holo) * .75 * var(--pc-active));
+}
+.profile-card__photo {
+  position: absolute;
+  inset: calc(var(--pc-parallax) * -1);
+  width: calc(100% + var(--pc-parallax) * 2);
+  height: calc(100% + var(--pc-parallax) * 2);
+  object-fit: cover; object-position: center bottom;
   filter: saturate(.95) contrast(1.04);
-  transition: transform .8s var(--ease), filter .8s var(--ease);
+  transform: translate3d(var(--pc-shift-x), var(--pc-shift-y), 0);
+  pointer-events: none; user-select: none; -webkit-user-select: none;
 }
-.portrait-card:hover .portrait-frame img { transform: scale(1.03); filter: saturate(1.03) contrast(1.06); }
-.portrait-caption { color: var(--muted); margin-bottom: .5rem; }
-.portrait-name {
-  font-size: .9375rem; font-weight: 600; letter-spacing: .03em;
-  text-transform: uppercase; margin-bottom: .3rem;
+.profile-card__scrim {
+  background: linear-gradient(to top, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .5) 12%, rgba(0, 0, 0, .28) 26%, rgba(0, 0, 0, .07) 40%, rgba(0, 0, 0, 0) 52%);
 }
-.portrait-status {
-  display: flex; align-items: center; gap: .45rem;
-  color: var(--accent-text); font-size: .78rem;
+.profile-card__info { position: absolute; left: .85rem; right: .85rem; bottom: .75rem; color: #f0f3ef; }
+.profile-card__name {
+  display: block;
+  font-size: .9375rem; font-weight: 600; line-height: 1.25; letter-spacing: .03em; text-transform: uppercase;
 }
-.portrait-status .status-dot { width: .5rem; height: .5rem; flex: none; }
+.profile-card__title { display: block; margin-top: .2rem; font-size: .75rem; line-height: 1.4; color: rgba(240, 243, 239, .78); }
+.profile-card__tile-rim { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); }
+.profile-card__footer { display: flex; align-items: center; gap: .6rem; min-width: 0; padding: .15rem .3rem .2rem; }
+.profile-card__meta { display: flex; flex: 1; flex-direction: column; gap: .2rem; min-width: 0; }
+.profile-card__handle {
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: .8125rem; font-weight: 600; line-height: 1.25; color: var(--pc-ink);
+}
+.profile-card__status {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .72rem; line-height: 1.25; white-space: nowrap; color: var(--accent-text);
+}
+.profile-card__status::before {
+  content: ""; flex: none; width: .45rem; height: .45rem; border-radius: 50%;
+  background: var(--accent-text); animation: pulse 2.4s infinite;
+}
+.profile-card__contact {
+  display: inline-flex; align-items: center; gap: .35rem; flex: none;
+  height: 2.1rem; padding: 0 .75rem;
+  font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--lime-ink); background: var(--lime);
+  clip-path: var(--chamfer-sm);
+  transition: background-color .2s ease, transform .2s ease;
+}
+.profile-card__contact svg { width: .95rem; height: .95rem; }
+.profile-card__contact:hover { background: var(--lime-hover); }
+.profile-card__contact:active { transform: scale(.96); transition-duration: 0s; }
+.profile-card__glare {
+  background: radial-gradient(farthest-corner circle at var(--pc-light-x) var(--pc-light-y), rgba(255, 255, 255, .8) 0%, rgba(255, 255, 255, .36) 20%, rgba(255, 255, 255, 0) 60%);
+  mix-blend-mode: overlay;
+  opacity: calc(var(--pc-glare) * var(--pc-active));
+}
+.profile-card__shade {
+  background: radial-gradient(farthest-corner circle at var(--pc-light-x) var(--pc-light-y), transparent 30%, var(--pc-shade) 100%);
+  opacity: calc(var(--pc-glare) * var(--pc-tilt));
+}
+.profile-card__rim { box-shadow: inset 0 0 0 1px var(--pc-frame-edge); }
 .status-dot {
   width: .6rem; height: .6rem; border-radius: 50%; background: var(--accent-text);
   animation: pulse 2.4s infinite;
@@ -830,6 +939,85 @@ button.cta-email { padding: 0; color: inherit; font-family: inherit; background:
 .float-top.is-visible { opacity: 1; transform: none; visibility: visible; pointer-events: auto; transition-delay: 0s; }
 .float-top:hover { background: var(--lime-hover); transform: translateY(-3px); }
 .float-top svg { width: 1.1rem; height: 1.1rem; }
+
+/* ---------- Dock (port of React Bits' Dock, MIT, reactbits.dev) ----------
+   Résumé, email, LinkedIn, GitHub and back-to-top, pinned to the bottom centre. Tiles grow with
+   a spring as the pointer nears them (script.js); --dock-base is the resting tile size. */
+.dock {
+  --dock-base: 2.75rem;
+  --dock-gap: .55rem;
+  --dock-pad: .45rem;
+  position: fixed; left: 50%; bottom: .75rem; z-index: 60;
+  display: flex; align-items: flex-end; gap: var(--dock-gap);
+  height: calc(var(--dock-base) + var(--dock-pad) * 2);
+  padding: var(--dock-pad);
+  translate: -50% 0;
+  transition: translate .5s cubic-bezier(.22, 1, .36, 1), opacity .25s ease;
+}
+/* The panel lives on ::before, so its chamfer doesn't clip tiles and labels growing above it. */
+.dock::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: rgba(11, 14, 11, .72);
+  box-shadow: inset 0 0 0 1px rgba(68, 214, 44, .2);
+  clip-path: var(--chamfer-md);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+/* Hidden until the intro has played (no JavaScript: no intro, so it simply shows). */
+.js .dock[data-hidden] { opacity: 0; translate: -50% calc(100% + 1rem); pointer-events: none; }
+.dock-item {
+  position: relative; flex: none;
+  width: var(--dock-base); height: var(--dock-base);
+  margin: 0; padding: 0; border: 0; background: none;
+  color: #eaffea; font: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dock-item:hover, .dock-item:focus-visible { z-index: 1; }
+.dock-tile {
+  position: absolute; left: 0; bottom: 0;
+  width: var(--dock-base); height: var(--dock-base);
+  transform-origin: 0 100%; /* the slot grows right and up, so the tile scales from its bottom-left */
+  pointer-events: none;
+}
+.dock-face {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: linear-gradient(180deg, #1c231c 0%, #0f130f 100%);
+  box-shadow: inset 0 0 0 1px rgba(68, 214, 44, .22), inset 0 1px 0 rgba(255, 255, 255, .06);
+  clip-path: var(--chamfer-sm);
+  transition: filter .2s ease, background-color .2s ease;
+}
+.dock-face svg { width: 46%; height: 46%; color: #44d62c; }
+.dock-item--primary .dock-face { background: #44d62c; box-shadow: none; }
+.dock-item--primary .dock-face svg { color: #040804; }
+.dock-item:active .dock-face { filter: brightness(.78); transition-duration: 0s; }
+.dock-item:focus-visible .dock-face { box-shadow: inset 0 0 0 2px #eaffea; }
+.dock-separator { flex: none; align-self: center; width: 1px; height: calc(var(--dock-base) * .7); background: rgba(68, 214, 44, .22); }
+.dock-label {
+  position: absolute; left: 50%; bottom: calc(100% + .7rem);
+  padding: .4rem .6rem;
+  font-size: .72rem; font-weight: 600; letter-spacing: .04em; line-height: 1; white-space: nowrap;
+  color: #040804; background: #44d62c;
+  clip-path: var(--chamfer-sm);
+  pointer-events: none;
+  opacity: 0; transform: translate(-50%, 4px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+.dock-item:focus-visible .dock-label { opacity: 1; transform: translate(-50%, 0); }
+@media (hover: hover) {
+  .dock-item:hover .dock-label { opacity: 1; transform: translate(-50%, 0); }
+}
+.dock-item[data-hop] .dock-label { opacity: 0; }
+/* With the dock up: it takes over back-to-top, and the page and toast make room for it. */
+html.has-dock .float-top { display: none; }
+html.has-dock .site-footer { padding-bottom: 5.5rem; }
+html.has-dock .toast { bottom: 5.25rem; }
+@media (max-width: 640px) {
+  .dock { --dock-base: 2.5rem; --dock-gap: .45rem; --dock-pad: .4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dock, .dock-label { transition: none; }
+}
 
 /* Hover/focus hint on links to sites that may need waking up */
 [data-tip] { position: relative; }

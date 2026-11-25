@@ -1134,7 +1134,7 @@ window.kprLenis = null;
   // lighting change rather than movement, so it stays on with reduced motion too.
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (finePointer) {
-    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .portrait-card')
+    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context')
       .forEach((el) => el.classList.add('glow'));
     document.addEventListener('pointermove', (e) => {
       const card = e.target.closest && e.target.closest('.glow');
@@ -1728,6 +1728,345 @@ window.kprLenis = null;
       }
       showToast(ok ? 'Email copied to clipboard: ' + text : 'Couldn’t copy it. My email is ' + text);
     });
+  });
+})();
+
+// Run once the intro has finished (or straight away when there's none).
+function kprAfterIntro(fn) {
+  if (window.kprIntro && window.kprIntro.whenDone) window.kprIntro.whenDone(fn);
+  else fn();
+}
+
+// ---- TextType: the hero status line types itself out ----
+// Ported from React Bits' TextType (MIT, reactbits.dev) to plain JS: variable typing speed,
+// a per-character blur-in, backspace deletion, and a bar cursor that glides and blinks.
+// Screen readers get every line at once; reduced motion swaps whole lines without typing.
+(function () {
+  const el = document.querySelector('[data-text-type]');
+  if (!el) return;
+  let lines;
+  try { lines = JSON.parse(el.dataset.textType); } catch (e) { return; }
+  if (!Array.isArray(lines) || !lines.length) return;
+
+  const TYPE_MIN = 45, TYPE_MAX = 85, DELETE_SPEED = 26, PAUSE = 2300, NEXT_LINE = 320;
+  const graphemes = (v) => (typeof Intl !== 'undefined' && Intl.Segmenter)
+    ? Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(v), (p) => p.segment)
+    : Array.from(v);
+
+  el.classList.add('text-type');
+  el.textContent = '';
+  const sr = document.createElement('span');
+  sr.className = 'text-type__sr';
+  sr.textContent = lines.join('. ');
+  const content = document.createElement('span');
+  content.setAttribute('aria-hidden', 'true');
+  const typed = document.createElement('span');
+  const caret = document.createElement('span');
+  caret.className = 'text-type__caret';
+  caret.textContent = '​';
+  content.append(typed, caret);
+  const cursor = document.createElement('span');
+  cursor.className = 'text-type__cursor';
+  cursor.setAttribute('aria-hidden', 'true');
+  const blink = document.createElement('span');
+  blink.className = 'text-type__blink';
+  const shape = document.createElement('span');
+  shape.className = 'text-type__shape';
+  blink.appendChild(shape);
+  cursor.appendChild(blink);
+  el.append(sr, content, cursor);
+
+  // Cursor: a soft blink that holds solid while characters are landing.
+  const blinkAnim = !reduceMotion && blink.animate
+    ? blink.animate([{ opacity: 1 }, { opacity: 1, offset: 0.55 }, { opacity: 0, offset: 0.75 }, { opacity: 1 }], { duration: 1050, iterations: Infinity, easing: 'ease-in-out' })
+    : null;
+  let blinkTimer = 0;
+  function holdBlink() {
+    if (!blinkAnim) return;
+    blinkAnim.pause();
+    blinkAnim.currentTime = 0;
+    clearTimeout(blinkTimer);
+    blinkTimer = setTimeout(() => blinkAnim.play(), 140);
+  }
+  let last = null;
+  function placeCursor(instant) {
+    const x = caret.offsetLeft, y = caret.offsetTop;
+    if (last && Math.abs(last.x - x) < 0.5 && Math.abs(last.y - y) < 0.5) return;
+    const jump = instant || !last || reduceMotion || Math.abs(last.y - y) > 1;
+    last = { x, y };
+    if (window.gsap) {
+      if (jump) { window.gsap.killTweensOf(cursor); window.gsap.set(cursor, { x, y }); }
+      else window.gsap.to(cursor, { x, y, duration: 0.1, ease: 'power3.out', overwrite: true });
+    } else {
+      cursor.style.transform = `translate(${x}px, ${y}px)`;
+    }
+    if (!instant) holdBlink();
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(() => { last = null; placeCursor(true); }).observe(el);
+
+  // Only type while the line is on screen; resume where it left off.
+  let visible = true, pending = null, timer = 0;
+  function schedule(fn, ms) {
+    clearTimeout(timer);
+    timer = setTimeout(() => { if (visible) fn(); else pending = fn; }, ms);
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      if (visible && pending) { const fn = pending; pending = null; fn(); }
+    }).observe(el);
+  }
+
+  let index = 0, chars = graphemes(lines[0]), shown = 0;
+  function typeNext() {
+    if (shown < chars.length) {
+      const span = document.createElement('span');
+      span.className = 'text-type__char';
+      span.textContent = chars[shown];
+      typed.appendChild(span);
+      if (span.animate) {
+        span.animate([{ opacity: 0, filter: 'blur(0.3em)' }, { opacity: 1, filter: 'blur(0em)' }],
+          { duration: 520, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+      }
+      shown++;
+      placeCursor(false);
+      schedule(typeNext, TYPE_MIN + Math.random() * (TYPE_MAX - TYPE_MIN));
+    } else {
+      schedule(deleteNext, PAUSE);
+    }
+  }
+  function deleteNext() {
+    if (shown > 0) {
+      typed.lastChild.remove();
+      shown--;
+      placeCursor(false);
+      schedule(deleteNext, DELETE_SPEED);
+    } else {
+      index = (index + 1) % lines.length;
+      chars = graphemes(lines[index]);
+      schedule(typeNext, NEXT_LINE);
+    }
+  }
+  function swapWhole() { // reduced motion: whole lines, no typing
+    typed.textContent = lines[index];
+    placeCursor(true);
+    index = (index + 1) % lines.length;
+    schedule(swapWhole, PAUSE + 1200);
+  }
+  placeCursor(true);
+  kprAfterIntro(() => schedule(reduceMotion ? swapWhole : typeNext, reduceMotion ? 0 : 450));
+})();
+
+// ---- Profile card: tilt, glare and foil that follow the pointer ----
+// Ported from React Bits' ProfileCard (MIT, reactbits.dev): a damped spring eases the card
+// toward the pointer and writes the --pc-* variables the CSS uses. Reduced motion keeps the
+// light following the pointer but drops the tilt and the photo parallax.
+(function () {
+  const card = document.querySelector('[data-profile-card]');
+  if (!card) return;
+  const TILT = 10, DEPTH = 6;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const size = { width: card.offsetWidth, height: card.offsetHeight };
+  const x = { p: 0, v: 0, target: 0 }, y = { p: 0, v: 0, target: 0 }, light = { p: 0, target: 0 };
+  let raf = 0, last = 0, slowUntil = 0, touchId = null;
+
+  function write() {
+    const angle = reduceMotion ? 0 : TILT;
+    const depth = reduceMotion ? 0 : DEPTH;
+    const tilt = Math.min(1, Math.hypot(x.p, y.p));
+    const s = card.style;
+    s.setProperty('--pc-light-x', `${((x.p + 1) * 0.5 * size.width).toFixed(1)}px`);
+    s.setProperty('--pc-light-y', `${((y.p + 1) * 0.5 * size.height).toFixed(1)}px`);
+    s.setProperty('--pc-pointer-x', `${((x.p + 1) * 50).toFixed(2)}%`);
+    s.setProperty('--pc-pointer-y', `${((y.p + 1) * 50).toFixed(2)}%`);
+    s.setProperty('--pc-band-x', `${(50 + x.p * 15).toFixed(2)}%`);
+    s.setProperty('--pc-band-y', `${(50 + y.p * 15).toFixed(2)}%`);
+    s.setProperty('--pc-rotate-x', `${(y.p * angle).toFixed(3)}deg`);
+    s.setProperty('--pc-rotate-y', `${(-x.p * angle).toFixed(3)}deg`);
+    s.setProperty('--pc-shift-x', `${(x.p * depth).toFixed(2)}px`);
+    s.setProperty('--pc-shift-y', `${(y.p * depth).toFixed(2)}px`);
+    s.setProperty('--pc-reach', tilt.toFixed(4));
+    s.setProperty('--pc-tilt', (tilt * light.p).toFixed(4));
+    s.setProperty('--pc-active', light.p.toFixed(4));
+  }
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000 || 0);
+    last = now;
+    const slow = now < slowUntil;
+    const stiffness = slow ? 24 : 120, damping = slow ? 9 : 16;
+    const steps = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const h = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      for (const axis of [x, y]) {
+        axis.v += (stiffness * (axis.target - axis.p) - damping * axis.v) * h;
+        axis.p += axis.v * h;
+      }
+    }
+    const tau = light.target > light.p ? 0.18 : slow ? 0.9 : 0.45;
+    light.p += (light.target - light.p) * (1 - Math.exp(-dt / tau));
+    write();
+    const moving = Math.abs(x.target - x.p) > 0.0005 || Math.abs(y.target - y.p) > 0.0005 ||
+      Math.abs(x.v) > 0.0005 || Math.abs(y.v) > 0.0005 || Math.abs(light.target - light.p) > 0.002;
+    if (moving) raf = requestAnimationFrame(frame);
+    else { x.p = x.target; y.p = y.target; light.p = light.target; write(); raf = 0; }
+  }
+  function wake() { if (raf) return; last = performance.now(); raf = requestAnimationFrame(frame); }
+  function aim(nx, ny, on) {
+    x.target = clamp(nx, -1, 1); y.target = clamp(ny, -1, 1);
+    light.target = on ? 1 : 0;
+    slowUntil = 0;
+    wake();
+  }
+  function aimAt(e) {
+    const r = card.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    aim(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1, true);
+  }
+  const release = () => aim(0, 0, false);
+  card.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') aimAt(e); });
+  card.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.pointerId === touchId) aimAt(e); });
+  card.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') release(); });
+  card.addEventListener('pointerdown', (e) => { if (e.pointerType === 'mouse') return; touchId = e.pointerId; aimAt(e); });
+  const lift = (e) => { if (e.pointerId !== touchId) return; touchId = null; release(); };
+  card.addEventListener('pointerup', lift);
+  card.addEventListener('pointercancel', lift);
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(() => { size.width = card.offsetWidth; size.height = card.offsetHeight; write(); }).observe(card);
+  }
+  write();
+  // A slow settle from a tilt, once the hero has come in: shows the card is alive.
+  if (!reduceMotion) {
+    kprAfterIntro(() => setTimeout(() => {
+      x.p = 0.62; y.p = -0.55; light.p = 1;
+      slowUntil = performance.now() + 1400;
+      write();
+      wake();
+    }, 650));
+  }
+})();
+
+// ---- Dock: résumé and contacts, one click away anywhere on the page ----
+// Ported from React Bits' Dock (MIT, reactbits.dev): tiles grow on a spring as the pointer
+// nears them, hop when clicked, show a label on hover or focus, and arrow keys move along
+// the row. It slides in once the intro is done. Touch screens get the bar without magnifying.
+(function () {
+  const dock = document.querySelector('[data-dock]');
+  if (!dock) return;
+  const items = [...dock.children].filter((n) => n.classList.contains('dock-item') || n.classList.contains('dock-separator'));
+  const MASS = 0.1, STIFFNESS = 150, DAMPING = 12, HOP = 0.4, HOP_TIME = 0.38;
+  const fine = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const motion = new Map();
+  const pointer = { x: 0, inside: false };
+  let base = 44, peak = 62, distance = 176, gap = 8, focused = -1, raf = 0, last = 0;
+
+  function measure() {
+    const cs = getComputedStyle(dock);
+    const rem = parseFloat(getComputedStyle(root).fontSize) || 16;
+    const read = (name, fallback) => { const v = cs.getPropertyValue(name).trim(); return v.endsWith('rem') ? parseFloat(v) * rem : parseFloat(v) || fallback; };
+    const next = read('--dock-base', 44);
+    motion.forEach((s) => { s.size *= next / base; s.velocity *= next / base; });
+    base = next; peak = base * 1.42; distance = base * 4; gap = read('--dock-gap', 8);
+    wake();
+  }
+  function state(i) {
+    let s = motion.get(i);
+    if (!s) { s = { size: base, velocity: 0, lift: 0, rise: 0, launch: 0, gravity: 0, hopping: false, drawn: '' }; motion.set(i, s); }
+    return s;
+  }
+  function restCentres() {
+    const spans = items.map((n) => (n.classList.contains('dock-separator') ? 1 : base));
+    let cursor = -(spans.reduce((a, b) => a + b, 0) + gap * Math.max(0, spans.length - 1)) / 2;
+    return spans.map((span) => { const mid = cursor + span / 2; cursor += span + gap; return mid; });
+  }
+  function tick(now) {
+    raf = 0;
+    const dt = Math.min(1 / 30, Math.max(0.001, (now - last) / 1000));
+    last = now;
+    const rect = dock.getBoundingClientRect();
+    const centre = rect.left + rect.width / 2;
+    const rest = restCentres();
+    let focus = null;
+    if (pointer.inside) focus = pointer.x - centre;
+    else if (rest[focused] !== undefined) focus = rest[focused];
+    const steps = Math.max(1, Math.ceil(dt * 240)), h = dt / steps;
+    const k = STIFFNESS / MASS, c = DAMPING / MASS;
+    let moving = false;
+    items.forEach((node, i) => {
+      if (node.classList.contains('dock-separator')) return;
+      const s = state(i);
+      const reach = focus === null ? 1 : Math.abs(focus - rest[i]) / distance;
+      const target = base + (peak - base) * (reach < 1 ? Math.cos((reach * Math.PI) / 2) ** 2 : 0);
+      if (reduceMotion) { s.size = target; s.velocity = 0; }
+      else {
+        for (let n = 0; n < steps; n++) {
+          s.velocity = (s.velocity + h * k * (target - s.size)) / (1 + h * c + h * h * k);
+          s.size += s.velocity * h;
+          if (!s.hopping) continue;
+          s.rise -= s.gravity * h;
+          s.lift += s.rise * h;
+          if (s.lift > 0) continue;
+          s.lift = 0;
+          s.rise *= -0.36;
+          if (s.rise < s.launch * 0.2) { s.rise = 0; s.hopping = false; node.removeAttribute('data-hop'); }
+        }
+      }
+      if (Math.abs(s.velocity) < 0.01 && Math.abs(target - s.size) < 0.01) { s.size = target; s.velocity = 0; }
+      else moving = true;
+      if (s.hopping) moving = true;
+      const size = Math.max(1, s.size);
+      const drawn = size.toFixed(2) + ' ' + s.lift.toFixed(2);
+      if (drawn === s.drawn) return;
+      s.drawn = drawn;
+      node.style.width = size + 'px';
+      node.style.height = size + 'px';
+      const tile = node.firstElementChild;
+      if (tile) tile.style.transform = `translateY(${-s.lift}px) scale(${size / base})`;
+    });
+    if (moving) raf = requestAnimationFrame(tick);
+  }
+  function wake() { if (raf) return; last = performance.now(); raf = requestAnimationFrame(tick); }
+  function hop(i) {
+    const node = items[i];
+    if (reduceMotion || !node) return;
+    const s = state(i);
+    if (s.hopping) return;
+    const height = s.size * HOP;
+    s.gravity = (8 * height) / (HOP_TIME * HOP_TIME);
+    s.launch = (s.gravity * HOP_TIME) / 2;
+    s.rise = s.launch;
+    s.hopping = true;
+    node.setAttribute('data-hop', '');
+    wake();
+  }
+
+  if (fine) {
+    dock.addEventListener('pointermove', (e) => { pointer.x = e.clientX; pointer.inside = true; wake(); });
+    dock.addEventListener('pointerleave', () => { pointer.inside = false; wake(); });
+  }
+  const buttons = items.filter((n) => n.classList.contains('dock-item'));
+  items.forEach((node, i) => {
+    if (!node.classList.contains('dock-item')) return;
+    node.addEventListener('click', () => hop(i));
+    node.addEventListener('focus', () => { if (node.matches(':focus-visible')) { focused = i; wake(); } });
+    node.addEventListener('blur', () => { focused = -1; wake(); });
+    node.addEventListener('keydown', (e) => {
+      const at = buttons.indexOf(node);
+      let next;
+      if (e.key === 'ArrowLeft') next = buttons[(at - 1 + buttons.length) % buttons.length];
+      else if (e.key === 'ArrowRight') next = buttons[(at + 1) % buttons.length];
+      else if (e.key === 'Home') next = buttons[0];
+      else if (e.key === 'End') next = buttons[buttons.length - 1];
+      if (!next) return;
+      e.preventDefault();
+      next.focus();
+    });
+  });
+  window.addEventListener('resize', measure);
+  measure();
+
+  kprAfterIntro(() => {
+    root.classList.add('has-dock');
+    requestAnimationFrame(() => dock.removeAttribute('data-hidden'));
   });
 })();
 
