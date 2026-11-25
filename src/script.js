@@ -127,11 +127,19 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
 // Browsers only allow sound after the visitor's first click or key press, so auto-loaded
 // intros run visually until interacted with, while explicit clicks/replays play full SFX.
 const siteAudio = (function () {
+  // Optional: if you have extracted Overwatch audio files, place them in src/assets/sfx/
+  // and set their relative paths below (left blank by default to avoid 404 requests).
+  const CUSTOM_BLADE_AUDIO = {
+    unsheathe: '', // e.g. 'assets/sfx/dragonblade-unsheathe.ogg'
+    swing: '',     // e.g. 'assets/sfx/dragonblade-swing.ogg'
+  };
+
   const toggle = document.querySelector('[data-sound-toggle]');
   const AC = window.AudioContext || window.webkitAudioContext;
   let enabled = true;
   try { enabled = localStorage.getItem('hover-sounds') !== 'off'; } catch (e) { /* storage blocked */ }
-  let ctx = null, last = 0, noiseBuf = null;
+  let ctx = null, last = 0, noiseBuf = null, driveCurve = null;
+  const customBuffers = new Map();
 
   function render() {
     if (!toggle) return;
@@ -149,12 +157,49 @@ const siteAudio = (function () {
   function getNoiseBuffer() {
     if (!ctx) return null;
     if (!noiseBuf) {
-      const len = Math.floor(ctx.sampleRate * 0.5);
+      const len = Math.floor(ctx.sampleRate * 0.65);
       noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
       const data = noiseBuf.getChannelData(0);
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     }
     return noiseBuf;
+  }
+
+  function getDriveShaper() {
+    if (!driveCurve) {
+      driveCurve = new Float32Array(256);
+      for (let i = 0; i < 256; i++) {
+        const x = (i * 2) / 255 - 1;
+        driveCurve[i] = Math.tanh(x * 2.2);
+      }
+    }
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = driveCurve;
+    shaper.oversample = '2x';
+    return shaper;
+  }
+
+  async function playCustomClip(url, playbackRate = 1, volume = 0.55) {
+    if (!url || !enabled || !ctx || ctx.state !== 'running') return false;
+    try {
+      if (!customBuffers.has(url)) {
+        customBuffers.set(url, fetch(url)
+          .then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+          .then((ab) => ctx.decodeAudioData(ab)));
+      }
+      const buf = await customBuffers.get(url);
+      const src = ctx.createBufferSource();
+      const g = ctx.createGain();
+      src.buffer = buf;
+      src.playbackRate.value = playbackRate;
+      g.gain.value = volume;
+      src.connect(g).connect(ctx.destination);
+      src.start();
+      return true;
+    } catch (e) {
+      customBuffers.delete(url);
+      return false;
+    }
   }
 
   // Subtle dampened Razer optical-switch / stealth HUD micro-tick (no pixel square waves)
@@ -213,110 +258,178 @@ const siteAudio = (function () {
 
   function playUnsheathe() {
     if (!enabled || !ctx || ctx.state !== 'running') return;
+    if (CUSTOM_BLADE_AUDIO.unsheathe) {
+      playCustomClip(CUSTOM_BLADE_AUDIO.unsheathe, 1, 0.55);
+      return;
+    }
     const t = ctx.currentTime;
+    const bus = getDriveShaper();
+    const master = ctx.createGain();
+    master.gain.value = 0.85;
+    bus.connect(master).connect(ctx.destination);
 
-    // Scabbard steel draw friction
+    // 1) Heavy cyber-scabbard steel draw + spirit wind swell
     const src = ctx.createBufferSource();
     src.buffer = getNoiseBuffer();
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.Q.value = 5.5;
-    filter.frequency.setValueAtTime(3000, t);
-    filter.frequency.exponentialRampToValueAtTime(6400, t + 0.20);
+    filter.Q.value = 4.2;
+    filter.frequency.setValueAtTime(1400, t);
+    filter.frequency.exponentialRampToValueAtTime(5600, t + 0.26);
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.035);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-    src.connect(filter).connect(gain).connect(ctx.destination);
+    gain.gain.exponentialRampToValueAtTime(0.075, t + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+    src.connect(filter).connect(gain).connect(bus);
     src.start(t);
-    src.stop(t + 0.24);
+    src.stop(t + 0.32);
 
-    // Fixed inharmonic cold-steel resonance partials ("shing")
-    [2920, 4410, 6080].forEach((freq, idx) => {
+    // 2) Dragon spirit energy charge undertone
+    [118, 121.5].forEach((baseF) => {
+      const sp = ctx.createOscillator();
+      const spFilter = ctx.createBiquadFilter();
+      const spGain = ctx.createGain();
+      sp.type = 'sawtooth';
+      sp.frequency.setValueAtTime(baseF, t);
+      sp.frequency.exponentialRampToValueAtTime(baseF * 1.9, t + 0.28);
+      spFilter.type = 'bandpass';
+      spFilter.Q.value = 3.5;
+      spFilter.frequency.setValueAtTime(320, t);
+      spFilter.frequency.exponentialRampToValueAtTime(980, t + 0.28);
+      spGain.gain.setValueAtTime(0.0001, t);
+      spGain.gain.exponentialRampToValueAtTime(0.035, t + 0.08);
+      spGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+      sp.connect(spFilter).connect(spGain).connect(bus);
+      sp.start(t);
+      sp.stop(t + 0.34);
+    });
+
+    // 3) Forged steel unsheathe ring ("shing")
+    [2480, 3920, 5680].forEach((freq, idx) => {
       const mode = ctx.createOscillator();
       const mGain = ctx.createGain();
       mode.type = 'sine';
-      mode.frequency.setValueAtTime(freq * 0.992, t);
-      mode.frequency.exponentialRampToValueAtTime(freq, t + 0.03);
-      mGain.gain.setValueAtTime(0.0001, t);
-      mGain.gain.exponentialRampToValueAtTime(0.012 / (idx + 1), t + 0.012);
-      mGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-      mode.connect(mGain).connect(ctx.destination);
-      mode.start(t);
-      mode.stop(t + 0.30);
+      mode.frequency.setValueAtTime(freq * 0.99, t + 0.02);
+      mode.frequency.exponentialRampToValueAtTime(freq, t + 0.05);
+      mGain.gain.setValueAtTime(0.0001, t + 0.02);
+      mGain.gain.exponentialRampToValueAtTime(0.018 / (idx + 1), t + 0.035);
+      mGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+      mode.connect(mGain).connect(bus);
+      mode.start(t + 0.02);
+      mode.stop(t + 0.38);
     });
   }
 
+  // Dragonblade Ultimate swing: heavy kendo air-whip + spectral dragon roar + FM cyber-steel cut
   function playKatanaSlash(step) {
     if (!enabled || !ctx || ctx.state !== 'running') return;
-    const t = ctx.currentTime;
     const isCleave = step === 3;
-    const dur = isCleave ? 0.28 : 0.16;
+    if (CUSTOM_BLADE_AUDIO.swing) {
+      const rate = step === 1 ? 1.0 : step === 2 ? 1.07 : 0.86;
+      playCustomClip(CUSTOM_BLADE_AUDIO.swing, rate, isCleave ? 0.72 : 0.56);
+      return;
+    }
 
-    // 1) Doppler air-whip (accelerates past listener: low -> high peak -> low tail)
+    const t = ctx.currentTime;
+    const dur = isCleave ? 0.44 : 0.30;
+    const pitchMul = step === 2 ? 1.08 : isCleave ? 0.88 : 1.0;
+
+    const bus = getDriveShaper();
+    const master = ctx.createGain();
+    master.gain.value = isCleave ? 0.95 : 0.80;
+    bus.connect(master).connect(ctx.destination);
+
+    // 1) Heavy kendo katana chesty air-whip (deep low-mid swing, not thin white noise)
     const air = ctx.createBufferSource();
     air.buffer = getNoiseBuffer();
-    const airFilter = ctx.createBiquadFilter();
-    airFilter.type = 'bandpass';
-    airFilter.Q.value = isCleave ? 1.55 : 1.85;
-    airFilter.frequency.setValueAtTime(520, t);
-    airFilter.frequency.exponentialRampToValueAtTime(step === 2 ? 3200 : 2850, t + 0.042);
-    airFilter.frequency.exponentialRampToValueAtTime(isCleave ? 260 : 380, t + dur);
+    const airBand = ctx.createBiquadFilter();
+    airBand.type = 'bandpass';
+    airBand.Q.value = 1.05;
+    airBand.frequency.setValueAtTime(160 * pitchMul, t);
+    airBand.frequency.exponentialRampToValueAtTime(1280 * pitchMul, t + 0.065);
+    airBand.frequency.exponentialRampToValueAtTime(175 * pitchMul, t + dur);
+    const bodyBoost = ctx.createBiquadFilter();
+    bodyBoost.type = 'peaking';
+    bodyBoost.frequency.value = 250;
+    bodyBoost.gain.value = 7;
     const airGain = ctx.createGain();
     airGain.gain.setValueAtTime(0.0001, t);
-    airGain.gain.exponentialRampToValueAtTime(isCleave ? 0.22 : 0.14, t + 0.032);
+    airGain.gain.exponentialRampToValueAtTime(isCleave ? 0.34 : 0.24, t + 0.048);
     airGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    air.connect(airFilter).connect(airGain).connect(ctx.destination);
+    air.connect(airBand).connect(bodyBoost).connect(airGain).connect(bus);
     air.start(t);
-    air.stop(t + dur + 0.03);
+    air.stop(t + dur + 0.04);
 
-    // 2) Sharp metallic blade impact transient (> 5 kHz steel bite)
-    const bite = ctx.createBufferSource();
-    bite.buffer = getNoiseBuffer();
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 5200;
-    const biteGain = ctx.createGain();
-    biteGain.gain.setValueAtTime(0.0001, t + 0.02);
-    biteGain.gain.exponentialRampToValueAtTime(isCleave ? 0.09 : 0.055, t + 0.026);
-    biteGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.052);
-    bite.connect(hp).connect(biteGain).connect(ctx.destination);
-    bite.start(t + 0.018);
-    bite.stop(t + 0.06);
-
-    // 3) Fixed inharmonic steel blade ring (no cartoon downward pitch sweep)
-    const modes = step === 1 ? [2760, 4190, 5840]
-      : step === 2 ? [3040, 4610, 6390]
-      : [2540, 3880, 5420, 7120];
-    const ringTail = isCleave ? 0.42 : 0.20;
-    modes.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq * 1.006, t + 0.02);
-      osc.frequency.exponentialRampToValueAtTime(freq, t + 0.045);
-      g.gain.setValueAtTime(0.0001, t + 0.02);
-      g.gain.exponentialRampToValueAtTime((isCleave ? 0.022 : 0.014) / (1 + idx * 0.65), t + 0.028);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + ringTail);
-      osc.connect(g).connect(ctx.destination);
-      osc.start(t + 0.02);
-      osc.stop(t + ringTail + 0.02);
+    // 2) Spectral Dragonblade spirit wind / roar (detuned dual-oscillator formant growl)
+    [134 * pitchMul, 138.5 * pitchMul].forEach((f0) => {
+      const dragon = ctx.createOscillator();
+      const formant = ctx.createBiquadFilter();
+      const dGain = ctx.createGain();
+      dragon.type = 'sawtooth';
+      dragon.frequency.setValueAtTime(f0, t);
+      dragon.frequency.exponentialRampToValueAtTime(f0 * 1.85, t + 0.06);
+      dragon.frequency.exponentialRampToValueAtTime(f0 * 0.68, t + dur);
+      formant.type = 'bandpass';
+      formant.Q.value = 3.6;
+      formant.frequency.setValueAtTime(380 * pitchMul, t);
+      formant.frequency.exponentialRampToValueAtTime(1450 * pitchMul, t + 0.065);
+      formant.frequency.exponentialRampToValueAtTime(290 * pitchMul, t + dur);
+      dGain.gain.setValueAtTime(0.0001, t);
+      dGain.gain.exponentialRampToValueAtTime(isCleave ? 0.095 : 0.065, t + 0.042);
+      dGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      dragon.connect(formant).connect(dGain).connect(bus);
+      dragon.start(t);
+      dragon.stop(t + dur + 0.04);
     });
 
-    // 4) Low-end air displacement punch on the final Dragonblade cleave
-    if (isCleave) {
-      const sub = ctx.createOscillator();
-      const subGain = ctx.createGain();
-      sub.type = 'sine';
-      sub.frequency.setValueAtTime(96, t + 0.02);
-      sub.frequency.exponentialRampToValueAtTime(34, t + 0.21);
-      subGain.gain.setValueAtTime(0.0001, t + 0.02);
-      subGain.gain.exponentialRampToValueAtTime(0.17, t + 0.032);
-      subGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
-      sub.connect(subGain).connect(ctx.destination);
-      sub.start(t + 0.02);
-      sub.stop(t + 0.26);
-    }
+    // 3) FM-modulated forged cyber-steel slice transient ("SHING-KRR")
+    const carrier = ctx.createOscillator();
+    const mod = ctx.createOscillator();
+    const modGain = ctx.createGain();
+    const cGain = ctx.createGain();
+    carrier.type = 'sine';
+    carrier.frequency.setValueAtTime(1580 * pitchMul, t + 0.022);
+    carrier.frequency.exponentialRampToValueAtTime(1420 * pitchMul, t + 0.16);
+    mod.type = 'triangle';
+    mod.frequency.setValueAtTime(2390 * pitchMul, t + 0.022);
+    modGain.gain.setValueAtTime(950, t + 0.022);
+    modGain.gain.exponentialRampToValueAtTime(8, t + 0.095);
+    cGain.gain.setValueAtTime(0.0001, t + 0.022);
+    cGain.gain.exponentialRampToValueAtTime(isCleave ? 0.065 : 0.045, t + 0.03);
+    cGain.gain.exponentialRampToValueAtTime(0.0001, t + (isCleave ? 0.34 : 0.20));
+    mod.connect(modGain).connect(carrier.frequency);
+    carrier.connect(cGain).connect(bus);
+    mod.start(t + 0.022);
+    carrier.start(t + 0.022);
+    mod.stop(t + 0.12);
+    carrier.stop(t + (isCleave ? 0.36 : 0.22));
+
+    // High steel blade shimmer harmonics
+    [3360 * pitchMul, 5080 * pitchMul].forEach((freq, idx) => {
+      const sh = ctx.createOscillator();
+      const sg = ctx.createGain();
+      sh.type = 'sine';
+      sh.frequency.setValueAtTime(freq, t + 0.025);
+      sg.gain.setValueAtTime(0.0001, t + 0.025);
+      sg.gain.exponentialRampToValueAtTime(0.016 / (idx + 1), t + 0.035);
+      sg.gain.exponentialRampToValueAtTime(0.0001, t + (isCleave ? 0.44 : 0.24));
+      sh.connect(sg).connect(bus);
+      sh.start(t + 0.025);
+      sh.stop(t + (isCleave ? 0.46 : 0.26));
+    });
+
+    // 4) Kinetic energy sub-impact on every Dragonblade swing
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(isCleave ? 124 : 104, t + 0.025);
+    sub.frequency.exponentialRampToValueAtTime(34, t + (isCleave ? 0.28 : 0.17));
+    subGain.gain.setValueAtTime(0.0001, t + 0.025);
+    subGain.gain.exponentialRampToValueAtTime(isCleave ? 0.24 : 0.13, t + 0.036);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, t + (isCleave ? 0.32 : 0.19));
+    sub.connect(subGain).connect(bus);
+    sub.start(t + 0.025);
+    sub.stop(t + (isCleave ? 0.34 : 0.21));
   }
 
   // Tactile switch profiles by element weight
@@ -366,7 +479,7 @@ window.kprIntro = (function () {
 
   let active = root.classList.contains('intro-pending') && !!splash && !!ctx2d;
   const doneCallbacks = [];
-  let raf = 0, runToken = 0, timers = [], activeCleanup = null;
+  let raf = 0, runToken = 0, timers = [], activeCleanup = null, unblurTimer = 0;
 
   function markSeen() {
     try { sessionStorage.setItem('kpr-intro-seen', '1'); } catch (e) {}
@@ -378,6 +491,17 @@ window.kprIntro = (function () {
       try { fn(); } catch (e) {}
     }
   }
+  function releaseSiteBlur() {
+    clearTimeout(unblurTimer);
+    if (!root.classList.contains('site-blur-hold')) return;
+    // Force style recalc so the browser transitions smoothly from blur(26px) -> blur(0px)
+    void root.offsetWidth;
+    root.classList.add('site-unblurring');
+    root.classList.remove('site-blur-hold');
+    unblurTimer = setTimeout(() => {
+      root.classList.remove('site-unblurring');
+    }, 1950);
+  }
   function clearTimers() {
     timers.forEach((id) => clearTimeout(id));
     timers = [];
@@ -385,9 +509,14 @@ window.kprIntro = (function () {
   }
 
   function startSequence(options = {}) {
-    if (!splash || !ctx2d) { notifyDone(); return; }
+    if (!splash || !ctx2d) {
+      root.classList.remove('site-blur-hold', 'site-unblurring');
+      notifyDone();
+      return;
+    }
     if (activeCleanup) activeCleanup();
     clearTimers();
+    clearTimeout(unblurTimer);
 
     const token = ++runToken;
     const isReplay = !!options.replay;
@@ -409,7 +538,8 @@ window.kprIntro = (function () {
     splash.hidden = false;
     splash.removeAttribute('aria-hidden');
     splash.classList.add('is-active');
-    root.classList.remove('intro-pending');
+    root.classList.remove('intro-pending', 'site-unblurring');
+    root.classList.add('site-blur-hold');
     root.style.overflow = 'hidden';
 
     requestAnimationFrame(() => {
@@ -622,17 +752,16 @@ window.kprIntro = (function () {
           requestAnimationFrame(() => {
             if (token !== runToken) return;
             splash.classList.add('is-parting');
-            if (!isReplay) notifyDone();
           });
         });
       }, 75));
     }, 1120));
 
-    // 4) Finish and remove overlay cleanly
+    // 4) Once the splash finishes parting, slowly ease the website in from a blur
     timers.push(setTimeout(() => {
       if (token !== runToken) return;
       finish(false);
-    }, 1920));
+    }, 1780));
 
     function finish(skipped) {
       if (token !== runToken) return;
@@ -644,13 +773,14 @@ window.kprIntro = (function () {
         splash.hidden = true;
         splash.setAttribute('aria-hidden', 'true');
         root.style.overflow = '';
+        releaseSiteBlur();
+        if (!isReplay) notifyDone();
         if (window.ScrollTrigger) window.ScrollTrigger.refresh();
         if (returnFocusTo && returnFocusTo.focus) returnFocusTo.focus({ preventScroll: true });
       };
       if (skipped) {
         splash.classList.add('is-skipping');
-        if (!isReplay) notifyDone();
-        setTimeout(finalizeHide, 240);
+        setTimeout(finalizeHide, 220);
       } else {
         finalizeHide();
       }
@@ -682,7 +812,7 @@ window.kprIntro = (function () {
   if (active) {
     startSequence({ replay: false });
   } else {
-    root.classList.remove('intro-pending');
+    root.classList.remove('intro-pending', 'site-blur-hold', 'site-unblurring');
     if (splash) { splash.hidden = true; splash.setAttribute('aria-hidden', 'true'); }
   }
 

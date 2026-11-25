@@ -25,7 +25,7 @@
           if (window.kprStartReveals) window.kprStartReveals();
         };
         window.kprIntroOff = function () {
-          c.remove('intro-pending');
+          c.remove('intro-pending', 'site-blur-hold', 'site-unblurring');
           var el = document.querySelector('[data-intro-splash]');
           if (el) { el.hidden = true; el.setAttribute('aria-hidden', 'true'); }
         };
@@ -35,8 +35,8 @@
         var seen = false;
         try { seen = sessionStorage.getItem('kpr-intro-seen') === '1'; } catch (e) {}
         if (!seen) {
-          c.add('intro-pending');
-          setTimeout(window.kprIntroOff, 6000);
+          c.add('intro-pending', 'site-blur-hold');
+          setTimeout(window.kprIntroOff, 7500);
         }
       })();
     </script>

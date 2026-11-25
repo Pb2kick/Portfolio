@@ -820,6 +820,24 @@ html.theme-switching *::after {
 
 /* ---------- Genji Dragonblade Splash ---------- */
 html.intro-pending body { overflow: hidden; }
+
+/* Post-splash slow blur ease-in reveal (targets header/main/footer, never body,
+   so fixed overlays stay sharp; classes are removed once settled so filter returns to none). */
+html.site-blur-hold .site-header,
+html.site-blur-hold main,
+html.site-blur-hold .site-footer {
+  filter: blur(26px) brightness(0.32);
+  opacity: 0.18;
+  pointer-events: none;
+}
+html.site-unblurring .site-header,
+html.site-unblurring main,
+html.site-unblurring .site-footer {
+  filter: blur(0px) brightness(1);
+  opacity: 1;
+  transition: filter 1.85s cubic-bezier(.16, 1, .3, 1), opacity 1.45s cubic-bezier(.16, 1, .3, 1);
+}
+
 .intro-splash {
   position: fixed; inset: 0; z-index: 9999;
   display: none;
