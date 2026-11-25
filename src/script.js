@@ -361,7 +361,8 @@ window.kprIntro = (function () {
     let W = innerWidth, H = innerHeight, dpr = 1;
     let raf = 0, running = false, lastFrame = 0, freezeUntil = 0;
     let phase = 'idle', phaseAt = 0, shake = 0, focus = 0, glitchTimer = 0;
-    let lift = 0, liftTarget = 0; // follows the mark while it sits raised above the sound choice
+    // While the sound choice shows, the coil follows the raised emblem and shrinks to fit above the buttons.
+    let lift = 0, liftTarget = 0, fit = 1, fitTarget = 1, fitHalf = Infinity;
     const slashes = [], sparks = [], rings = [], motes = [], embers = [], petals = [];
     const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
 
@@ -396,7 +397,7 @@ window.kprIntro = (function () {
 
     // --- the dragon: its head follows a tilted orbit round the mark, the body trails behind ---
     function orbitPoint(a, now) {
-      const rx = Math.min(W * 0.44, H * 0.42, 360) * dragon.squeeze;
+      const rx = Math.min(W * 0.44, H * 0.42, 360) * dragon.squeeze * fit;
       const ry = rx * 0.42;
       const px = Math.cos(a) * rx;
       const py = Math.sin(a) * ry + Math.sin(a * 2 + now * 0.0011) * ry * 0.22;
@@ -707,6 +708,7 @@ window.kprIntro = (function () {
     // --- one frame ---
     function update(dt, now) {
       lift += (liftTarget - lift) * Math.min(1, dt * 7);
+      fit += (fitTarget - fit) * Math.min(1, dt * 7);
       updateDragon(dt, now);
       const charge = phase === 'charge' ? Math.min(1, (now - phaseAt) / 820) : 0;
       if (phase === 'charge') {
@@ -871,7 +873,15 @@ window.kprIntro = (function () {
         raf = requestAnimationFrame(tick);
       },
       charge() { phase = 'charge'; phaseAt = performance.now(); },
-      setLift(px, instant) { liftTarget = px; if (instant) lift = px; },
+      // halfSpace: half the height the coil may use around the emblem's centre (Infinity = no limit)
+      setLift(px, instant, halfSpace) {
+        liftTarget = px;
+        fitHalf = halfSpace;
+        // the tilted orbit reaches about 0.72 rx above and below its centre, plus the body's width
+        const rx = Math.min(W * 0.44, H * 0.42, 360);
+        fitTarget = Math.min(1, Math.max(0.35, (fitHalf - Math.min(W, H) * 0.035) / (rx * 0.72)));
+        if (instant) { lift = px; fit = fitTarget; }
+      },
       strike,
       cleave,
       ringBurst,
@@ -972,21 +982,23 @@ window.kprIntro = (function () {
     root.style.overflow = 'hidden';
     if (fx) fx.start();
 
-    // The mark and the buttons share one centred column, so the buttons never cover the logo:
-    // raise the mark by half the buttons' height plus a gap, and seat the buttons under it.
+    // The buttons sit at the bottom; the whole emblem (mark, diamond and the dragon's coil) is
+    // centred in the space above them and shrunk if needed, so nothing of it hides behind them.
     const whole = splash.querySelector('.intro-whole');
     const mark = whole ? whole.querySelector('.intro-mark') : null;
+    const reticle = whole ? whole.querySelector('.intro-reticle--whole') : null;
     function layoutGate(instant) {
       if (!whole || !mark) return;
       const H = innerHeight;
-      const markH = mark.offsetHeight;
-      const gap = Math.max(28, Math.min(H * 0.07, 64));
-      const markCenter = Math.max(markH / 2 + 16, (H - (markH + gap + gate.offsetHeight)) / 2 + markH / 2);
-      const lift = Math.max(0, H / 2 - markCenter);
+      const top = 16, gap = Math.max(16, Math.min(H * 0.035, 32));
+      const space = Math.max(80, gate.getBoundingClientRect().top - gap - top);
+      // the diamond is a square turned 45°, so it reaches half its diagonal above and below
+      const reach = Math.max(mark.offsetHeight / 2, (reticle ? reticle.offsetWidth : 0) * Math.SQRT1_2);
+      const scale = Math.min(1, (space / 2) / reach);
+      const lift = Math.max(0, H / 2 - (top + space / 2));
       whole.style.setProperty('--gate-lift', lift + 'px');
-      gate.style.top = (markCenter + markH / 2 + gap) + 'px';
-      gate.style.bottom = 'auto';
-      if (fx) fx.setLift(lift, instant);
+      whole.style.setProperty('--gate-scale', scale.toFixed(3));
+      if (fx) fx.setLift(lift, instant, space / 2);
     }
     // place it before the first paint without gliding there
     if (mark) mark.style.transition = 'none';
@@ -1011,9 +1023,9 @@ window.kprIntro = (function () {
       window.removeEventListener('resize', onGateResize);
       siteAudio.setEnabled(withSound);
       splash.classList.remove('is-gate');
-      // the mark glides back to the centre, where the strikes and the split screen expect it
-      if (whole) whole.style.setProperty('--gate-lift', '0px');
-      if (fx) fx.setLift(0);
+      // the emblem glides back to the centre at full size, where the strikes and the split screen expect it
+      if (whole) { whole.style.setProperty('--gate-lift', '0px'); whole.style.setProperty('--gate-scale', '1'); }
+      if (fx) fx.setLift(0, false, Infinity);
       if (fx) startSequence();
       else leaveQuietly();
     }
