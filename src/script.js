@@ -43,9 +43,16 @@ if (systemLight && systemLight.addEventListener) {
 const year = document.querySelector('[data-year]');
 if (year) year.textContent = new Date().getFullYear();
 
-const revealItems = document.querySelectorAll('.reveal');
-
-if ('IntersectionObserver' in window) {
+// Scroll reveals with CSS transitions. motion.js (GSAP) does these instead when it runs;
+// this is the fallback for reduced motion or when GSAP didn't load (see kprMotionOff in <head>).
+window.kprStartReveals = function () {
+  if (window.kprStartReveals.started) return;
+  window.kprStartReveals.started = true;
+  const revealItems = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window)) {
+    revealItems.forEach((item) => item.classList.add('is-visible'));
+    return;
+  }
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (!entry.isIntersecting) return;
@@ -59,9 +66,8 @@ if ('IntersectionObserver' in window) {
     item.style.transitionDelay = `${(index % 4) * 70}ms`;
     observer.observe(item);
   });
-} else {
-  revealItems.forEach((item) => item.classList.add('is-visible'));
-}
+};
+if (!root.classList.contains('motion')) window.kprStartReveals();
 
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 

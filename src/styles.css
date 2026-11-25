@@ -736,6 +736,19 @@ html.theme-switching *::after {
   .js .reveal { opacity: 1; transform: none; }
 }
 
+/* ---------- GSAP motion (motion.js) ----------
+   html.motion: GSAP is expected (no reduced motion). html.motion-ready: motion.js has set up
+   every animation. Until then the hero and reveal items wait hidden; if GSAP never arrives,
+   the <head> script drops .motion after 3 s and the CSS animations above take over. */
+.motion:not(.motion-ready) .hero-title,
+.motion:not(.motion-ready) .reveal { visibility: hidden; }
+.motion .hero-title .line > span { animation: none; }
+.motion .reveal { transition: none; }
+/* Offsets GSAP drives: the magnetic pull on buttons and the screenshots' parallax. They use
+   the separate translate property so the CSS hover transforms keep working alongside. */
+.btn, .float-top { translate: var(--mag-x, 0px) var(--mag-y, 0px); }
+.shot { translate: 0 var(--par-y, 0px); }
+
 /* ---------- Responsive ---------- */
 /* Context card: two columns get too tight for the headline, so stack
    the OJT details under the intro. */

@@ -14,6 +14,19 @@
         }
         document.documentElement.setAttribute('data-theme', theme);
       })();
+      // GSAP motion (motion.js) unless the visitor asked for less motion. If GSAP hasn't taken
+      // over within 3 s (slow or blocked CDN), fall back to the plain CSS animations.
+      (function () {
+        var c = document.documentElement.classList;
+        window.kprMotionOff = function () {
+          if (!c.contains('motion') || c.contains('motion-ready')) return;
+          c.remove('motion');
+          if (window.kprStartReveals) window.kprStartReveals();
+        };
+        if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        c.add('motion');
+        setTimeout(window.kprMotionOff, 3000);
+      })();
     </script>
     <meta name="description" content="Independent designer and builder. I design and build websites and apps that move brands forward — from first idea to final pixel.">
     <meta name="theme-color" content="#121412">
@@ -30,6 +43,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="script.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js" defer></script>
+    <script src="motion.js" defer></script>
   </head>
   <body id="top">
     <div class="scroll-progress" aria-hidden="true"></div>
