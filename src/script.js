@@ -361,6 +361,7 @@ window.kprIntro = (function () {
     let W = innerWidth, H = innerHeight, dpr = 1;
     let raf = 0, running = false, lastFrame = 0, freezeUntil = 0;
     let phase = 'idle', phaseAt = 0, shake = 0, focus = 0, glitchTimer = 0;
+    let lift = 0, liftTarget = 0; // follows the mark while it sits raised above the sound choice
     const slashes = [], sparks = [], rings = [], motes = [], embers = [], petals = [];
     const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
 
@@ -401,7 +402,7 @@ window.kprIntro = (function () {
       const py = Math.sin(a) * ry + Math.sin(a * 2 + now * 0.0011) * ry * 0.22;
       const tilt = -0.2;
       // z > 0: the near (lower) side of the orbit, drawn in front of the mark
-      return { x: W / 2 + px * Math.cos(tilt) - py * Math.sin(tilt), y: H / 2 + px * Math.sin(tilt) + py * Math.cos(tilt), z: Math.sin(a) };
+      return { x: W / 2 + px * Math.cos(tilt) - py * Math.sin(tilt), y: H / 2 - lift + px * Math.sin(tilt) + py * Math.cos(tilt), z: Math.sin(a) };
     }
     function updateDragon(dt, now) {
       const d = dragon;
@@ -705,6 +706,7 @@ window.kprIntro = (function () {
 
     // --- one frame ---
     function update(dt, now) {
+      lift += (liftTarget - lift) * Math.min(1, dt * 7);
       updateDragon(dt, now);
       const charge = phase === 'charge' ? Math.min(1, (now - phaseAt) / 820) : 0;
       if (phase === 'charge') {
@@ -869,6 +871,7 @@ window.kprIntro = (function () {
         raf = requestAnimationFrame(tick);
       },
       charge() { phase = 'charge'; phaseAt = performance.now(); },
+      setLift(px, instant) { liftTarget = px; if (instant) lift = px; },
       strike,
       cleave,
       ringBurst,
@@ -969,6 +972,29 @@ window.kprIntro = (function () {
     root.style.overflow = 'hidden';
     if (fx) fx.start();
 
+    // The mark and the buttons share one centred column, so the buttons never cover the logo:
+    // raise the mark by half the buttons' height plus a gap, and seat the buttons under it.
+    const whole = splash.querySelector('.intro-whole');
+    const mark = whole ? whole.querySelector('.intro-mark') : null;
+    function layoutGate(instant) {
+      if (!whole || !mark) return;
+      const H = innerHeight;
+      const markH = mark.offsetHeight;
+      const gap = Math.max(28, Math.min(H * 0.07, 64));
+      const markCenter = Math.max(markH / 2 + 16, (H - (markH + gap + gate.offsetHeight)) / 2 + markH / 2);
+      const lift = Math.max(0, H / 2 - markCenter);
+      whole.style.setProperty('--gate-lift', lift + 'px');
+      gate.style.top = (markCenter + markH / 2 + gap) + 'px';
+      gate.style.bottom = 'auto';
+      if (fx) fx.setLift(lift, instant);
+    }
+    // place it before the first paint without gliding there
+    if (mark) mark.style.transition = 'none';
+    layoutGate(true);
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (mark) mark.style.transition = ''; }));
+    const onGateResize = () => layoutGate(true);
+    window.addEventListener('resize', onGateResize);
+
     const buttons = Array.from(gate.querySelectorAll('[data-intro-enter]'));
     // Focus whichever option the visitor picked last time (sound on by default).
     const preferred = buttons.find((b) => (b.dataset.introEnter === 'sound') === siteAudio.isEnabled()) || buttons[0];
@@ -982,8 +1008,12 @@ window.kprIntro = (function () {
       if (chosen) return;
       chosen = true;
       window.removeEventListener('keydown', onGateKey);
+      window.removeEventListener('resize', onGateResize);
       siteAudio.setEnabled(withSound);
       splash.classList.remove('is-gate');
+      // the mark glides back to the centre, where the strikes and the split screen expect it
+      if (whole) whole.style.setProperty('--gate-lift', '0px');
+      if (fx) fx.setLift(0);
       if (fx) startSequence();
       else leaveQuietly();
     }
