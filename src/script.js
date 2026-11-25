@@ -403,37 +403,27 @@ window.kprIntro = (function () {
       for (let i = 0; i < np; i++) petals.push(newPetal(true));
     }
 
-    // --- the diamond round the mark, measured each frame so the dragon can circle outside it ---
-    // The reticle is a square turned 45deg, so its bounding box spans tip to tip: half the width is
-    // the centre-to-tip distance. Kept from the last good frame once the stage is hidden.
-    const reticleEl = splash.querySelector('.intro-whole .intro-reticle--whole');
-    let diamond = null;
-    function measureDiamond() {
-      if (!reticleEl) return;
-      const r = reticleEl.getBoundingClientRect();
-      if (r.width < 2) return;
-      diamond = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, r: r.width / 2 };
-      if (dragon3d) dragon3d.setDiamond(diamond);
-    }
-    // How far outside the diamond the 2D dragon's spine runs: about half its head's width plus air.
-    const margin2D = () => Math.max(5, Math.min(W, H) * 0.017) * 3.4 + 12;
-    function pathMargin() { return dragon3d ? dragon3d.pathMarginPx() : margin2D(); }
-
-    // --- the 2D dragon (when WebGL is unavailable): its head traces the diamond's outer edge ---
-    // Same path as the 3D one: a slightly rounded diamond (L^1.25) that always encloses the real
-    // one, pushed out by the margin, so neither the logo nor the diamond is ever crossed.
+    // --- the dragon: its head follows a tilted orbit round the mark, the body trails behind ---
     function orbitPoint(a, now) {
-      const d = diamond || { cx: W / 2, cy: H / 2 - lift, r: Math.min(W, H) * 0.3 };
-      const ca = Math.cos(a), sa = Math.sin(a);
-      const norm = Math.pow(Math.pow(Math.abs(ca), 1.25) + Math.pow(Math.abs(sa), 1.25), 1 / 1.25);
-      const m = margin2D();
-      const rad = d.r / norm + m + (0.5 + 0.5 * Math.sin(a * 3 + now * 0.002)) * m * 0.2;
-      // z > 0: drawn in front of the mark, z < 0: behind it
-      return { x: d.cx + ca * rad, y: d.cy + sa * rad, z: Math.sin(a + 0.5) };
+      const rx = Math.min(W * 0.44, H * 0.42, 360) * dragon.squeeze * fit;
+      const ry = rx * 0.42;
+      const px = Math.cos(a) * rx;
+      const py = Math.sin(a) * ry + Math.sin(a * 2 + now * 0.0011) * ry * 0.22;
+      const tilt = -0.2;
+      // z > 0: the near (lower) side of the orbit, drawn in front of the mark
+      return { x: W / 2 + px * Math.cos(tilt) - py * Math.sin(tilt), y: H / 2 - lift + px * Math.sin(tilt) + py * Math.cos(tilt), z: Math.sin(a) };
     }
+    // The diamond round KPR as it is on screen right now (raised and scaled for the sound
+    // choice, then gliding back to centre). It's a square turned 45deg, so its bounding box spans
+    // tip to tip. The 3D dragon circles a ring just outside it.
+    const reticleEl = splash.querySelector('.intro-whole .intro-reticle--whole');
     function updateDragon(dt, now) {
       if (dragon3d) {
         dragon3d.setLift(lift, fit);
+        if (reticleEl) {
+          const r = reticleEl.getBoundingClientRect();
+          if (r.width > 2) dragon3d.setRing(r.left + r.width / 2, r.top + r.height / 2, r.width / 2);
+        }
         dragon3d.update(dt, now, phase, phaseAt);
         if (dt > 0 && (phase === 'charge' || phase === 'lunge')) {
           const count = phase === 'lunge' ? 4 : 1;
@@ -757,7 +747,6 @@ window.kprIntro = (function () {
     function update(dt, now) {
       lift += (liftTarget - lift) * Math.min(1, dt * 7);
       fit += (fitTarget - fit) * Math.min(1, dt * 7);
-      if (phase !== 'lunge') measureDiamond();
       updateDragon(dt, now);
       const charge = phase === 'charge' ? Math.min(1, (now - phaseAt) / 820) : 0;
       if (phase === 'charge') {
@@ -922,16 +911,15 @@ window.kprIntro = (function () {
         raf = requestAnimationFrame(tick);
       },
       charge() { phase = 'charge'; phaseAt = performance.now(); },
-      // The coil now follows the diamond itself (measured each frame), so the layout only has to
-      // know how far the dragon reaches outside it. halfSpace is kept for the API but unused.
+      // halfSpace: half the height the coil may use around the emblem's centre (Infinity = no limit)
       setLift(px, instant, halfSpace) {
         liftTarget = px;
         fitHalf = halfSpace;
-        fitTarget = 1;
+        // the tilted orbit reaches about 0.72 rx above and below its centre, plus the body's width
+        const rx = Math.min(W * 0.44, H * 0.42, 360);
+        fitTarget = Math.min(1, Math.max(0.35, (fitHalf - Math.min(W, H) * 0.035) / (rx * 0.72)));
         if (instant) { lift = px; fit = fitTarget; if (dragon3d) dragon3d.setLift(lift, fit); }
       },
-      // px the dragon reaches beyond the diamond's edge: spine margin, swim wave and half the head
-      reachBeyondDiamond() { return pathMargin() * 2.1; },
       strike,
       cleave,
       ringBurst,
@@ -1043,14 +1031,9 @@ window.kprIntro = (function () {
       const H = innerHeight;
       const top = 16, gap = Math.max(16, Math.min(H * 0.035, 32));
       const space = Math.max(80, gate.getBoundingClientRect().top - gap - top);
-      // the diamond is a square turned 45°, so it reaches half its diagonal above and below;
-      // the dragon circles outside it, so leave room for the coil too
+      // the diamond is a square turned 45°, so it reaches half its diagonal above and below
       const reach = Math.max(mark.offsetHeight / 2, (reticle ? reticle.offsetWidth : 0) * Math.SQRT1_2);
-      const coil = fx ? fx.reachBeyondDiamond() : 0;
-      const fitHeight = (space / 2 - coil) / reach;
-      // on narrow phones let the coil brush the sides rather than shrink the logo below 70%
-      const fitWidth = Math.max(0.7, (innerWidth / 2 - 8 - coil) / reach);
-      const scale = Math.max(0.35, Math.min(1, fitHeight, fitWidth));
+      const scale = Math.min(1, (space / 2) / reach);
       const lift = Math.max(0, H / 2 - (top + space / 2));
       whole.style.setProperty('--gate-lift', lift + 'px');
       whole.style.setProperty('--gate-scale', scale.toFixed(3));

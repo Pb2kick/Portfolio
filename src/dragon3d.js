@@ -1108,42 +1108,128 @@
       return (px / W - 0.5) * 2 * HALF_H_AT_Z0 * aspect;
     }
 
-    // The diamond round the KPR mark, in screen px ({ cx, cy, r }, r = centre-to-tip), measured
-    // every frame by script.js. The coil is traced just outside it so the logo stays clear.
-    let diamond = null;
-    function headScaleNow() {
-      return debugOverride
-        ? debugOverride.headScale
-        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
+    // ---- Orbit: a tilted ring round the diamond ----
+    // The head flies a ring a little wider than the diamond round KPR, so every lap it passes
+    // behind KPR and the square (the back canvas sits under the mark) and then in front of them.
+    // Every lap or so the ring re-tilts at random and the dragon may turn back the other way:
+    // it swings out wide in a U-turn, off the ring's plane, so it never flies back through its
+    // own body, and the body simply follows the trail the head actually flew.
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const ring = { cx: 0, cy: 0, r: 2.4, alpha: 0.32, tau: -0.18, alphaT: 0.32, tauT: -0.18, dir: 1, side: 1 };
+    let ringPx = null;          // the diamond on screen: { cx, cy, half } in CSS px (script.js)
+    const head = { p: null, h: null };
+    const trail = [];           // head positions, newest first
+    let lapProgress = 0, lapGoal = TAU * 1.1, lastTheta = null;
+    const TURN_RADIUS = 0.62;   // tightest turn, in world units (body is ~0.5 wide)
+    const tmpP = { x: 0, y: 0, z: 0 };
+
+    // Centre and radius from the diamond: ~22% wider than its tips, so the sides of the ring
+    // (where the dragon crosses from behind to in front) sit outside the square.
+    function updateRingFrame() {
+      const aspect = W / H;
+      const worldPerPx = (2 * HALF_H_AT_Z0) / H;
+      let cx = 0, cy = (liftPx / H) * 2 * HALF_H_AT_Z0, half = Math.min(W, H) * 0.32;
+      if (ringPx && ringPx.half > 4) {
+        cx = pxToWorldX(ringPx.cx);
+        cy = pxToWorldY(ringPx.cy);
+        half = ringPx.half;
+      }
+      ring.cx = cx;
+      ring.cy = cy;
+      ring.r = Math.min(HALF_H_AT_Z0 * aspect * 0.9, Math.max(1.0, half * worldPerPx * 1.22)) * squeeze;
     }
-    // How far outside the diamond the spine runs: half the head's width (cheeks and antlers,
-    // ~0.62 head units) in px, plus a little air, so even the head never crosses the edge.
-    function pathMarginPx() {
-      const pxPerWorld = H / (2 * HALF_H_AT_Z0);
-      return headScaleNow() * 0.75 * pxPerWorld * 1.15 + 14;
+    // The ring starts in the XZ plane, is opened toward the viewer by alpha (so the near side
+    // passes above or below the logo) and turned in the screen plane by tau.
+    function ringPoint(theta, out) {
+      const R = ring.r;
+      const x0 = Math.cos(theta) * R, zr = Math.sin(theta) * R;
+      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
+      const y1 = -zr * sa, z1 = zr * ca;
+      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
+      out.x = ring.cx + x0 * ct - y1 * st;
+      out.y = ring.cy + x0 * st + y1 * ct;
+      out.z = z1;
+      return out;
+    }
+    function ringAngleOf(p) {
+      const dx = p.x - ring.cx, dy = p.y - ring.cy;
+      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
+      const x0 = dx * ct + dy * st;
+      const y1 = -dx * st + dy * ct;
+      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
+      return Math.atan2(-y1 * sa + p.z * ca, x0);
+    }
+    function ringNormal() {
+      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
+      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
+      return { x: -st * ca, y: ct * ca, z: sa };
+    }
+    function bodyLength() { return TAU * ring.r * 0.62; }
+
+    function placeOnRing(theta) {
+      updateRingFrame();
+      head.p = ringPoint(theta, { x: 0, y: 0, z: 0 });
+      const ahead = ringPoint(theta + ring.dir * 0.01, { x: 0, y: 0, z: 0 });
+      const hx = ahead.x - head.p.x, hy = ahead.y - head.p.y, hz = ahead.z - head.p.z;
+      const hl = Math.hypot(hx, hy, hz) || 1;
+      head.h = { x: hx / hl, y: hy / hl, z: hz / hl };
+      // Lay the body out behind the head along the ring, so it is whole from the first frame.
+      trail.length = 0;
+      const len = bodyLength() * 1.15, steps = 160;
+      for (let k = 0; k <= steps; k++) {
+        trail.push(ringPoint(theta - ring.dir * (k / steps) * (len / ring.r), { x: 0, y: 0, z: 0 }));
+      }
+      lastTheta = theta;
+      lapProgress = 0;
     }
 
-    // The coil follows the outer edge of the diamond. A slightly rounded diamond (L^1.25 norm)
-    // always encloses the real one, so the body bends smoothly at the tips instead of kinking,
-    // and the swim wave only pushes outward. Depth swings the dragon in front of and behind the
-    // logo, but each point is placed so its projection lands on the traced path, so perspective
-    // never pulls it inside the diamond. The arc spans ~245 deg so the tail never meets the head.
-    function evalCoilPoint(u, headAngle, timeSec) {
-      const spanRad = TAU * 0.68;
-      const a = headAngle - u * spanRad;
-      const d = diamond || { cx: W / 2, cy: H / 2 - liftPx, r: Math.min(W, H) * 0.3 };
-      const ca = Math.cos(a), sa = Math.sin(a);
-      const P = 1.25;
-      const norm = Math.pow(Math.pow(Math.abs(ca), P) + Math.pow(Math.abs(sa), P), 1 / P);
-      const edge = d.r / norm;
-      const margin = pathMarginPx();
-      const swimOut = (0.5 + 0.5 * Math.sin(u * 9.0 - timeSec * 4.4)) * margin * 0.22 * smoothstep(0.0, 0.3, u);
-      const rad = edge + margin + swimOut;
-      const sx = d.cx + ca * rad;
-      const sy = d.cy + sa * rad;
-      const z = Math.sin(a + 0.5) * 1.1; // > 0: in front of the logo, < 0: behind it
-      const k = (9.2 - z) / 9.2;         // undo perspective so the projection lands on (sx, sy)
-      return { x: pxToWorldX(sx) * k, y: pxToWorldY(sy) * k, z };
+    // A new lap: re-tilt the ring at random and, about half the time, turn back the other way.
+    function newLap() {
+      ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.16, 0.42);
+      ring.tauT = rand(-0.32, 0.32);
+      if (Math.random() < 0.55) {
+        ring.dir *= -1;
+        ring.side = Math.random() < 0.5 ? -1 : 1;
+      }
+      lapProgress = 0;
+      lapGoal = TAU * rand(0.75, 1.25);
+    }
+
+    // Steer the head toward a point a little ahead on the ring, turning no tighter than
+    // TURN_RADIUS. When the target is behind it (just reversed), the turn is pushed outward and
+    // off the ring's plane, so the U-turn swings wide of the logo and of its own body.
+    function steer(dt, linSpeed) {
+      const p = head.p, h = head.h;
+      const theta = ringAngleOf(p);
+      ringPoint(theta + ring.dir * 0.55, tmpP);
+      let dx = tmpP.x - p.x, dy = tmpP.y - p.y, dz = tmpP.z - p.z;
+      let dl = Math.hypot(dx, dy, dz) || 1;
+      dx /= dl; dy /= dl; dz /= dl;
+      if (h.x * dx + h.y * dy + h.z * dz < -0.2) {
+        ringPoint(theta, tmpP);
+        const ox = tmpP.x - ring.cx, oy = tmpP.y - ring.cy, oz = tmpP.z;
+        const ol = Math.hypot(ox, oy, oz) || 1;
+        const n = ringNormal();
+        dx += (ox / ol) * 1.3 + n.x * 0.7 * ring.side;
+        dy += (oy / ol) * 1.3 + n.y * 0.7 * ring.side;
+        dz += (oz / ol) * 1.3 + n.z * 0.7 * ring.side;
+        dl = Math.hypot(dx, dy, dz) || 1;
+        dx /= dl; dy /= dl; dz /= dl;
+      }
+      const c = clamp(h.x * dx + h.y * dy + h.z * dz, -1, 1);
+      const ang = Math.acos(c);
+      if (ang > 1e-4) {
+        const t = Math.min(1, ((linSpeed / TURN_RADIUS) * dt) / ang);
+        const so = Math.sin(ang) || 1e-4;
+        const a = Math.sin((1 - t) * ang) / so, b = Math.sin(t * ang) / so;
+        h.x = h.x * a + dx * b; h.y = h.y * a + dy * b; h.z = h.z * a + dz * b;
+        const hl = Math.hypot(h.x, h.y, h.z) || 1;
+        h.x /= hl; h.y /= hl; h.z /= hl;
+      }
+      p.x += h.x * linSpeed * dt;
+      p.y += h.y * linSpeed * dt;
+      p.z += h.z * linSpeed * dt;
+      return theta;
     }
 
     function updateState(dt, nowMs, phase, phaseAtMs) {
@@ -1188,14 +1274,38 @@
           squeeze += (1.0 - squeeze) * Math.min(1, dt * 4);
           power *= Math.max(0, 1 - dt * 3);
         }
-        orbitAngle += speed * dt;
         alpha = Math.min(1, alpha + dt / 0.75);
       }
 
-      hist.length = 0;
-      for (let i = 0; i < BODY_RINGS; i++) {
-        hist.push(evalCoilPoint(i / (BODY_RINGS - 1), orbitAngle, tSec));
+      updateRingFrame();
+      if (!head.p) placeOnRing(orbitAngle);
+      if (dt > 0) {
+        // Ease the ring toward its new tilt, so the change reads as the dragon banking.
+        const k = Math.min(1, dt * 0.9);
+        ring.alpha += (ring.alphaT - ring.alpha) * k;
+        ring.tau += (ring.tauT - ring.tau) * k;
+
+        const theta = steer(dt, speed * ring.r);
+        let d = theta - lastTheta;
+        d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+        lapProgress += d * ring.dir;
+        lastTheta = theta;
+        // No turning back once the strikes have started: it just speeds round.
+        if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
+
+        trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
+        const keep = bodyLength() * 1.2;
+        let acc = 0;
+        for (let i = 1; i < trail.length; i++) {
+          acc += Math.hypot(trail[i].x - trail[i - 1].x, trail[i].y - trail[i - 1].y, trail[i].z - trail[i - 1].z);
+          if (acc > keep) { trail.length = i + 1; break; }
+        }
+        if (trail.length > 3000) trail.length = 3000;
       }
+
+      const spine = resampleSpine(trail, bodyLength(), BODY_RINGS);
+      hist.length = 0;
+      for (let i = 0; i < BODY_RINGS; i++) hist.push(spine[i]);
     }
 
     function resampleSpine(pts, targetLen, count) {
@@ -1251,7 +1361,9 @@
     const spineFrames = new Array(BODY_RINGS);
     function buildDynamicGeometry(nowMs) {
       const tSec = nowMs * 0.001;
-      const headScale = headScaleNow();
+      const headScale = debugOverride
+        ? debugOverride.headScale
+        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
       const bodyLen = debugOverride ? debugOverride.bodyLen : 11.4 * (0.74 + 0.26 * fitScale);
 
       const spinePts = debugOverride
@@ -1276,24 +1388,7 @@
         }
 
         let ux, uy, uz;
-        // Circling the diamond: the back faces outward and the belly toward the logo, so the
-        // dorsal spikes and spirit wisps never reach in over KPR. "Outward" is measured on screen,
-        // from the diamond's centre (scaled to this point's depth) to the spine point.
-        let outward = null;
-        if (diamond && !lunge && !debugOverride) {
-          const p = spinePts[i];
-          const k = (9.2 - p.z) / 9.2;
-          let ox = p.x - pxToWorldX(diamond.cx) * k;
-          let oy = p.y - pxToWorldY(diamond.cy) * k;
-          const dotOF = ox * fx + oy * fy;
-          ox -= fx * dotOF; oy -= fy * dotOF;
-          let oz = -fz * dotOF;
-          const ol = Math.hypot(ox, oy, oz);
-          if (ol > 1e-4) outward = [ox / ol, oy / ol, oz / ol];
-        }
-        if (outward) {
-          ux = outward[0]; uy = outward[1]; uz = outward[2];
-        } else if (i === 0) {
+        if (i === 0) {
           const worldUpX = debugOverride && debugOverride.up ? debugOverride.up[0] : -fx * 0.16;
           const worldUpY = debugOverride && debugOverride.up ? debugOverride.up[1] : 1.0;
           const worldUpZ = debugOverride && debugOverride.up ? debugOverride.up[2] : 0.12;
@@ -1425,10 +1520,9 @@
           const wave1 = Math.sin(t * 4.2 - tSec * 4.8 + w * 0.7) * 0.14 * t;
           const wave2 = Math.cos(t * 3.0 - tSec * 3.8) * 0.11 * t;
           // Sweeps boldly outward horizontally, dips slightly, then flicks up & down at the calligraphic tip
-          // Swept back along the head rather than fanned wide, so they don't reach into the diamond
-          const lx = sd * (0.32 + Math.pow(t, 0.76) * 0.72);
+          const lx = sd * (0.36 + Math.pow(t, 0.76) * 1.58);
           const ly = 0.22 - Math.sin(t * Math.PI * 1.1) * 0.10 + Math.sin(Math.max(0, t - 0.55) * 6.0) * 0.26 + wave1;
-          const lz = 1.08 - Math.pow(t, 1.1) * 2.2 + wave2;
+          const lz = 1.08 - Math.pow(t, 1.2) * 1.15 + wave2;
           wPts.push({
             x: hx + (f0.rx * lx + f0.ux * ly + f0.fx * lz) * headScale,
             y: hy + (f0.ry * lx + f0.uy * ly + f0.fy * lz) * headScale,
@@ -1673,13 +1767,19 @@
         liftPx = px;
         fitScale = fit;
       },
-      // { cx, cy, r } in screen px: the diamond's centre and centre-to-tip distance
-      setDiamond(d) {
-        diamond = d;
+      // The diamond round KPR on screen, in CSS px: centre and half its tip-to-tip width.
+      setRing(cxPx, cyPx, halfPx) {
+        if (halfPx > 4) ringPx = { cx: cxPx, cy: cyPx, half: halfPx };
       },
-      pathMarginPx,
+      // Read-only snapshot for checking the orbit in the browser console.
+      debugState() {
+        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r, head: head.p && { ...head.p }, theta: lastTheta };
+      },
       reset() {
         hist.length = 0;
+        trail.length = 0;
+        head.p = null;
+        ring.dir = 1;
         orbitAngle = 0.85;
         speed = 0.88;
         squeeze = 1.0;
