@@ -369,7 +369,7 @@ window.kprIntro = (function () {
     // While the sound choice shows, the coil follows the raised emblem and shrinks to fit above the buttons.
     let lift = 0, liftTarget = 0, fit = 1, fitTarget = 1, fitHalf = Infinity;
     const slashes = [], sparks = [], rings = [], motes = [], embers = [], petals = [];
-    const dragon3d = window.createShimadaDragon3D ? window.createShimadaDragon3D() : null;
+    const dragon3d = window.createSpiritDragon3D ? window.createSpiritDragon3D() : null;
     window.__kprDragon3D = dragon3d;
     const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
 

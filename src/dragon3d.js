@@ -1,10 +1,7 @@
-// Real-time 3D WebGL Genji Shimada Spirit Dragon renderer (zero external dependencies).
-// Anatomically sculpted Overwatch-style Eastern Ryu head (chiseled snout with stepped nasal
-// ridges, flared comma nostrils, scowling V-brows over dark recessed sockets & blazing eyes,
-// broad scooped dragon crown ears, swept-back overlapping cheek-mane plates, roaring hinged
-// mandible with 22 curved fangs & glowing curled tongue, and calligraphic S-wave whiskers)
-// welded onto a parallel-transport 3D serpentine body with overlapping diamond flank scales,
-// ribbed ventral belly scutes, continuous sawtooth dorsal crest, and controlled HDR bloom.
+// Real-time 3D WebGL spirit dragon for the KPR intro (no external dependencies).
+// An original long-dragon design in the site's emerald, acid green and teal: a sculpted head
+// with branching antlers, glowing eyes, a hinged jaw and S-wave whiskers, on a parallel-transport
+// serpentine body with overlapping scales, belly scutes, a sawtooth dorsal crest and HDR bloom.
 (function () {
   'use strict';
 
@@ -167,7 +164,7 @@
             let py0 = Math.sign(sa) * Math.pow(Math.abs(sa), 1 - sharp) * ry;
             let vCav = baseCav;
 
-            // Optional concave front/inner ear scoop (Ref 1 & Ref 3 dragon ears!)
+            // Optional concave front/inner ear scoop
             if (scoop > 0 && sa > 0.15) {
               const cup = Math.sin(sa) * Math.sin(t * Math.PI) * (1 - Math.abs(ca) * 0.65);
               py0 -= cup * ry * scoop * 1.45;
@@ -231,7 +228,7 @@
     return { addVert, addTri, addQuad, loftRings, addSculptedSpike, buildFloat32 };
   }
 
-  // -------------------- Sculpt Authentic Genji Shimada Ryu Head --------------------
+  // -------------------- Sculpt the dragon head --------------------
   function buildDragonHeadMeshes() {
     const upper = createMeshBuilder();
 
@@ -256,7 +253,7 @@
       const nosePad = Math.exp(-Math.pow((z - 1.22) / 0.18, 2)) * 0.05;
       const halfW = (0.39 + cheekFlare + muzzleWaist + nosePad) * snoutDome;
 
-      // Dorsal profile (Ref 2): crown -> scowling brow -> saddle dip -> proud upturned Eastern nasal boss!
+      // Dorsal profile: crown -> scowling brow -> saddle dip -> proud upturned Eastern nasal boss!
       const browPeak = Math.exp(-Math.pow((z - 0.14) / 0.25, 2)) * 0.17;
       const bridgeDip = -Math.exp(-Math.pow((z - 0.72) / 0.28, 2)) * 0.14;
       const upturnedNose = Math.exp(-Math.pow((z - 1.22) / 0.19, 2)) * 0.19;
@@ -293,7 +290,7 @@
         let mId = MAT_HEAD;
 
         if (sa >= 0) {
-          // 1) DEEP ANGRY V-SHAPED BROW FURROW & OVERHANGING SUPRAORBITAL RIDGE (Ref 1, 2, 3!)
+          // 1) DEEP ANGRY V-SHAPED BROW FURROW & OVERHANGING SUPRAORBITAL RIDGE
           const browRegion = Math.exp(-Math.pow((z - 0.22) / 0.20, 2));
           const centerScowl = browRegion * Math.exp(-Math.pow(absCa / 0.22, 2)) * smoothstep(0.58, 0.98, sa);
           y -= centerScowl * 0.16;
@@ -314,16 +311,15 @@
             cavity -= pit * 0.65;
           }
 
-          // 2) STEPPED CHEVRON NASAL BRIDGE RIDGES (Ref 1, 3, 4!)
+          // 2) Smooth nasal bridge with a single soft central ridge line
           if (z > 0.34 && z < 1.10 && sa > 0.60) {
-            const bridgeMask = smoothstep(0.34, 0.44, z) * smoothstep(1.10, 0.98, z) * smoothstep(0.60, 0.85, sa);
-            const chev = z + absCa * 0.11;
-            const stepWave = Math.pow(0.5 + 0.5 * Math.cos((chev - 0.40) * 28.0), 1.8);
-            y += (stepWave - 0.3) * 0.068 * bridgeMask;
-            cavity += (stepWave - 0.48) * 0.56 * bridgeMask;
+            const bridgeMask = smoothstep(0.34, 0.50, z) * smoothstep(1.10, 0.92, z) * smoothstep(0.60, 0.85, sa);
+            const ridge = Math.exp(-Math.pow(absCa / 0.12, 2));
+            y += ridge * 0.035 * bridgeMask;
+            cavity += (ridge - 0.3) * 0.3 * bridgeMask;
           }
 
-          // 3) ORGANIC RUYI CLOUD-NOSE & FORWARD-FACING TEARDROP NOSTRIL CAVITIES (Ref 1, 3, 4!)
+          // 3) Rounded nose and forward-facing teardrop nostrils
           const philtrum = Math.exp(-Math.pow((z - 1.34) / 0.14, 2)) * Math.exp(-Math.pow(absCa / 0.18, 2)) * smoothstep(0.15, 0.95, sa);
           y -= philtrum * 0.065;
           zOut -= philtrum * 0.045;
@@ -410,59 +406,36 @@
       }),
     });
 
-    // --- 2 BROAD SCULPTED TRIANGULAR DRAGON EARS / CROWN HORNS (Ref 1 & Ref 3 #1 silhouette!) ---
-    // Wide base, scooped concave inner ear hollow, thick outer rim, bold triangular tip!
+    // --- Branching antlers: a swept-back main beam with two tines per side ---
     upper.addSculptedSpike({
-      rings: 12, segs: 14, matId: MAT_HEAD, mirrorX: true,
+      rings: 14, segs: 10, matId: MAT_CREST, mirrorX: true,
       sample: (t) => ({
-        x: lerp(0.28, 0.62, Math.pow(t, 0.92)),
-        y: lerp(0.44, 1.18, Math.pow(t, 0.86)),
-        z: lerp(-0.06, -0.62, Math.pow(t, 1.05)),
-        rx: 0.24 * (1 - 0.15 * t) * (1 + Math.sin(t * Math.PI) * 0.22),
-        ry: 0.095,
-        taperPow: 1.45,
-        rotZ: -0.44,
-        sharp: 0.26,
-        scoop: 0.72,
-        cav: lerp(0.36, 0.86, t),
+        x: lerp(0.20, 0.46, t),
+        y: lerp(0.52, 1.05, Math.pow(t, 0.8)),
+        z: lerp(-0.10, -1.05, t),
+        rx: 0.078,
+        ry: 0.070,
+        taperPow: 1.35,
+        sharp: 0.22,
+        cav: lerp(0.40, 0.92, t),
       }),
     });
-
-    // --- 2 SWEPT-BACK INNER CROWN / ANTLER HORNS (Ref 2) ---
-    upper.addSculptedSpike({
-      rings: 10, segs: 10, matId: MAT_CREST, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.18, 0.34, t),
-        y: lerp(0.52, 0.94, Math.pow(t, 0.88)),
-        z: lerp(-0.18, -1.28, t),
-        rx: 0.11,
-        ry: 0.095,
-        taperPow: 1.65,
-        sharp: 0.28,
-        cav: lerp(0.35, 0.90, t),
-      }),
-    });
-
-    // --- 4 PAIRS OF WIDE OVERLAPPING CHEEK-MANE FIN PLATES (Ref 2 & Ref 1: hug & sweep back!) ---
-    const cheekPlates = [
-      { bx: 0.42, by: 0.40, bz: -0.08, tx: 0.72, ty: 0.62, tz: -0.98, rx: 0.15, ry: 0.055, rot: -0.32 },
-      { bx: 0.48, by: 0.25, bz: -0.06, tx: 0.80, ty: 0.34, tz: -1.06, rx: 0.165, ry: 0.058, rot: -0.14 },
-      { bx: 0.47, by: 0.10, bz: -0.08, tx: 0.75, ty: 0.08, tz: -0.94, rx: 0.15, ry: 0.052, rot: 0.06 },
-      { bx: 0.40, by: -0.04, bz: -0.12, tx: 0.62, ty: -0.16, tz: -0.76, rx: 0.125, ry: 0.046, rot: 0.24 },
+    const antlerTines = [
+      { bx: 0.29, by: 0.75, bz: -0.43, tx: 0.36, ty: 1.14, tz: -0.22, r: 0.05 },
+      { bx: 0.37, by: 0.89, bz: -0.72, tx: 0.62, ty: 1.22, tz: -0.62, r: 0.045 },
     ];
-    for (const cp of cheekPlates) {
+    for (const tn of antlerTines) {
       upper.addSculptedSpike({
-        rings: 9, segs: 10, matId: MAT_CREST, mirrorX: true,
+        rings: 8, segs: 8, matId: MAT_CREST, mirrorX: true,
         sample: (t) => ({
-          x: lerp(cp.bx, cp.tx, Math.pow(t, 0.86)),
-          y: lerp(cp.by, cp.ty, t) + Math.sin(t * Math.PI) * 0.03,
-          z: lerp(cp.bz, cp.tz, t),
-          rx: cp.rx,
-          ry: cp.ry,
-          taperPow: 1.55,
-          rotZ: cp.rot,
-          sharp: 0.36,
-          cav: lerp(0.28, 0.88, t),
+          x: lerp(tn.bx, tn.tx, t),
+          y: lerp(tn.by, tn.ty, Math.pow(t, 0.85)),
+          z: lerp(tn.bz, tn.tz, t),
+          rx: tn.r,
+          ry: tn.r * 0.9,
+          taperPow: 1.5,
+          sharp: 0.24,
+          cav: lerp(0.45, 0.94, t),
         }),
       });
     }
@@ -560,7 +533,7 @@
       }),
     });
 
-    // Curled glowing dragon tongue (Ref 2!)
+    // Curled glowing dragon tongue
     lower.addSculptedSpike({
       rings: 10, segs: 10, matId: MAT_FURNACE, mirrorX: false,
       sample: (t) => ({
@@ -574,7 +547,7 @@
       }),
     });
 
-    // Lower Dentition: 4 Front Incisors + 2 Huge Upward Canine Tusks + 6 Cheek Teeth (Ref 1 & Ref 3!)
+    // Lower Dentition: 4 Front Incisors + 2 Huge Upward Canine Tusks + 6 Cheek Teeth
     const lowerTeeth = [
       { x: 0.055, y: 0.05, z: 1.11, dx: 0.0, dy: 0.11, dz: 0.01, r: 0.025 },
       { x: 0.135, y: 0.04, z: 1.09, dx: 0.0, dy: 0.13, dz: 0.01, r: 0.029 },
@@ -605,7 +578,7 @@
     };
   }
 
-  // -------------------- GLSL Shaders: Overwatch Jade Spirit Dragon --------------------
+  // -------------------- GLSL Shaders: spirit dragon --------------------
   const DRAGON_VERT = `
     attribute vec3 aPos;
     attribute vec3 aNormal;
@@ -684,7 +657,7 @@
       float bellyDist = abs(uv.y - 0.5) * 2.0;
       float bellyMask = 1.0 - smoothstep(0.24, 0.38, bellyDist);
 
-      // 1) Ventral Belly Scutes (Ref 1 & Ref 3: curved horizontal armor plates along throat/belly)
+      // 1) Ventral Belly Scutes
       float scuteU = uv.x * 64.0;
       float scuteFrac = fract(scuteU);
       // Asymmetric imbricated plate: sharp dark groove at trailing seam, smooth convex ramp across plate!
@@ -693,7 +666,7 @@
       float scuteH = scuteGroove * scuteCurve;
       float scuteDu = (0.5 - scuteFrac) * 1.35 * scuteGroove;
 
-      // 2) Tightly Packed Overlapping Diamond/Shield Scales (Ref 2 — NO polka dots!)
+      // 2) Tightly Packed Overlapping Diamond/Shield Scales
       // Evaluate two staggered scale layers and take max() so every scale genuinely overlaps the next!
       vec2 baseUv = vec2(uv.x * 38.0, uv.y * 12.0);
       float bestH = -1.0;
@@ -728,7 +701,7 @@
       if (uClipSide > 0.5 && vWorldPos.z < -0.015) discard;
 
       vec3 N = normalize(vNormal);
-      // Blend subtle stylized ZBrush/Overwatch facet crispness on head/crest armor!
+      // Blend in a little faceted crispness on the head and crest
       if (uHasDeriv > 0.5 && vMat < 4.5 && (vMat < 0.5 || vMat > 3.5)) {
         vec3 dx = dFdx(vWorldPos);
         vec3 dy = dFdy(vWorldPos);
@@ -746,7 +719,7 @@
         float lenFade = smoothstep(0.0, 0.14, vUv.x) * pow(1.0 - clamp(vUv.x, 0.0, 1.0), 1.4);
         float wispA = edgeFade * lenFade * (0.30 + 0.65 * flow) * (0.60 + 0.35 * uPower) * uAlpha;
         if (wispA < 0.01) discard;
-        vec3 wispCol = mix(vec3(0.30, 0.82, 0.12), vec3(0.80, 0.98, 0.34), flow * 0.75 + uPower * 0.2);
+        vec3 wispCol = mix(vec3(0.10, 0.70, 0.45), vec3(0.55, 1.0, 0.80), flow * 0.75 + uPower * 0.2);
         gl_FragColor = vec4(wispCol * wispA, clamp(wispA * 0.72, 0.0, 1.0));
         return;
       }
@@ -755,8 +728,8 @@
       if (vMat > 2.5 && vMat < 3.5) {
         float flicker = 0.94 + 0.06 * sin(uTime * 18.0 + vWorldPos.x * 5.0);
         float core = clamp(0.35 + pow(abs(dot(N, V)), 0.75) * 0.65, 0.0, 1.0);
-        // Intense glowing lemon-lime edge -> blinding white-yellow core (exact Ref 1, 2, 3!)
-        vec3 hotCol = mix(vec3(0.84, 1.0, 0.28), vec3(1.0, 1.0, 0.88), core) * (1.42 * flicker + uPower * 0.25);
+        // Teal edge -> near-white core
+        vec3 hotCol = mix(vec3(0.35, 1.0, 0.80), vec3(0.92, 1.0, 0.97), core) * (1.42 * flicker + uPower * 0.25);
         float a = clamp(uAlpha, 0.0, 1.0);
         gl_FragColor = vec4(hotCol * a, a);
         return;
@@ -775,7 +748,7 @@
         alpha *= 1.0 - smoothstep(0.86, 1.0, vUv.x);
       }
 
-      // Unified Overwatch Genji Spirit Dragon Jade Shader (identical material family across head & body!):
+      // One material family across head and body:
       vec3 Lkey = normalize(vec3(0.28, 0.76, 0.58));
       vec3 Lfill = normalize(vec3(-0.60, -0.35, 0.42));
       float ndl = dot(N, Lkey) * 0.5 + 0.5;
@@ -787,15 +760,14 @@
       float flowWave = fbm(vec2(vUv.x * 6.0 - uTime * 1.8, vUv.y * 3.5 + uTime * 0.2));
       float chiPulse = smoothstep(0.48, 0.90, flowWave) * (0.14 + 0.26 * uPower);
 
-      // Sampled directly from Overwatch Dragonblade references (Ref 1, 2, 3, 4):
-      // Deep crevices (nostrils, eye sockets, scale seams): rich dark mossy-jade (#345e09)
-      // Sculpted midtones (snout, brows, cheeks, scales, scutes): warm chartreuse-jade (#8fd11d -> #b2e830)
-      // Grazing Fresnel edges & sharp ridges: luminous yellow-lime (#e2ff68)
-      vec3 colCrease = vec3(0.20, 0.38, 0.04);
-      vec3 colShadow = vec3(0.42, 0.68, 0.09);
-      vec3 colMid    = vec3(0.64, 0.88, 0.16);
-      vec3 colBright = vec3(0.80, 0.96, 0.29);
-      vec3 colRim    = vec3(0.92, 1.00, 0.58);
+      // The site's own palette, matching the 2D hard-light intro:
+      // crevices and seams: near-black teal (#061a12); midtones: deep emerald -> acid green (#44d62c);
+      // grazing Fresnel edges and ridges: bright teal (#28f0b4)
+      vec3 colCrease = vec3(0.02, 0.10, 0.07);
+      vec3 colShadow = vec3(0.05, 0.30, 0.18);
+      vec3 colMid    = vec3(0.12, 0.60, 0.32);
+      vec3 colBright = vec3(0.27, 0.84, 0.17);
+      vec3 colRim    = vec3(0.16, 0.94, 0.71);
 
       float shade = clamp(ndl * 0.46 + fill * 0.12 + cavity * 0.62 - 0.16, 0.0, 1.0);
       // Guarantee deep sculpted dark-jade occlusion inside nostrils, eye sockets & nasal grooves even under direct front light!
@@ -804,22 +776,22 @@
       color = mix(color, colMid, smoothstep(0.28, 0.64, shade));
       color = mix(color, colBright, smoothstep(0.62, 0.96, shade));
       color += colRim * (fresnel * (0.34 + 0.26 * cavity));
-      color += vec3(0.68, 0.96, 0.22) * chiPulse;
+      color += vec3(0.16, 0.94, 0.70) * chiPulse;
 
-      // Cheek-mane plates, horns, continuous dorsal crest & whiskers (MAT_CREST = 4.0)
+      // Antlers, dorsal crest & whiskers (MAT_CREST = 4.0): tips brighten to mint
       if (vMat > 3.5 && vMat < 4.5) {
         float tip = clamp(vUv.x, 0.0, 1.0);
-        color = mix(color, vec3(0.88, 0.99, 0.44), tip * 0.48);
+        color = mix(color, vec3(0.55, 1.0, 0.80), tip * 0.48);
         alpha *= mix(0.99, 0.88, tip);
       }
 
-      // Fangs & Teeth (MAT_TOOTH = 2.0): crisp ivory-chartreuse backlit by inner mouth furnace ONLY!
+      // Teeth (MAT_TOOTH = 2.0): pale mint, backlit by the glow inside the mouth
       if (vMat > 1.5 && vMat < 2.5) {
         vec3 toMouth = uMouthPos - vWorldPos;
         float mDist = length(toMouth);
         float toothBacklight = exp(-mDist * 2.4) * 0.55;
-        color = mix(vec3(0.68, 0.90, 0.20), vec3(0.97, 1.0, 0.72), clamp(vCavity * 0.72 + fresnel * 0.45, 0.0, 1.0));
-        color += vec3(1.0, 1.0, 0.82) * toothBacklight;
+        color = mix(vec3(0.42, 0.78, 0.62), vec3(0.92, 1.0, 0.95), clamp(vCavity * 0.72 + fresnel * 0.45, 0.0, 1.0));
+        color += vec3(0.85, 1.0, 0.95) * toothBacklight;
       }
 
       color *= (1.0 + uPower * 0.14);
@@ -841,7 +813,7 @@
   `;
 
   // Selective HDR Bloom: blooms the blazing eyes, roaring inner mouth, and crisp silhouette rims
-  // into a lush Overwatch spirit-green halo WITHOUT washing out sculpted facial crevices!
+  // into a soft green halo without washing out the sculpted crevices.
   const BRIGHT_FRAG = `
     precision mediump float;
     varying vec2 vUv;
@@ -852,8 +824,8 @@
       // Strong knee at > 0.82 catches MAT_FURNACE (eyes/mouth) + bright Fresnel rims; soft aura on body
       float hot = smoothstep(0.80, 0.99, lum);
       float aura = smoothstep(0.35, 0.85, lum) * 0.22;
-      vec3 emeraldTint = vec3(0.32, 0.88, 0.14) * lum;
-      vec3 hotTint = vec3(0.86, 1.0, 0.42);
+      vec3 emeraldTint = vec3(0.16, 0.85, 0.45) * lum;
+      vec3 hotTint = vec3(0.55, 1.0, 0.85);
       vec3 glow = mix(emeraldTint, hotTint, hot) * (aura + hot * 0.92);
       gl_FragColor = vec4(glow, 1.0);
     }
@@ -950,8 +922,8 @@
     if (f.fbo) gl.deleteFramebuffer(f.fbo);
   }
 
-  // -------------------- Main 3D Shimada Spirit Dragon Instance --------------------
-  window.createShimadaDragon3D = function createShimadaDragon3D() {
+  // -------------------- Main 3D spirit dragon instance --------------------
+  window.createSpiritDragon3D = function createSpiritDragon3D() {
     const glCanvas = document.createElement('canvas');
     const gl = glCanvas.getContext('webgl', {
       alpha: true,
@@ -1137,12 +1109,13 @@
       return (px / W - 0.5) * 2 * HALF_H_AT_Z0 * aspect;
     }
 
-    // Flowing 3D helical S-coil (~335 deg arc with figure-8 vertical wave & helical pitch
-    // so the dragon wraps behind and in front of KPR dynamically without biting its own tail!)
+    // Flowing 3D coil round the mark with a vertical wave and helical pitch, so the dragon passes
+    // behind and in front of KPR. The arc spans ~245 deg: at ~330 deg the tail came back round to
+    // within ~30 deg of the head and the body ran straight through the head and neck.
     function evalCoilPoint(u, headAngle, timeSec) {
       const aspect = W / H;
       const centerLiftY = (liftPx / H) * 2 * HALF_H_AT_Z0;
-      const spanRad = TAU * 0.92;
+      const spanRad = TAU * 0.68;
       const a = headAngle - u * spanRad;
 
       const rxFactor = aspect < 0.85 ? 0.68 : 0.46;
@@ -1287,14 +1260,18 @@
         const pPrev = spinePts[Math.max(0, i - 1)];
         const pNext = spinePts[Math.min(BODY_RINGS - 1, i + 1)];
         let fx = pPrev.x - pNext.x, fy = pPrev.y - pNext.y, fz = pPrev.z - pNext.z;
-        // Subtle camera-facing gaze lift near the head (rings 0..5) so the dragon roars proudly toward the viewer!
-        if (!debugOverride && i < 6) {
-          const gazeK = (1 - i / 6) * (lunge ? 0.35 : 0.42);
-          fz += gazeK;
-          fy += gazeK * 0.22;
-        }
-        const fl = Math.hypot(fx, fy, fz) || 1;
+        // Normalise the direction of travel FIRST. The gap between rings is only ~0.1-0.2 units,
+        // so a bias added before normalising swamps it and the head ends up staring at the
+        // camera whichever way the body is going. Here the head follows its path, with just a
+        // light turn toward the viewer near the snout so the face still reads.
+        let fl = Math.hypot(fx, fy, fz) || 1;
         fx /= fl; fy /= fl; fz /= fl;
+        if (!debugOverride && i < 4) {
+          const gazeK = (1 - i / 4) * 0.16;
+          fz += gazeK;
+          fl = Math.hypot(fx, fy, fz) || 1;
+          fx /= fl; fy /= fl; fz /= fl;
+        }
 
         let ux, uy, uz;
         if (i === 0) {
@@ -1383,7 +1360,7 @@
         }
       }
 
-      // --- B) Continuous Overlapping Sawtooth Dorsal Spine Crest (Ref 2!) ---
+      // --- B) Continuous Overlapping Sawtooth Dorsal Spine Crest ---
       for (let f = 0; f < FIN_COUNT; f++) {
         const u = 0.015 + (f / (FIN_COUNT - 1)) * 0.91;
         const posRing = u * (BODY_RINGS - 1);
@@ -1406,7 +1383,7 @@
         const pBackY = lerp(fr.p.y, frNext.p.y, 0.68) + fr.uy * bodyR;
         const pBackZ = lerp(fr.p.z, frNext.p.z, 0.68) + fr.uz * bodyR;
 
-        // Swept-back shark-fin apex (Ref 2!)
+        // Swept-back shark-fin apex
         const sway = Math.sin(tSec * 6.0 - f * 0.45) * halfThick * 0.4;
         const apexX = fr.p.x + fr.ux * (bodyR + finH) - fr.fx * (finH * 0.88) + fr.rx * sway;
         const apexY = fr.p.y + fr.uy * (bodyR + finH) - fr.fy * (finH * 0.88) + fr.ry * sway;
@@ -1420,7 +1397,7 @@
         writeVert(b + 4, apexX, apexY, apexZ, fr.ux, fr.uy, fr.uz, 1.0, 0.5, MAT_CREST, 0.94);
       }
 
-      // --- C) 2 Bold Calligraphic S-Curve Snout Whiskers (Ref 1, 3, 4!) ---
+      // --- C) 2 Bold Calligraphic S-Curve Snout Whiskers ---
       for (let w = 0; w < 2; w++) {
         const sd = w === 0 ? 1 : -1;
         const wPts = [];
@@ -1428,7 +1405,7 @@
           const t = r / (WHISK_RINGS - 1);
           const wave1 = Math.sin(t * 4.2 - tSec * 4.8 + w * 0.7) * 0.14 * t;
           const wave2 = Math.cos(t * 3.0 - tSec * 3.8) * 0.11 * t;
-          // Sweeps boldly outward horizontally, dips slightly, then flicks up & down at the calligraphic tip (Ref 1!)
+          // Sweeps boldly outward horizontally, dips slightly, then flicks up & down at the calligraphic tip
           const lx = sd * (0.36 + Math.pow(t, 0.76) * 1.58);
           const ly = 0.22 - Math.sin(t * Math.PI * 1.1) * 0.10 + Math.sin(Math.max(0, t - 0.55) * 6.0) * 0.26 + wave1;
           const lz = 1.08 - Math.pow(t, 1.2) * 1.15 + wave2;
@@ -1465,7 +1442,7 @@
         }
       }
 
-      // --- D) Spirit-Flame Mane & Coil Wisps (Ref 1 & Ref 4!) ---
+      // --- D) Spirit-Flame Mane & Coil Wisps ---
       for (let rb = 0; rb < RIBBON_COUNT; rb++) {
         const startRing = rb < 5 ? 1 + rb * 2 : 10 + (rb - 5) * 10;
         const side = rb % 2 === 0 ? 1 : -1;

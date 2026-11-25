@@ -19,7 +19,7 @@
   --lime-ink: #040804;      /* text on accent fills */
   --accent-text: #44d62c;   /* accent used as text / small marks */
   --accent-head: #68f052;   /* second line of the headline */
-  --blade-cyan: #28f0b4;    /* secondary Dragonblade glint */
+  --blade-cyan: #28f0b4;    /* secondary blade glint */
   --chroma: linear-gradient(90deg, #44d62c 0%, #28f0b4 30%, #00a2ff 62%, #b620e0 84%, #44d62c 100%);
   --logo: #44d62c;
   --header-bg: #050605;
@@ -1070,7 +1070,7 @@ html.theme-switching *::after {
   .js .shot img, .js .stack-list li { opacity: 1; transform: none; }
 }
 
-/* ---------- Genji Dragonblade Splash ---------- */
+/* ---------- Blade intro splash ---------- */
 html.intro-pending body { overflow: hidden; }
 
 /* Post-splash slow blur ease-in reveal (targets header/main/footer, never body,
@@ -1283,7 +1283,7 @@ html.intro-pending .intro-splash,
   transition: transform .26s cubic-bezier(.16, .9, .3, 1), filter .25s ease;
 }
 
-/* Phase 3: Final Dragonblade cleave swaps out .intro-whole and tears the screen open */
+/* Phase 3: the final cleave swaps out .intro-whole and tears the screen open */
 .intro-splash.is-cleaved .intro-whole { display: none; }
 .intro-splash.is-cleaved .intro-half {
   visibility: visible; opacity: 1;
