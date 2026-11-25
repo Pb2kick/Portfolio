@@ -103,6 +103,7 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
     };
     frame = requestAnimationFrame(step);
   }
+  window.kprGlideTo = glideTo; // the deck below reuses this eased scroll
 
   document.addEventListener('click', (e) => {
     const link = e.target.closest && e.target.closest('a[href^="#"]');
@@ -123,23 +124,28 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   });
 })();
 
-// ---- Site Web Audio (tactile Razer UI ticks + cold-steel Dragonblade SFX) ----
-// Browsers only allow sound after the visitor's first click or key press, so auto-loaded
-// intros run visually until interacted with, while explicit clicks/replays play full SFX.
+// ---- Site Audio (tactile Razer UI ticks + real CC0 sword slash foley) ----
 const siteAudio = (function () {
-  // Optional: if you have extracted Overwatch audio files, place them in src/assets/sfx/
-  // and set their relative paths below (left blank by default to avoid 404 requests).
-  const CUSTOM_BLADE_AUDIO = {
-    unsheathe: '', // e.g. 'assets/sfx/dragonblade-unsheathe.ogg'
-    swing: '',     // e.g. 'assets/sfx/dragonblade-swing.ogg'
+  const BLADE_SFX = {
+    unsheathe: 'assets/sfx/blade-unsheathe.ogg',
+    slash1: 'assets/sfx/blade-slash-1.ogg',
+    slash2: 'assets/sfx/blade-slash-2.ogg',
+    whoosh: 'assets/sfx/blade-whoosh.mp3',
   };
 
   const toggle = document.querySelector('[data-sound-toggle]');
   const AC = window.AudioContext || window.webkitAudioContext;
   let enabled = true;
   try { enabled = localStorage.getItem('hover-sounds') !== 'off'; } catch (e) { /* storage blocked */ }
-  let ctx = null, last = 0, noiseBuf = null, driveCurve = null;
-  const customBuffers = new Map();
+  let ctx = null, last = 0, noiseBuf = null;
+  const mediaPool = new Map();
+
+  // Preload the real recorded blade audio files immediately so reload playback has zero lag
+  Object.values(BLADE_SFX).forEach((src) => {
+    const a = new Audio(src);
+    a.preload = 'auto';
+    mediaPool.set(src, a);
+  });
 
   function render() {
     if (!toggle) return;
@@ -157,7 +163,7 @@ const siteAudio = (function () {
   function getNoiseBuffer() {
     if (!ctx) return null;
     if (!noiseBuf) {
-      const len = Math.floor(ctx.sampleRate * 0.65);
+      const len = Math.floor(ctx.sampleRate * 0.2);
       noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
       const data = noiseBuf.getChannelData(0);
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
@@ -165,52 +171,25 @@ const siteAudio = (function () {
     return noiseBuf;
   }
 
-  function getDriveShaper() {
-    if (!driveCurve) {
-      driveCurve = new Float32Array(256);
-      for (let i = 0; i < 256; i++) {
-        const x = (i * 2) / 255 - 1;
-        driveCurve[i] = Math.tanh(x * 2.2);
-      }
-    }
-    const shaper = ctx.createWaveShaper();
-    shaper.curve = driveCurve;
-    shaper.oversample = '2x';
-    return shaper;
+  function playClip(src, rate = 1, volume = 0.75) {
+    if (!enabled || !src) return;
+    const base = mediaPool.get(src);
+    const clip = base ? base.cloneNode() : new Audio(src);
+    clip.volume = Math.max(0, Math.min(1, volume));
+    if ('preservesPitch' in clip) clip.preservesPitch = false;
+    else if ('webkitPreservesPitch' in clip) clip.webkitPreservesPitch = false;
+    clip.playbackRate = rate;
+    clip.play().catch(() => { /* blocked until first user gesture in fresh tabs */ });
   }
 
-  async function playCustomClip(url, playbackRate = 1, volume = 0.55) {
-    if (!url || !enabled || !ctx || ctx.state !== 'running') return false;
-    try {
-      if (!customBuffers.has(url)) {
-        customBuffers.set(url, fetch(url)
-          .then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
-          .then((ab) => ctx.decodeAudioData(ab)));
-      }
-      const buf = await customBuffers.get(url);
-      const src = ctx.createBufferSource();
-      const g = ctx.createGain();
-      src.buffer = buf;
-      src.playbackRate.value = playbackRate;
-      g.gain.value = volume;
-      src.connect(g).connect(ctx.destination);
-      src.start();
-      return true;
-    } catch (e) {
-      customBuffers.delete(url);
-      return false;
-    }
-  }
-
-  // Subtle dampened Razer optical-switch / stealth HUD micro-tick (no pixel square waves)
+  // Subtle dampened Razer optical-switch / stealth HUD micro-tick
   function playHoverTick(bodyFreq, clickFreq, volume) {
     if (!enabled || !ctx || ctx.state !== 'running') return;
     const nowMs = performance.now();
-    if (nowMs - last < 55) return; // no machine-gun ticks when sweeping across a row
+    if (nowMs - last < 55) return;
     last = nowMs;
     const t = ctx.currentTime;
 
-    // 1) Crisp 12 ms tactile switch transient
     const noise = ctx.createBufferSource();
     noise.buffer = getNoiseBuffer();
     const bp = ctx.createBiquadFilter();
@@ -225,7 +204,6 @@ const siteAudio = (function () {
     noise.start(t);
     noise.stop(t + 0.018);
 
-    // 2) Short damped low-mid keyswitch body ("thock")
     const body = ctx.createOscillator();
     const bGain = ctx.createGain();
     body.type = 'sine';
@@ -257,179 +235,22 @@ const siteAudio = (function () {
   }
 
   function playUnsheathe() {
-    if (!enabled || !ctx || ctx.state !== 'running') return;
-    if (CUSTOM_BLADE_AUDIO.unsheathe) {
-      playCustomClip(CUSTOM_BLADE_AUDIO.unsheathe, 1, 0.55);
-      return;
-    }
-    const t = ctx.currentTime;
-    const bus = getDriveShaper();
-    const master = ctx.createGain();
-    master.gain.value = 0.85;
-    bus.connect(master).connect(ctx.destination);
-
-    // 1) Heavy cyber-scabbard steel draw + spirit wind swell
-    const src = ctx.createBufferSource();
-    src.buffer = getNoiseBuffer();
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.Q.value = 4.2;
-    filter.frequency.setValueAtTime(1400, t);
-    filter.frequency.exponentialRampToValueAtTime(5600, t + 0.26);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.075, t + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
-    src.connect(filter).connect(gain).connect(bus);
-    src.start(t);
-    src.stop(t + 0.32);
-
-    // 2) Dragon spirit energy charge undertone
-    [118, 121.5].forEach((baseF) => {
-      const sp = ctx.createOscillator();
-      const spFilter = ctx.createBiquadFilter();
-      const spGain = ctx.createGain();
-      sp.type = 'sawtooth';
-      sp.frequency.setValueAtTime(baseF, t);
-      sp.frequency.exponentialRampToValueAtTime(baseF * 1.9, t + 0.28);
-      spFilter.type = 'bandpass';
-      spFilter.Q.value = 3.5;
-      spFilter.frequency.setValueAtTime(320, t);
-      spFilter.frequency.exponentialRampToValueAtTime(980, t + 0.28);
-      spGain.gain.setValueAtTime(0.0001, t);
-      spGain.gain.exponentialRampToValueAtTime(0.035, t + 0.08);
-      spGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
-      sp.connect(spFilter).connect(spGain).connect(bus);
-      sp.start(t);
-      sp.stop(t + 0.34);
-    });
-
-    // 3) Forged steel unsheathe ring ("shing")
-    [2480, 3920, 5680].forEach((freq, idx) => {
-      const mode = ctx.createOscillator();
-      const mGain = ctx.createGain();
-      mode.type = 'sine';
-      mode.frequency.setValueAtTime(freq * 0.99, t + 0.02);
-      mode.frequency.exponentialRampToValueAtTime(freq, t + 0.05);
-      mGain.gain.setValueAtTime(0.0001, t + 0.02);
-      mGain.gain.exponentialRampToValueAtTime(0.018 / (idx + 1), t + 0.035);
-      mGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
-      mode.connect(mGain).connect(bus);
-      mode.start(t + 0.02);
-      mode.stop(t + 0.38);
-    });
+    playClip(BLADE_SFX.unsheathe, 1.0, 0.55);
   }
 
-  // Dragonblade Ultimate swing: heavy kendo air-whip + spectral dragon roar + FM cyber-steel cut
   function playKatanaSlash(step) {
-    if (!enabled || !ctx || ctx.state !== 'running') return;
-    const isCleave = step === 3;
-    if (CUSTOM_BLADE_AUDIO.swing) {
-      const rate = step === 1 ? 1.0 : step === 2 ? 1.07 : 0.86;
-      playCustomClip(CUSTOM_BLADE_AUDIO.swing, rate, isCleave ? 0.72 : 0.56);
-      return;
+    if (step === 1) {
+      playClip(BLADE_SFX.slash1, 1.02, 0.72);
+      playClip(BLADE_SFX.whoosh, 1.05, 0.38);
+    } else if (step === 2) {
+      playClip(BLADE_SFX.slash2, 1.06, 0.76);
+      playClip(BLADE_SFX.whoosh, 1.12, 0.42);
+    } else {
+      // Heavy final cleave: deeper pitched blade slice + air whoosh
+      playClip(BLADE_SFX.slash2, 0.84, 0.90);
+      playClip(BLADE_SFX.slash1, 0.88, 0.50);
+      playClip(BLADE_SFX.whoosh, 0.82, 0.65);
     }
-
-    const t = ctx.currentTime;
-    const dur = isCleave ? 0.44 : 0.30;
-    const pitchMul = step === 2 ? 1.08 : isCleave ? 0.88 : 1.0;
-
-    const bus = getDriveShaper();
-    const master = ctx.createGain();
-    master.gain.value = isCleave ? 0.95 : 0.80;
-    bus.connect(master).connect(ctx.destination);
-
-    // 1) Heavy kendo katana chesty air-whip (deep low-mid swing, not thin white noise)
-    const air = ctx.createBufferSource();
-    air.buffer = getNoiseBuffer();
-    const airBand = ctx.createBiquadFilter();
-    airBand.type = 'bandpass';
-    airBand.Q.value = 1.05;
-    airBand.frequency.setValueAtTime(160 * pitchMul, t);
-    airBand.frequency.exponentialRampToValueAtTime(1280 * pitchMul, t + 0.065);
-    airBand.frequency.exponentialRampToValueAtTime(175 * pitchMul, t + dur);
-    const bodyBoost = ctx.createBiquadFilter();
-    bodyBoost.type = 'peaking';
-    bodyBoost.frequency.value = 250;
-    bodyBoost.gain.value = 7;
-    const airGain = ctx.createGain();
-    airGain.gain.setValueAtTime(0.0001, t);
-    airGain.gain.exponentialRampToValueAtTime(isCleave ? 0.34 : 0.24, t + 0.048);
-    airGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    air.connect(airBand).connect(bodyBoost).connect(airGain).connect(bus);
-    air.start(t);
-    air.stop(t + dur + 0.04);
-
-    // 2) Spectral Dragonblade spirit wind / roar (detuned dual-oscillator formant growl)
-    [134 * pitchMul, 138.5 * pitchMul].forEach((f0) => {
-      const dragon = ctx.createOscillator();
-      const formant = ctx.createBiquadFilter();
-      const dGain = ctx.createGain();
-      dragon.type = 'sawtooth';
-      dragon.frequency.setValueAtTime(f0, t);
-      dragon.frequency.exponentialRampToValueAtTime(f0 * 1.85, t + 0.06);
-      dragon.frequency.exponentialRampToValueAtTime(f0 * 0.68, t + dur);
-      formant.type = 'bandpass';
-      formant.Q.value = 3.6;
-      formant.frequency.setValueAtTime(380 * pitchMul, t);
-      formant.frequency.exponentialRampToValueAtTime(1450 * pitchMul, t + 0.065);
-      formant.frequency.exponentialRampToValueAtTime(290 * pitchMul, t + dur);
-      dGain.gain.setValueAtTime(0.0001, t);
-      dGain.gain.exponentialRampToValueAtTime(isCleave ? 0.095 : 0.065, t + 0.042);
-      dGain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      dragon.connect(formant).connect(dGain).connect(bus);
-      dragon.start(t);
-      dragon.stop(t + dur + 0.04);
-    });
-
-    // 3) FM-modulated forged cyber-steel slice transient ("SHING-KRR")
-    const carrier = ctx.createOscillator();
-    const mod = ctx.createOscillator();
-    const modGain = ctx.createGain();
-    const cGain = ctx.createGain();
-    carrier.type = 'sine';
-    carrier.frequency.setValueAtTime(1580 * pitchMul, t + 0.022);
-    carrier.frequency.exponentialRampToValueAtTime(1420 * pitchMul, t + 0.16);
-    mod.type = 'triangle';
-    mod.frequency.setValueAtTime(2390 * pitchMul, t + 0.022);
-    modGain.gain.setValueAtTime(950, t + 0.022);
-    modGain.gain.exponentialRampToValueAtTime(8, t + 0.095);
-    cGain.gain.setValueAtTime(0.0001, t + 0.022);
-    cGain.gain.exponentialRampToValueAtTime(isCleave ? 0.065 : 0.045, t + 0.03);
-    cGain.gain.exponentialRampToValueAtTime(0.0001, t + (isCleave ? 0.34 : 0.20));
-    mod.connect(modGain).connect(carrier.frequency);
-    carrier.connect(cGain).connect(bus);
-    mod.start(t + 0.022);
-    carrier.start(t + 0.022);
-    mod.stop(t + 0.12);
-    carrier.stop(t + (isCleave ? 0.36 : 0.22));
-
-    // High steel blade shimmer harmonics
-    [3360 * pitchMul, 5080 * pitchMul].forEach((freq, idx) => {
-      const sh = ctx.createOscillator();
-      const sg = ctx.createGain();
-      sh.type = 'sine';
-      sh.frequency.setValueAtTime(freq, t + 0.025);
-      sg.gain.setValueAtTime(0.0001, t + 0.025);
-      sg.gain.exponentialRampToValueAtTime(0.016 / (idx + 1), t + 0.035);
-      sg.gain.exponentialRampToValueAtTime(0.0001, t + (isCleave ? 0.44 : 0.24));
-      sh.connect(sg).connect(bus);
-      sh.start(t + 0.025);
-      sh.stop(t + (isCleave ? 0.46 : 0.26));
-    });
-
-    // 4) Kinetic energy sub-impact on every Dragonblade swing
-    const sub = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    sub.type = 'sine';
-    sub.frequency.setValueAtTime(isCleave ? 124 : 104, t + 0.025);
-    sub.frequency.exponentialRampToValueAtTime(34, t + (isCleave ? 0.28 : 0.17));
-    subGain.gain.setValueAtTime(0.0001, t + 0.025);
-    subGain.gain.exponentialRampToValueAtTime(isCleave ? 0.24 : 0.13, t + 0.036);
-    subGain.gain.exponentialRampToValueAtTime(0.0001, t + (isCleave ? 0.32 : 0.19));
-    sub.connect(subGain).connect(bus);
-    sub.start(t + 0.025);
-    sub.stop(t + (isCleave ? 0.34 : 0.21));
   }
 
   // Tactile switch profiles by element weight
@@ -443,8 +264,8 @@ const siteAudio = (function () {
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType && e.pointerType !== 'mouse') return;
     const el = e.target.closest && e.target.closest(HOVERABLE);
-    if (!el || el.closest('[data-game]')) return; // the game has its own sound
-    if (e.relatedTarget && el.contains(e.relatedTarget)) return; // still inside the same element
+    if (!el || el.closest('[data-game]')) return;
+    if (e.relatedTarget && el.contains(e.relatedTarget)) return;
     const [bodyFreq, clickFreq, vol] = soundFor(el);
     playHoverTick(bodyFreq, clickFreq, vol);
   });
@@ -468,22 +289,17 @@ const siteAudio = (function () {
 })();
 
 // ---- Genji Shimada Dragonblade Splash Intro ----
-// Zero polygon seam while intact; Slash 1 shatters the diamond reticle, Slash 2 shears
-// the KPR mark into two halves, and Slash 3 cleaves the viewport open into the Hero.
+// Plays on every page load/reload (unless reduced motion is enabled), then eases the site in from a blur.
 window.kprIntro = (function () {
   const splash = document.querySelector('[data-intro-splash]');
   const canvas = document.querySelector('[data-intro-canvas]');
   const skipBtn = document.querySelector('[data-intro-skip]');
-  const replayBtn = document.querySelector('[data-intro-replay]');
   const ctx2d = canvas ? canvas.getContext('2d') : null;
 
   let active = root.classList.contains('intro-pending') && !!splash && !!ctx2d;
   const doneCallbacks = [];
   let raf = 0, runToken = 0, timers = [], activeCleanup = null, unblurTimer = 0;
 
-  function markSeen() {
-    try { sessionStorage.setItem('kpr-intro-seen', '1'); } catch (e) {}
-  }
   function notifyDone() {
     active = false;
     while (doneCallbacks.length) {
@@ -494,7 +310,6 @@ window.kprIntro = (function () {
   function releaseSiteBlur() {
     clearTimeout(unblurTimer);
     if (!root.classList.contains('site-blur-hold')) return;
-    // Force style recalc so the browser transitions smoothly from blur(26px) -> blur(0px)
     void root.offsetWidth;
     root.classList.add('site-unblurring');
     root.classList.remove('site-blur-hold');
@@ -508,7 +323,7 @@ window.kprIntro = (function () {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
   }
 
-  function startSequence(options = {}) {
+  function startSequence() {
     if (!splash || !ctx2d) {
       root.classList.remove('site-blur-hold', 'site-unblurring');
       notifyDone();
@@ -519,8 +334,6 @@ window.kprIntro = (function () {
     clearTimeout(unblurTimer);
 
     const token = ++runToken;
-    const isReplay = !!options.replay;
-    const returnFocusTo = isReplay ? document.activeElement : null;
     active = true;
 
     let W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
@@ -544,10 +357,9 @@ window.kprIntro = (function () {
 
     requestAnimationFrame(() => {
       if (token === runToken) splash.classList.add('is-charging');
-      if (!isReplay && skipBtn) skipBtn.focus({ preventScroll: true });
+      if (skipBtn) skipBtn.focus({ preventScroll: true });
     });
 
-    if (isReplay) siteAudio.unlock();
     siteAudio.playUnsheathe();
 
     const onSplashPointer = (e) => {
@@ -767,16 +579,14 @@ window.kprIntro = (function () {
       if (token !== runToken) return;
       runToken++;
       clearTimers();
-      markSeen();
       const finalizeHide = () => {
         splash.classList.remove('is-active', 'is-charging', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
         splash.hidden = true;
         splash.setAttribute('aria-hidden', 'true');
         root.style.overflow = '';
         releaseSiteBlur();
-        if (!isReplay) notifyDone();
+        notifyDone();
         if (window.ScrollTrigger) window.ScrollTrigger.refresh();
-        if (returnFocusTo && returnFocusTo.focus) returnFocusTo.focus({ preventScroll: true });
       };
       if (skipped) {
         splash.classList.add('is-skipping');
@@ -810,14 +620,10 @@ window.kprIntro = (function () {
   }
 
   if (active) {
-    startSequence({ replay: false });
+    startSequence();
   } else {
     root.classList.remove('intro-pending', 'site-blur-hold', 'site-unblurring');
     if (splash) { splash.hidden = true; splash.setAttribute('aria-hidden', 'true'); }
-  }
-
-  if (replayBtn) {
-    replayBtn.addEventListener('click', () => startSequence({ replay: true }));
   }
 
   return {
@@ -865,7 +671,7 @@ window.kprIntro = (function () {
   // lighting change rather than movement, so it stays on with reduced motion too.
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (finePointer) {
-    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .cert-card, .context, .portrait-card')
+    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context, .portrait-card')
       .forEach((el) => el.classList.add('glow'));
     document.addEventListener('pointermove', (e) => {
       const card = e.target.closest && e.target.closest('.glow');
@@ -888,8 +694,8 @@ window.kprIntro = (function () {
     [...list.children].forEach((li, i) => li.style.setProperty('--i', i));
   });
 
-  // Underline the nav link for the section in view.
-  const links = [...document.querySelectorAll('.site-nav a[href^="#"]')];
+  // Underline the nav link for the section in view (the deck's links follow the open module).
+  const links = [...document.querySelectorAll('.site-nav a[href^="#"]:not([data-deck-trigger])')];
   const targets = links.map((a) => document.querySelector(a.hash)).filter(Boolean);
   if ('IntersectionObserver' in window && targets.length) {
     const io = new IntersectionObserver((entries) => {
@@ -899,6 +705,459 @@ window.kprIntro = (function () {
       });
     }, { rootMargin: '-45% 0px -45% 0px' });
     targets.forEach((t) => io.observe(t));
+  }
+})();
+
+// ---- Deck: Work / Info / Certifications in one console ----
+// The header links, the tabs, keys 1-3 and "Next up" all switch the open module. With GSAP
+// the old module slips out and a light beam wipes the new one in; with reduced motion (or
+// no GSAP) the switch is instant. Filters, the tech trace and the process rail live here too.
+(function () {
+  const deck = document.querySelector('[data-deck]');
+  if (!deck) return;
+  const G = () => window.gsap;
+  const canAnimate = () => !!G() && !reduceMotion;
+  if (G()) {
+    const plugins = [window.Flip, window.ScrambleTextPlugin].filter(Boolean);
+    if (plugins.length) G().registerPlugin(...plugins);
+  }
+  const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  const ids = ['work', 'info', 'certifications'];
+  const names = { work: 'Work', info: 'Info', certifications: 'Certifications' };
+  const tabList = deck.querySelector('[data-deck-tabs]');
+  const tabs = ids.map((id) => deck.querySelector('[data-deck-tab="' + id + '"]'));
+  const panels = ids.map((id) => deck.querySelector('[data-deck-panel="' + id + '"]'));
+  const glider = deck.querySelector('[data-deck-glider]');
+  const beam = deck.querySelector('[data-deck-beam]');
+  const stage = deck.querySelector('[data-deck-stage]');
+  const status = deck.querySelector('[data-deck-status]');
+  const statusLive = deck.querySelector('[data-deck-status-live]');
+  const nextBtn = deck.querySelector('[data-deck-next]');
+  const nextLabel = deck.querySelector('[data-deck-next-label]');
+  const nav = document.querySelector('[data-header-nav]');
+  const navGlider = nav && nav.querySelector('[data-nav-glider]');
+  const navLinks = ids.map((id) => nav && nav.querySelector('[data-deck-trigger="' + id + '"]'));
+  let current = 0;
+  let switching = null;
+
+  // ---- gliders: the lit block behind the active tab, the underline under the header link ----
+  function moveTo(el, x, w, instant, vars) {
+    if (!el) return;
+    if (G()) {
+      if (instant || !canAnimate()) G().set(el, { x, width: w });
+      else G().to(el, Object.assign({ x, width: w, overwrite: true }, vars));
+    } else {
+      el.style.transform = 'translateX(' + x + 'px)';
+      el.style.width = w + 'px';
+    }
+  }
+  function placeGliders(instant) {
+    const t = tabs[current];
+    moveTo(glider, t.offsetLeft, t.offsetWidth, instant, { duration: 0.62, ease: 'expo.inOut' });
+    const a = navLinks[current];
+    if (a && navGlider) {
+      moveTo(navGlider, a.offsetLeft, a.offsetWidth, instant, { duration: 0.55, ease: 'power3.inOut' });
+      nav.classList.add('has-glider');
+    }
+  }
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(() => placeGliders(true));
+    ro.observe(tabList);
+    if (nav) ro.observe(nav);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => placeGliders(true));
+
+  // The header underline dims while the deck is off screen.
+  if (nav && 'IntersectionObserver' in window) {
+    new IntersectionObserver(([entry]) => nav.classList.toggle('is-away', !entry.isIntersecting))
+      .observe(deck);
+  }
+
+  // ---- labels decode like a cipher when hovered ----
+  function scramble(el, text, duration) {
+    if (!el) return;
+    if (canAnimate() && window.ScrambleTextPlugin) {
+      G().to(el, { duration: duration || 0.55, scrambleText: { text, chars: 'upperCase', speed: 0.7 }, overwrite: true });
+    } else {
+      el.textContent = text;
+    }
+  }
+  if (finePointer) {
+    document.querySelectorAll('[data-cipher-text]').forEach((el) => {
+      const text = el.textContent;
+      const host = el.closest('a, button');
+      if (host) host.addEventListener('pointerenter', () => scramble(el, text, 0.45));
+    });
+  }
+
+  // ---- switching ----
+  function show(panel) {
+    panels.forEach((p) => {
+      const on = p === panel;
+      p.hidden = !on;
+      p.classList.toggle('is-active', on);
+    });
+  }
+  function mark() {
+    tabs.forEach((t, k) => {
+      const on = k === current;
+      t.classList.toggle('is-active', on);
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+    });
+    navLinks.forEach((a, k) => {
+      if (!a) return;
+      a.classList.toggle('is-active', k === current);
+      if (k === current) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    });
+    const next = ids[(current + 1) % ids.length];
+    nextLabel.textContent = names[next];
+    nextBtn.setAttribute('aria-label', 'Next up: ' + names[next]);
+    const text = panels[current].dataset.status || '';
+    statusLive.textContent = text;
+    if (canAnimate() && window.ScrambleTextPlugin) {
+      G().to(status, { duration: 0.9, scrambleText: { text, chars: 'lowerCase', speed: 0.6, revealDelay: 0.2 }, overwrite: true });
+    } else {
+      status.textContent = text;
+    }
+  }
+  function deckTop() {
+    const margin = parseFloat(getComputedStyle(deck).scrollMarginTop) || 0;
+    return deck.getBoundingClientRect().top + scrollY - margin;
+  }
+  function scrollToDeck(done) {
+    if (window.kprGlideTo) window.kprGlideTo(Math.max(0, deckTop()), done);
+    else { window.scrollTo(0, deckTop()); if (done) done(); }
+  }
+  // After a module appears: let motion.js arm its first-visit entrances, re-measure scroll
+  // effects, and (on later visits) cascade in whatever is on screen.
+  function afterShow(panel, firstVisit) {
+    if (window.kprMotion && window.kprMotion.armPanel) window.kprMotion.armPanel(panel);
+    if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+    if (!firstVisit && canAnimate()) {
+      const items = [...panel.querySelectorAll('.section-bar, [data-item]:not(.is-filtered-out), .context, .process-step, .stack-group, .trace, .cert')]
+        .filter((el) => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; })
+        .slice(0, 10);
+      G().fromTo(items, { y: 22, autoAlpha: 0 }, {
+        y: 0, autoAlpha: 1, duration: 0.7, stagger: 0.05, ease: 'power3.out', delay: 0.12,
+        clearProps: 'transform,opacity,visibility',
+      });
+    }
+  }
+
+  function activate(i, opts) {
+    opts = opts || {};
+    if (i === current) {
+      if (opts.scroll) scrollToDeck(opts.then);
+      else if (opts.then) opts.then();
+      return;
+    }
+    const from = panels[current];
+    const to = panels[i];
+    current = i;
+    mark();
+    placeGliders(false);
+    scramble(tabs[i].querySelector('[data-cipher-text]'), names[ids[i]], 0.6);
+
+    // Keep the console in view: from the header (or "Next up") always glide to it, and from
+    // the tabs only when the visitor has scrolled past it.
+    if (opts.scroll || deck.getBoundingClientRect().top < 0) scrollToDeck();
+
+    const firstVisit = !to.dataset.visited;
+    to.dataset.visited = '1';
+
+    if (switching) { switching.progress(1); switching.kill(); switching = null; }
+    if (!canAnimate()) {
+      show(to);
+      afterShow(to, firstVisit);
+      if (opts.then) opts.then();
+      return;
+    }
+    const g = G();
+    switching = g.timeline({ onComplete: () => { switching = null; } })
+      .to(from, { autoAlpha: 0, x: -36, duration: 0.26, ease: 'power2.in' })
+      .add(() => {
+        g.set(from, { clearProps: 'opacity,visibility,transform' });
+        show(to);
+        afterShow(to, firstVisit);
+        if (opts.then) opts.then();
+      })
+      .set(beam, { autoAlpha: 1, x: 0 })
+      .fromTo(to, { clipPath: 'inset(0% 100% 0% 0%)' },
+        { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.75, ease: 'power3.inOut', clearProps: 'clipPath' }, '<')
+      .to(beam, { x: () => stage.clientWidth, duration: 0.75, ease: 'power3.inOut' }, '<')
+      .to(beam, { autoAlpha: 0, duration: 0.25, ease: 'power1.out' }, '-=0.18')
+      .set(beam, { x: 0 }); // park it at the left edge so it never widens the page
+  }
+
+  const indexOf = (id) => ids.indexOf(id);
+  const setHash = (id) => { if (history.replaceState) history.replaceState(null, '', '#' + id); };
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => { activate(i); setHash(ids[i]); });
+  });
+  // Arrow keys move along the tabs (and open them), as in any tab strip.
+  tabList.addEventListener('keydown', (e) => {
+    const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' };
+    if (!(e.key in keys)) return;
+    e.preventDefault();
+    const step = keys[e.key];
+    const i = step === 'first' ? 0 : step === 'last' ? ids.length - 1 : (current + step + ids.length) % ids.length;
+    tabs[i].focus();
+    activate(i);
+    setHash(ids[i]);
+  });
+
+  // Header links and "Explore my work": switch, then glide to the console.
+  document.querySelectorAll('[data-deck-trigger]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const i = indexOf(link.dataset.deckTrigger);
+      if (i < 0) return;
+      e.preventDefault();
+      activate(i, { scroll: true });
+      if (history.pushState) history.pushState(null, '', '#' + ids[i]);
+    });
+  });
+
+  nextBtn.addEventListener('click', () => {
+    const i = (current + 1) % ids.length;
+    activate(i, { scroll: true, then: () => tabs[i].focus({ preventScroll: true }) });
+    setHash(ids[i]);
+  });
+
+  // Keys 1-3 switch modules while the deck is on screen (not while typing or playing AMBOT).
+  document.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
+    const i = ['1', '2', '3'].indexOf(e.key);
+    if (i < 0) return;
+    const t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, [contenteditable], [data-game]')) return;
+    if (document.fullscreenElement || root.classList.contains('intro-pending')) return;
+    const r = deck.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) return;
+    activate(i);
+    setHash(ids[i]);
+  });
+
+  // Deep links (#info, #stack, #project-ambot …) open the module that holds the target.
+  function openFromHash(instantScroll) {
+    const hash = decodeURIComponent(location.hash.slice(1));
+    if (!hash) return;
+    const target = document.getElementById(hash);
+    if (!target || !deck.contains(target)) return;
+    const panel = target.closest('[data-deck-panel]');
+    const i = panel ? panels.indexOf(panel) : -1;
+    if (i < 0) return;
+    const targetY = () => {
+      if (target === panel) return deckTop();
+      const margin = parseFloat(getComputedStyle(target).scrollMarginTop) || 72;
+      return target.getBoundingClientRect().top + scrollY - margin;
+    };
+    const reveal = () => {
+      if (!instantScroll) {
+        if (window.kprGlideTo) window.kprGlideTo(targetY()); else window.scrollTo(0, targetY());
+        return;
+      }
+      window.scrollTo(0, targetY());
+      // Images and fonts above can still shift the page after a fresh load: re-aim once it
+      // settles, unless the visitor has scrolled since.
+      const landed = scrollY;
+      const reaim = () => { if (Math.abs(scrollY - landed) < 2) window.scrollTo(0, targetY()); };
+      if (document.readyState === 'complete') setTimeout(reaim, 350);
+      else window.addEventListener('load', () => setTimeout(reaim, 350), { once: true });
+    };
+    if (instantScroll) {
+      current = i;
+      panels[i].dataset.visited = '1';
+      show(panels[i]);
+      mark();
+      placeGliders(true);
+      // Wait for the intro (if any) to hand the page back before scrolling.
+      if (window.kprIntro && window.kprIntro.whenDone) window.kprIntro.whenDone(reveal);
+      else requestAnimationFrame(reveal);
+    } else {
+      activate(i, { then: () => requestAnimationFrame(reveal) });
+    }
+  }
+  window.addEventListener('hashchange', () => openFromHash(false));
+
+  // ---- start: one module open, the rest hidden ----
+  panels[0].dataset.visited = '1';
+  show(panels[current]);
+  placeGliders(true);
+  openFromHash(true);
+
+  // ---- filters (Work by platform, Certifications by field), animated with Flip ----
+  deck.querySelectorAll('[data-filter-group]').forEach((group) => {
+    const panel = group.closest('[data-deck-panel]');
+    const pills = [...group.querySelectorAll('[data-filter]')];
+    const items = [...panel.querySelectorAll('[data-item]')];
+    const blocks = [...panel.querySelectorAll('[data-filter-block]')];
+    const labels = [...panel.querySelectorAll('[data-filter-label]')];
+    const count = panel.querySelector('[data-filter-count="' + group.dataset.filterGroup + '"]');
+
+    function apply(filter) {
+      pills.forEach((p) => p.setAttribute('aria-pressed', String(p.dataset.filter === filter)));
+      const flip = canAnimate() && window.Flip;
+      const state = flip ? window.Flip.getState(items) : null;
+      let shown = 0;
+      items.forEach((it) => {
+        const on = filter === 'all' || it.dataset.tags.split(' ').includes(filter);
+        it.classList.toggle('is-filtered-out', !on);
+        // Shown by a filter counts as revealed, so a pending scroll entrance can't hide it again.
+        if (on) { shown++; it.classList.add('is-visible'); }
+      });
+      blocks.forEach((b) => {
+        const visible = [...b.querySelectorAll('[data-item]:not(.is-filtered-out)')];
+        b.classList.toggle('is-empty', visible.length === 0);
+        // A lone wide card (AMBOT) takes the whole row instead of the narrow phone column.
+        b.classList.toggle('is-solo-wide', visible.length === 1 && visible[0].classList.contains('live-card--wide'));
+      });
+      labels.forEach((l) => {
+        const block = panel.querySelector('[data-filter-block="' + l.dataset.filterLabel + '"]');
+        l.classList.toggle('is-empty', !!block && block.classList.contains('is-empty'));
+      });
+      if (count) count.textContent = shown + ' of ' + items.length;
+      if (!flip) { if (window.ScrollTrigger) window.ScrollTrigger.refresh(); return; }
+      window.Flip.from(state, {
+        duration: 0.65,
+        ease: 'power3.inOut',
+        absoluteOnLeave: true,
+        onEnter: (els) => G().fromTo(els, { autoAlpha: 0, y: 34, scale: 0.97 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.6, delay: 0.12, stagger: 0.06, ease: 'power3.out' }),
+        onLeave: (els) => G().to(els, { autoAlpha: 0, y: -18, scale: 0.97, duration: 0.28, ease: 'power2.in' }),
+        onComplete: () => {
+          G().set(items, { clearProps: 'transform,opacity,visibility,width,height' });
+          if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+        },
+      });
+    }
+    pills.forEach((p) => p.addEventListener('click', () => apply(p.dataset.filter)));
+    group.kprApply = apply; // the tech trace resets a filter that would hide its target
+  });
+
+  // ---- tech trace: pick a technology, see (and jump to) the projects that ship with it ----
+  const PROJECTS = {
+    gallus: '01 / Gallus', teamflow: '02 / TeamFlow', newshub: '03 / NewsHub',
+    fitcampus: '04 / FitCampus', ambot: '05 / AMBOT',
+  };
+  const USED_IN = {
+    Java: ['newshub', 'ambot'], Kotlin: ['fitcampus'], Python: ['teamflow'], TypeScript: ['gallus'],
+    JavaScript: ['teamflow', 'newshub'], Rust: ['gallus'], HTML: ['gallus', 'teamflow', 'newshub'],
+    CSS: ['gallus', 'teamflow', 'newshub'], React: ['gallus', 'newshub'], 'Spring Boot': ['newshub'],
+    Django: ['teamflow'], 'Tailwind CSS': ['newshub'], Vite: ['gallus'], Capacitor: ['gallus'],
+    Tauri: ['gallus'], PostgreSQL: ['teamflow', 'newshub'], SQLite: ['gallus', 'fitcampus'],
+    Supabase: ['gallus', 'teamflow', 'newshub'], Android: ['gallus', 'fitcampus'],
+    Git: Object.keys(PROJECTS), GitHub: Object.keys(PROJECTS), Render: ['gallus', 'teamflow', 'newshub'],
+    'JUnit 5': ['ambot'],
+  };
+  const NOTES = {
+    Vercel: 'hosts this portfolio, the site you’re on now.',
+    Claude: 'is an AI coding assistant I use; it isn’t tagged on a featured project.',
+    Antigravity: 'is an AI coding assistant I use; it isn’t tagged on a featured project.',
+    Codex: 'is an AI coding assistant I use; it isn’t tagged on a featured project.',
+  };
+  const stack = deck.querySelector('#stack');
+  const chips = [...deck.querySelectorAll('.chip[data-tech]')];
+  const traceHead = deck.querySelector('[data-trace-head]');
+  const traceLinks = deck.querySelector('[data-trace-links]');
+  const defaultHead = traceHead ? traceHead.textContent : '';
+  const everywhere = (tech) => (USED_IN[tech] || []).length === Object.keys(PROJECTS).length;
+
+  function jumpTo(key) {
+    const target = document.getElementById('project-' + key);
+    if (!target) return;
+    const workFilter = deck.querySelector('[data-filter-group="work"]');
+    activate(0, {
+      then: () => {
+        if (target.classList.contains('is-filtered-out') && workFilter && workFilter.kprApply) workFilter.kprApply('all');
+        requestAnimationFrame(() => {
+          const header = document.querySelector('.site-header');
+          const y = target.getBoundingClientRect().top + scrollY - (header ? header.offsetHeight : 72) - 28;
+          const flash = () => {
+            target.classList.remove('is-traced');
+            void target.offsetWidth;
+            target.classList.add('is-traced');
+            setTimeout(() => target.classList.remove('is-traced'), 2400);
+          };
+          if (window.kprGlideTo) window.kprGlideTo(y, flash); else { window.scrollTo(0, y); flash(); }
+        });
+      },
+    });
+    setHash('work');
+  }
+
+  function select(chip) {
+    const tech = chip ? chip.dataset.tech : null;
+    chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+    stack.classList.toggle('is-tracing', !!chip);
+    const used = tech ? USED_IN[tech] || [] : [];
+    chips.forEach((c) => {
+      const other = USED_IN[c.dataset.tech] || [];
+      const related = !!chip && c !== chip && !everywhere(c.dataset.tech) &&
+        other.some((p) => used.includes(p));
+      c.classList.toggle('is-related', related);
+    });
+    traceLinks.textContent = '';
+    if (!chip) { traceHead.textContent = defaultHead; return; }
+    const strong = document.createElement('strong');
+    strong.textContent = tech;
+    traceHead.textContent = '';
+    traceHead.append(strong);
+    if (!used.length) {
+      traceHead.append(' ' + (NOTES[tech] || 'isn’t tagged on a featured project.'));
+      return;
+    }
+    traceHead.append(used.length === Object.keys(PROJECTS).length
+      ? ' runs through all five projects.'
+      : ' shipped in ' + (used.length === 1 ? 'one project' : used.length + ' projects') +
+        '. Lit chips shipped alongside it.');
+    used.forEach((key) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'trace-link';
+      b.innerHTML = '<span></span><span class="arrow" aria-hidden="true">→</span>';
+      b.firstChild.textContent = PROJECTS[key];
+      b.setAttribute('aria-label', 'Go to ' + PROJECTS[key] + ' in Work');
+      b.addEventListener('click', () => jumpTo(key));
+      traceLinks.append(b);
+    });
+    if (canAnimate()) {
+      G().fromTo(traceLinks.children, { autoAlpha: 0, x: -12 },
+        { autoAlpha: 1, x: 0, duration: 0.4, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity,visibility' });
+    }
+  }
+  chips.forEach((chip) => chip.addEventListener('click', () => {
+    select(chip.getAttribute('aria-pressed') === 'true' ? null : chip);
+  }));
+
+  // ---- process rail: hovering a step fills the rail up to it ----
+  const process = deck.querySelector('[data-process]');
+  if (process) {
+    const steps = [...process.querySelectorAll('.process-step')];
+    const fill = process.querySelector('[data-process-fill]');
+    const rail = process.querySelector('.process-rail');
+    const last = steps.length - 1;
+    const light = (n) => {
+      steps.forEach((s, k) => s.classList.toggle('is-dim', k > n));
+      const ratio = n >= last ? 1 : n < 0 ? 0 : (steps[n].offsetLeft + 6) / (rail.offsetWidth || 1);
+      fill.style.setProperty('--fill', Math.min(1, ratio).toFixed(4));
+    };
+    steps.forEach((s, k) => s.addEventListener('pointerenter', () => light(k)));
+    process.addEventListener('pointerleave', () => light(last));
+    // First time the steps come into view, the rail charges one stage at a time.
+    if (canAnimate() && 'IntersectionObserver' in window) {
+      light(-1);
+      const io = new IntersectionObserver((entries) => {
+        if (!entries.some((en) => en.isIntersecting)) return;
+        io.disconnect();
+        steps.forEach((_, k) => setTimeout(() => light(k), 250 + k * 380));
+      }, { threshold: 0.6 });
+      io.observe(process);
+    }
   }
 })();
 
@@ -1122,8 +1381,8 @@ window.kprIntro = (function () {
   // and CSS scales it to fill the box, the resized box, or the whole screen in fullscreen.
   let baseW = 0, baseH = 0;
   function fitStage() {
-    if (!baseW) return;
     const w = game.clientWidth, h = game.clientHeight;
+    if (!baseW || !w) return; // not started, or its deck module is hidden
     const s = Math.min(w / baseW, h / baseH);
     stage.style.transform = 'translate(' + (w - baseW * s) / 2 + 'px,' + (h - baseH * s) / 2 + 'px) scale(' + s + ')';
   }
@@ -1132,6 +1391,9 @@ window.kprIntro = (function () {
     if (target) target.focus({ preventScroll: true });
   }
   window.addEventListener('resize', fitStage);
+  // The box also resizes without a window resize: the Work filters widen it, and the deck
+  // hides and shows its module.
+  if ('ResizeObserver' in window) new ResizeObserver(fitStage).observe(game);
   document.addEventListener('fullscreenchange', () => { fitStage(); focusGame(); });
 
   const startLabel = start.querySelector('[data-game-start-label]');

@@ -6,6 +6,7 @@
     <title>Ken Patrick Ranis | Software Developer</title>
     <script>
       // Apply the saved (or system) theme before first paint to avoid a flash.
+      document.documentElement.classList.add("js");
       (function () {
         var theme;
         try { theme = localStorage.getItem('theme'); } catch (e) {}
@@ -30,14 +31,9 @@
           if (el) { el.hidden = true; el.setAttribute('aria-hidden', 'true'); }
         };
         if (reduced) return;
-        c.add('motion');
+        c.add('motion', 'intro-pending', 'site-blur-hold');
         setTimeout(window.kprMotionOff, 3000);
-        var seen = false;
-        try { seen = sessionStorage.getItem('kpr-intro-seen') === '1'; } catch (e) {}
-        if (!seen) {
-          c.add('intro-pending', 'site-blur-hold');
-          setTimeout(window.kprIntroOff, 7500);
-        }
+        setTimeout(window.kprIntroOff, 7500);
       })();
     </script>
     <meta name="description" content="Independent designer and builder. I design and build websites and apps that move brands forward — from first idea to final pixel.">
@@ -54,10 +50,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script src="script.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js" defer></script>
+    <script src="script.js" defer></script>
     <script src="motion.js" defer></script>
   </head>
   <body id="top">
@@ -115,17 +113,13 @@
     <header class="site-header wrap band-dark">
       <a class="logo" href="#top" aria-label="KPR, back to top"><span class="logo-mark" aria-hidden="true"></span></a>
       <p class="label header-tagline"><span class="header-name">Ken Patrick Ranis</span><span class="header-role"> / Digital design / Development</span></p>
-      <nav class="site-nav" aria-label="Main">
-        <a href="#work">Work</a>
-        <a href="#info">Info</a>
-        <a href="#certifications">Certs</a>
+      <nav class="site-nav" aria-label="Main" data-header-nav>
+        <span class="nav-glider" data-nav-glider aria-hidden="true"></span>
+        <a href="#work" class="is-active" data-deck-trigger="work"><span class="nav-idx" aria-hidden="true">01</span><span data-cipher-text>Work</span></a>
+        <a href="#info" data-deck-trigger="info"><span class="nav-idx" aria-hidden="true">02</span><span data-cipher-text>Info</span></a>
+        <a href="#certifications" data-deck-trigger="certifications"><span class="nav-idx" aria-hidden="true">03</span><span data-cipher-text>Certifications</span></a>
       </nav>
       <div class="header-tools">
-        <button class="theme-toggle intro-replay" type="button" data-intro-replay aria-label="Replay sword slash intro" title="Replay slash intro">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M19.5 4.5 9.5 14.5"/><path d="M19.5 4.5 16.5 9.5 14.5 7.5 19.5 4.5z"/><path d="M8 13l3 3"/><path d="M9.5 14.5 5 19"/><path d="M4.5 9.5c2.2-2.2 5.3-3.2 8.2-2.9"/>
-          </svg>
-        </button>
         <button class="theme-toggle sound-toggle" type="button" data-sound-toggle aria-pressed="true" aria-label="Turn UI sounds off">
           <svg class="icon-sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>
@@ -154,7 +148,7 @@
           <p class="label reveal">Independent designer &amp; builder</p>
           <h1 id="hero-title" class="hero-title"><span class="line"><span>Digital products.</span></span><span class="line"><span class="hero-accent">Real-world impact.</span></span></h1>
           <p class="hero-lede reveal">I design and build websites and apps that move brands forward — from first idea to final pixel.</p>
-          <a class="btn btn--lime reveal" href="#work">Explore my work <span aria-hidden="true">↓</span></a>
+          <a class="btn btn--lime reveal" href="#work" data-deck-trigger="work">Explore my work <span aria-hidden="true">↓</span></a>
         </div>
 
         <aside class="portrait-card reveal" aria-label="About Ken">
@@ -167,339 +161,400 @@
         </aside>
       </section>
 
-      <!-- Selected work -->
-      <section id="work" class="work wrap" aria-labelledby="work-title">
-        <div class="section-bar">
-          <h2 id="work-title" class="label">Selected / Built with intent</h2>
-          <p class="label lime">01 — 05</p>
-        </div>
-
-        <!-- 01 / Gallus: capstone spotlight -->
-        <article class="spotlight reveal" aria-labelledby="gallus-title">
-          <div class="spotlight-media">
-            <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
-            <video class="spotlight-video" muted loop playsinline controls preload="none" poster="assets/projects/gallus-poster.webp" data-lazy-video
-                   aria-label="Gallus video pitch">
-              <source src="assets/projects/gallus-pitch.mp4" type="video/mp4">
-            </video>
+      <!-- Work / Info / Certifications: one console. The header links and the tabs switch
+           modules; without JavaScript all three simply stack as normal sections. -->
+      <div id="deck" class="deck wrap" data-deck>
+        <div class="deck-console">
+          <div class="deck-tabs" role="tablist" aria-label="Portfolio sections" data-deck-tabs>
+            <span class="deck-glider" data-deck-glider aria-hidden="true"></span>
+            <button class="deck-tab is-active" type="button" role="tab" id="tab-work" aria-selected="true" aria-controls="work" data-deck-tab="work">
+              <span class="deck-tab-key" aria-hidden="true">1</span>
+              <span class="deck-tab-label" data-cipher-text>Work</span>
+              <span class="deck-tab-count">5 projects</span>
+            </button>
+            <button class="deck-tab" type="button" role="tab" id="tab-info" aria-selected="false" aria-controls="info" tabindex="-1" data-deck-tab="info">
+              <span class="deck-tab-key" aria-hidden="true">2</span>
+              <span class="deck-tab-label" data-cipher-text>Info</span>
+              <span class="deck-tab-count">27 tools</span>
+            </button>
+            <button class="deck-tab" type="button" role="tab" id="tab-certifications" aria-selected="false" aria-controls="certifications" tabindex="-1" data-deck-tab="certifications">
+              <span class="deck-tab-key" aria-hidden="true">3</span>
+              <span class="deck-tab-label" data-cipher-text>Certifications</span>
+              <span class="deck-tab-count">7 verified</span>
+            </button>
           </div>
-          <div class="spotlight-body">
-            <p class="label">Capstone project / Mobile + desktop</p>
-            <h3 id="gallus-title" class="spotlight-title">01 / Gallus</h3>
-            <p class="spotlight-lede">Farm management for layer-hen farms that keeps working when the internet doesn’t.</p>
-            <p class="spotlight-text">Gallus (FeedSmart) helps small Philippine poultry farms track flocks, daily egg and mortality records, feed and inventory. Staff record on an Android app, and the owner’s Windows desktop app runs the farm’s local sync server, with Supabase for sign-in and cloud backup.</p>
-            <ul class="points">
-              <li>Offline-first: local SQLite with queued sync that survives reconnects</li>
-              <li>Role-based access for owners, attendants, warehouse staff and supervisors</li>
-              <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
-            </ul>
-            <p class="spotlight-links">
-              <a class="feature-link" href="https://gallus-desktop-demo.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Desktop web demo <span class="arrow" aria-hidden="true">↗</span></a>
-              <a class="feature-link" href="https://github.com/Xeldia/FeedSmart" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-            </p>
-            <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
-            <p class="project-meta">FeedSmart · 5-person team · AY 2025–2026</p>
-          </div>
-        </article>
-
-        <div class="featured">
-          <!-- 02 / TeamFlow -->
-          <article class="feature reveal" aria-labelledby="teamflow-title">
-            <a class="feature-media feature-media--tf" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" aria-label="Open the TeamFlow live site">
-              <p class="label media-top">Web app / Team project</p>
-              <figure class="shot">
-                <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>teamflow-n88w.onrender.com</span></div>
-                <img src="assets/projects/teamflow-screenshot.webp" width="1200" height="750" loading="lazy"
-                     alt="TeamFlow sign-in page: a login form beside the TeamFlow logo and the line Streamline your team's workflow">
-              </figure>
-              <p class="label media-bottom">Streamline your team’s workflow.</p>
-            </a>
-            <div class="feature-info">
-              <h3 id="teamflow-title" class="feature-title">02 / TeamFlow
-                <span class="feature-links">
-                  <a class="feature-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
-                  <a class="feature-link" href="https://github.com/jawee52004/teamflow-project" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                </span>
-              </h3>
-              <p class="feature-desc">A work-management site that keeps a team’s workspaces, tasks and members in one place, with owner, developer and viewer roles.</p>
-              <p class="feature-tags">Django · Django REST Framework · Supabase · PostgreSQL</p>
-              <p class="project-meta">3-person team</p>
-            </div>
-          </article>
-
-          <!-- 03 / NewsHub -->
-          <article class="feature reveal" aria-labelledby="newshub-title">
-            <a class="feature-media feature-media--news" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" aria-label="Open the NewsHub live site">
-              <p class="label media-top">Full-stack web app</p>
-              <figure class="shot">
-                <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>newshub-s1dh.onrender.com</span></div>
-                <img src="assets/projects/newshub-screenshot.webp" width="1200" height="750" loading="lazy"
-                     alt="NewsHub sign-in page with the headline Your voice in every election and its secure, location-aware features">
-              </figure>
-              <p class="label media-bottom">Your voice in every election.</p>
-            </a>
-            <div class="feature-info">
-              <h3 id="newshub-title" class="feature-title">03 / NewsHub
-                <span class="feature-links">
-                  <a class="feature-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
-                  <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                </span>
-              </h3>
-              <p class="feature-desc">A civic news and election platform: location-aware news, candidate pages, a verified voting flow and an admin dashboard.</p>
-              <p class="feature-tags">React 19 · Spring Boot · PostgreSQL · Supabase Auth · Tailwind CSS</p>
-            </div>
-          </article>
+          <p class="deck-status">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span class="deck-status-text" data-deck-status aria-hidden="true">Five projects, two playable right here in the browser</span>
+            <span class="visually-hidden" data-deck-status-live aria-live="polite"></span>
+            <span class="deck-keys" aria-hidden="true">Press <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> to switch</span>
+          </p>
         </div>
 
-        <!-- Live demos -->
-        <div class="live-bar">
-          <p class="label lime">Try it live</p>
-          <p class="label">Both run right here in your browser. Nothing to install.</p>
-        </div>
+        <div class="deck-stage" data-deck-stage>
+          <span class="deck-beam" data-deck-beam aria-hidden="true"></span>
 
-        <div class="live">
-          <!-- 04 / FitCampus: screenshots slideshow; the live demo opens on Appetize (free plan has no embeds) -->
-          <article class="live-card reveal" aria-labelledby="fitcampus-title">
-            <div class="phone">
-              <div class="phone-screen slides" data-slides aria-roledescription="carousel" aria-label="FitCampus screenshots">
-                <img class="slide is-active" src="assets/projects/fitcampus/1-splash.webp" width="540" height="960" alt="FitCampus splash screen: the kettlebell logo on orange">
-                <img class="slide" src="assets/projects/fitcampus/2-home.webp" width="540" height="960" loading="lazy" alt="FitCampus home screen greeting Ken, with today's plan and the free-time card">
-                <img class="slide" src="assets/projects/fitcampus/3-categories.webp" width="540" height="960" loading="lazy" alt="FitCampus exercise categories with No equipment, Dorm-friendly, Quiet and Gym filters">
+          <!-- Work -->
+          <section id="work" class="work deck-panel is-active" role="tabpanel" aria-labelledby="work-title" data-deck-panel="work"
+                   data-status="Five projects, two playable right here in the browser">
+            <div class="section-bar section-bar--tools">
+              <h2 id="work-title" class="label">Selected / Built with intent</h2>
+              <div class="filter-pills" role="group" aria-label="Show projects for" data-filter-group="work">
+                <button class="filter-pill" type="button" aria-pressed="true" data-filter="all">All <span>5</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="web">Web <span>3</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="mobile">Mobile <span>2</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="desktop">Desktop &amp; Java <span>2</span></button>
               </div>
+              <p class="label lime section-count" data-filter-count="work" aria-live="polite">5 of 5</p>
             </div>
-            <div class="live-info">
-              <p class="label">Android app / Kotlin</p>
-              <h3 id="fitcampus-title" class="feature-title">04 / FitCampus
-                <span class="feature-links">
-                  <a class="feature-link" href="https://appetize.io/app/b_tns4jileka7ujfwydazwje6xxi?device=pixel7&amp;autoplay=true&amp;params=%7B%22demoProfile%22%3A%22Ken%22%7D" target="_blank" rel="noopener" data-tip="Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.">Live demo <span class="arrow" aria-hidden="true">↗</span></a>
-                  <a class="feature-link" href="https://github.com/Pb2kick/FitCampus" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                </span>
-              </h3>
-              <p class="feature-desc">An offline workout planner that fits training into the free time between a student’s classes.</p>
-              <ul class="points">
-                <li>75 guided exercises, filterable by equipment, space and noise</li>
-                <li>Weekly plan sized to class-timetable gaps, with reminders</li>
-                <li>History, streaks and badges, all stored on the phone</li>
-              </ul>
-              <p class="feature-tags">Kotlin · Android SDK · Room · SQLite</p>
-              <p class="project-meta">2-person team · Live demo on Appetize</p>
-            </div>
-          </article>
 
-          <!-- 05 / AMBOT: screenshots slideshow until played; then the real Java game via CheerpJ -->
-          <article class="live-card live-card--wide reveal" aria-labelledby="ambot-title">
-            <div class="game" data-game>
-              <div class="game-stage" data-game-stage></div>
-              <div class="live-cover game-cover" data-game-cover data-state="idle">
-                <div class="slides" data-slides aria-roledescription="carousel" aria-label="AMBOT screenshots">
-                  <img class="slide is-active" src="games/ambot/slides/1-menu.png" width="640" height="360" alt="AMBOT main menu: Continue, New Game, World Select, Options, Credits, Quit">
-                  <img class="slide" src="games/ambot/slides/2-run.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: the player running across a grassy level">
-                  <img class="slide" src="games/ambot/slides/3-attack.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: a sword attack on a raised platform">
+            <!-- 01 / Gallus: capstone spotlight -->
+            <article id="project-gallus" class="spotlight reveal" data-item data-tags="web mobile desktop" aria-labelledby="gallus-title">
+              <div class="spotlight-media">
+                <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
+                <video class="spotlight-video" muted loop playsinline controls preload="none" poster="assets/projects/gallus-poster.webp" data-lazy-video
+                       aria-label="Gallus video pitch">
+                  <source src="assets/projects/gallus-pitch.mp4" type="video/mp4">
+                </video>
+              </div>
+              <div class="spotlight-body">
+                <h3 id="gallus-title" class="spotlight-title">01 / Gallus</h3>
+                <p class="label project-kind">Capstone project / Mobile + desktop</p>
+                <p class="spotlight-lede">Farm management for layer-hen farms that keeps working when the internet doesn’t.</p>
+                <p class="spotlight-text">Gallus (FeedSmart) helps small Philippine poultry farms track flocks, daily egg and mortality records, feed and inventory. Staff record on an Android app, and the owner’s Windows desktop app runs the farm’s local sync server, with Supabase for sign-in and cloud backup.</p>
+                <ul class="points">
+                  <li>Offline-first: local SQLite with queued sync that survives reconnects</li>
+                  <li>Role-based access for owners, attendants, warehouse staff and supervisors</li>
+                  <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
+                </ul>
+                <p class="spotlight-links">
+                  <a class="feature-link" href="https://gallus-desktop-demo.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Desktop web demo <span class="arrow" aria-hidden="true">↗</span></a>
+                  <a class="feature-link" href="https://github.com/Xeldia/FeedSmart" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                </p>
+                <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
+                <p class="project-meta">FeedSmart · 5-person team · AY 2025–2026</p>
+              </div>
+            </article>
+
+            <div class="featured" data-filter-block>
+              <!-- 02 / TeamFlow -->
+              <article id="project-teamflow" class="feature reveal" data-item data-tags="web" aria-labelledby="teamflow-title">
+                <a class="feature-media feature-media--tf" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" aria-label="Open the TeamFlow live site">
+                  <p class="label media-top">Web app / Team project</p>
+                  <figure class="shot">
+                    <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>teamflow-n88w.onrender.com</span></div>
+                    <img src="assets/projects/teamflow-screenshot.webp" width="1200" height="750" loading="lazy"
+                         alt="TeamFlow sign-in page: a login form beside the TeamFlow logo and the line Streamline your team's workflow">
+                  </figure>
+                  <p class="label media-bottom">Streamline your team’s workflow.</p>
+                </a>
+                <div class="feature-info">
+                  <h3 id="teamflow-title" class="feature-title">02 / TeamFlow
+                    <span class="feature-links">
+                      <a class="feature-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
+                      <a class="feature-link" href="https://github.com/jawee52004/teamflow-project" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                    </span>
+                  </h3>
+                  <p class="feature-desc">A work-management site that keeps a team’s workspaces, tasks and members in one place, with owner, developer and viewer roles.</p>
+                  <p class="feature-tags">Django · Django REST Framework · Supabase · PostgreSQL</p>
+                  <p class="project-meta">3-person team</p>
                 </div>
-                <span class="game-spinner" aria-hidden="true"></span>
+              </article>
+
+              <!-- 03 / NewsHub -->
+              <article id="project-newshub" class="feature reveal" data-item data-tags="web" aria-labelledby="newshub-title">
+                <a class="feature-media feature-media--news" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" aria-label="Open the NewsHub live site">
+                  <p class="label media-top">Full-stack web app</p>
+                  <figure class="shot">
+                    <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>newshub-s1dh.onrender.com</span></div>
+                    <img src="assets/projects/newshub-screenshot.webp" width="1200" height="750" loading="lazy"
+                         alt="NewsHub sign-in page with the headline Your voice in every election and its secure, location-aware features">
+                  </figure>
+                  <p class="label media-bottom">Your voice in every election.</p>
+                </a>
+                <div class="feature-info">
+                  <h3 id="newshub-title" class="feature-title">03 / NewsHub
+                    <span class="feature-links">
+                      <a class="feature-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
+                      <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                    </span>
+                  </h3>
+                  <p class="feature-desc">A civic news and election platform: location-aware news, candidate pages, a verified voting flow and an admin dashboard.</p>
+                  <p class="feature-tags">React 19 · Spring Boot · PostgreSQL · Supabase Auth · Tailwind CSS</p>
+                </div>
+              </article>
+            </div>
+
+            <!-- Live demos -->
+            <div class="live-bar" data-filter-label="live">
+              <p class="label lime">Try it live</p>
+              <p class="label">Both run right here in your browser. Nothing to install.</p>
+            </div>
+
+            <div class="live" data-filter-block="live">
+              <!-- 04 / FitCampus -->
+              <article id="project-fitcampus" class="live-card reveal" data-item data-tags="mobile" aria-labelledby="fitcampus-title">
+                <div class="phone">
+                  <div class="phone-screen slides" data-slides aria-roledescription="carousel" aria-label="FitCampus screenshots">
+                    <img class="slide is-active" src="assets/projects/fitcampus/1-splash.webp" width="540" height="960" alt="FitCampus splash screen: the kettlebell logo on orange">
+                    <img class="slide" src="assets/projects/fitcampus/2-home.webp" width="540" height="960" loading="lazy" alt="FitCampus home screen greeting Ken, with today's plan and the free-time card">
+                    <img class="slide" src="assets/projects/fitcampus/3-categories.webp" width="540" height="960" loading="lazy" alt="FitCampus exercise categories with No equipment, Dorm-friendly, Quiet and Gym filters">
+                  </div>
+                </div>
+                <div class="live-info">
+                  <h3 id="fitcampus-title" class="feature-title">04 / FitCampus
+                    <span class="feature-links">
+                      <a class="feature-link" href="https://appetize.io/app/b_tns4jileka7ujfwydazwje6xxi?device=pixel7&amp;autoplay=true&amp;params=%7B%22demoProfile%22%3A%22Ken%22%7D" target="_blank" rel="noopener" data-tip="Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.">Live demo <span class="arrow" aria-hidden="true">↗</span></a>
+                      <a class="feature-link" href="https://github.com/Pb2kick/FitCampus" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                    </span>
+                  </h3>
+                  <p class="label project-kind">Android app / Kotlin</p>
+                  <p class="feature-desc">An offline workout planner that fits training into the free time between a student’s classes.</p>
+                  <ul class="points">
+                    <li>75 guided exercises, filterable by equipment, space and noise</li>
+                    <li>Weekly plan sized to class-timetable gaps, with reminders</li>
+                    <li>History, streaks and badges, all stored on the phone</li>
+                  </ul>
+                  <p class="feature-tags">Kotlin · Android SDK · Room · SQLite</p>
+                  <p class="project-meta">2-person team · Live demo on Appetize</p>
+                </div>
+              </article>
+
+              <!-- 05 / AMBOT -->
+              <article id="project-ambot" class="live-card live-card--wide reveal" data-item data-tags="desktop" aria-labelledby="ambot-title">
+                <div class="game" data-game>
+                  <div class="game-stage" data-game-stage></div>
+                  <div class="live-cover game-cover" data-game-cover data-state="idle">
+                    <div class="slides" data-slides aria-roledescription="carousel" aria-label="AMBOT screenshots">
+                      <img class="slide is-active" src="games/ambot/slides/1-menu.png" width="640" height="360" alt="AMBOT main menu: Continue, New Game, World Select, Options, Credits, Quit">
+                      <img class="slide" src="games/ambot/slides/2-run.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: the player running across a grassy level">
+                      <img class="slide" src="games/ambot/slides/3-attack.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: a sword attack on a raised platform">
+                    </div>
+                    <span class="game-spinner" aria-hidden="true"></span>
+                  </div>
+                </div>
+                <div class="game-controls" role="group" aria-label="Game controls">
+                  <button class="game-btn" type="button" data-game-start>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+                    <span data-game-start-label>Play AMBOT</span>
+                  </button>
+                  <button class="game-btn" type="button" data-game-fullscreen>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    Fullscreen
+                  </button>
+                  <p class="game-hint" data-game-hint role="status">The first load downloads a Java runtime, so give it a moment.</p>
+                </div>
+                <div class="live-info">
+                  <h3 id="ambot-title" class="feature-title">05 / AMBOT
+                    <span class="feature-links">
+                      <a class="feature-link" href="https://github.com/Pb2kick/OOP2" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
+                    </span>
+                  </h3>
+                  <p class="label project-kind">Java game / OOP2</p>
+                  <p class="feature-desc">A 2D side-scrolling platformer in Java and Swing. It started as an unfinished OOP2 group project; I’m restoring and finishing it one world at a time.</p>
+                  <p class="game-keys"><kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd> attack · <kbd>K</kbd> parry · <kbd>L</kbd> dash · <kbd>Esc</kbd> pause</p>
+                  <p class="feature-tags">Java · Swing · Tiled · JUnit</p>
+                  <p class="project-meta">5-person team · The real Java game, running in WebAssembly through CheerpJ</p>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <!-- Info -->
+          <section id="info" class="info deck-panel" role="tabpanel" aria-labelledby="info-title" data-deck-panel="info"
+                   data-status="About me, how I work, and the 27 tools behind the projects">
+            <div class="context reveal">
+              <div class="context-copy">
+                <h2 id="info-title" class="context-title">Graduating IT student.<br>Looking for an internship.</h2>
+                <p class="context-text">I’m Ken Patrick R. Ranis, an IT student in my final year, looking for an internship where I can learn from a real team and ship real work. I build across the stack: web apps with React, Django and Spring Boot, Android apps in Kotlin, and desktop software in Java. I like taking a project from first commit to something people can actually use.</p>
+              </div>
+              <div class="context-ojt">
+                <h3 class="label">OJT details</h3>
+                <dl class="ojt-list">
+                  <div><dt>Start</dt><dd>January 2027</dd></div>
+                  <div><dt>Setup</dt><dd>On-site · Hybrid · Remote</dd></div>
+                  <div><dt>Based in</dt><dd>Cebu, Philippines</dd></div>
+                </dl>
+                <a class="btn btn--lime ojt-resume" href="assets/Ken-Patrick-R-Ranis-Resume.pdf" target="_blank" rel="noopener">View résumé <span aria-hidden="true">↗</span></a>
               </div>
             </div>
-            <div class="game-controls" role="group" aria-label="Game controls">
-              <button class="game-btn" type="button" data-game-start>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-                <span data-game-start-label>Play AMBOT</span>
-              </button>
-              <button class="game-btn" type="button" data-game-fullscreen>
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                Fullscreen
-              </button>
-              <p class="game-hint" data-game-hint role="status">The first load downloads a Java runtime, so give it a moment.</p>
+
+            <div class="process" data-process>
+              <h2 class="label">How I work</h2>
+              <div class="process-rail" aria-hidden="true"><span class="process-fill" data-process-fill></span></div>
+              <ol class="process-steps">
+                <li class="process-step reveal" data-step="1">
+                  <span class="process-node" aria-hidden="true"></span>
+                  <h3>01 / Learn</h3>
+                  <p>Read the codebase first. Ask good questions. Understand the problem before writing the fix.</p>
+                </li>
+                <li class="process-step reveal" data-step="2">
+                  <span class="process-node" aria-hidden="true"></span>
+                  <h3>02 / Build</h3>
+                  <p>Ship in small, tested steps. Keep the code clear for the next person who reads it.</p>
+                </li>
+                <li class="process-step reveal" data-step="3">
+                  <span class="process-node" aria-hidden="true"></span>
+                  <h3>03 / Improve</h3>
+                  <p>Take feedback seriously. Refactor, restore and finish what I start.</p>
+                </li>
+              </ol>
             </div>
-            <div class="live-info">
-              <p class="label">Java game / OOP2</p>
-              <h3 id="ambot-title" class="feature-title">05 / AMBOT
-                <span class="feature-links">
-                  <a class="feature-link" href="https://github.com/Pb2kick/OOP2" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                </span>
-              </h3>
-              <p class="feature-desc">A 2D side-scrolling platformer in Java and Swing. It started as an unfinished OOP2 group project; I’m restoring and finishing it one world at a time.</p>
-              <p class="game-keys"><kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd> attack · <kbd>K</kbd> parry · <kbd>L</kbd> dash · <kbd>Esc</kbd> pause</p>
-              <p class="feature-tags">Java · Swing · Tiled · JUnit</p>
-              <p class="project-meta">5-person team · The real Java game, running in WebAssembly through CheerpJ</p>
+
+            <div id="stack" class="stack" aria-labelledby="stack-title">
+              <div class="section-bar">
+                <h2 id="stack-title" class="label">Tools / Technologies I build with</h2>
+                <p class="label lime">Pick one to see where it shipped</p>
+              </div>
+              <div class="stack-groups">
+                <div class="stack-group reveal">
+                  <h3 class="label">Languages</h3>
+                  <ul class="stack-list">
+                    <li><button type="button" class="chip" data-tech="Java" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/openjdk.svg')" aria-hidden="true"></i>Java</button></li>
+                    <li><button type="button" class="chip" data-tech="Kotlin" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/kotlin.svg')" aria-hidden="true"></i>Kotlin</button></li>
+                    <li><button type="button" class="chip" data-tech="Python" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/python.svg')" aria-hidden="true"></i>Python</button></li>
+                    <li><button type="button" class="chip" data-tech="TypeScript" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/typescript.svg')" aria-hidden="true"></i>TypeScript</button></li>
+                    <li><button type="button" class="chip" data-tech="JavaScript" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/javascript.svg')" aria-hidden="true"></i>JavaScript</button></li>
+                    <li><button type="button" class="chip" data-tech="Rust" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/rust.svg')" aria-hidden="true"></i>Rust</button></li>
+                    <li><button type="button" class="chip" data-tech="HTML" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/html5.svg')" aria-hidden="true"></i>HTML</button></li>
+                    <li><button type="button" class="chip" data-tech="CSS" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/css.svg')" aria-hidden="true"></i>CSS</button></li>
+                  </ul>
+                </div>
+                <div class="stack-group reveal">
+                  <h3 class="label">Frameworks &amp; libraries</h3>
+                  <ul class="stack-list">
+                    <li><button type="button" class="chip" data-tech="React" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/react.svg')" aria-hidden="true"></i>React</button></li>
+                    <li><button type="button" class="chip" data-tech="Spring Boot" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/springboot.svg')" aria-hidden="true"></i>Spring Boot</button></li>
+                    <li><button type="button" class="chip" data-tech="Django" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/django.svg')" aria-hidden="true"></i>Django</button></li>
+                    <li><button type="button" class="chip" data-tech="Tailwind CSS" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/tailwindcss.svg')" aria-hidden="true"></i>Tailwind CSS</button></li>
+                    <li><button type="button" class="chip" data-tech="Vite" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/vite.svg')" aria-hidden="true"></i>Vite</button></li>
+                    <li><button type="button" class="chip" data-tech="Capacitor" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/capacitor.svg')" aria-hidden="true"></i>Capacitor</button></li>
+                    <li><button type="button" class="chip" data-tech="Tauri" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/tauri.svg')" aria-hidden="true"></i>Tauri</button></li>
+                  </ul>
+                </div>
+                <div class="stack-group reveal">
+                  <h3 class="label">Data, platforms &amp; tools</h3>
+                  <ul class="stack-list">
+                    <li><button type="button" class="chip" data-tech="PostgreSQL" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/postgresql.svg')" aria-hidden="true"></i>PostgreSQL</button></li>
+                    <li><button type="button" class="chip" data-tech="SQLite" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/sqlite.svg')" aria-hidden="true"></i>SQLite</button></li>
+                    <li><button type="button" class="chip" data-tech="Supabase" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/supabase.svg')" aria-hidden="true"></i>Supabase</button></li>
+                    <li><button type="button" class="chip" data-tech="Android" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/android.svg')" aria-hidden="true"></i>Android</button></li>
+                    <li><button type="button" class="chip" data-tech="Git" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/git.svg')" aria-hidden="true"></i>Git</button></li>
+                    <li><button type="button" class="chip" data-tech="GitHub" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/github.svg')" aria-hidden="true"></i>GitHub</button></li>
+                    <li><button type="button" class="chip" data-tech="Vercel" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/vercel.svg')" aria-hidden="true"></i>Vercel</button></li>
+                    <li><button type="button" class="chip" data-tech="Render" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/render.svg')" aria-hidden="true"></i>Render</button></li>
+                    <li><button type="button" class="chip" data-tech="JUnit 5" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/junit5.svg')" aria-hidden="true"></i>JUnit 5</button></li>
+                  </ul>
+                </div>
+                <div class="stack-group reveal">
+                  <h3 class="label">AI tools</h3>
+                  <ul class="stack-list">
+                    <li><button type="button" class="chip" data-tech="Claude" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/claude.svg')" aria-hidden="true"></i>Claude</button></li>
+                    <li><button type="button" class="chip" data-tech="Antigravity" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/antigravity.svg')" aria-hidden="true"></i>Antigravity</button></li>
+                    <li><button type="button" class="chip" data-tech="Codex" aria-pressed="false"><i class="tech-icon" style="--icon: url('assets/tech/codex.svg')" aria-hidden="true"></i>Codex</button></li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="trace" data-trace>
+                <p class="trace-head" data-trace-head aria-live="polite">Pick a technology above to light up the projects built with it.</p>
+                <div class="trace-links" data-trace-links></div>
+              </div>
+              <p class="stack-note">Logos from Simple Icons. Antigravity and Codex use generic marks.</p>
             </div>
-          </article>
+          </section>
+
+          <!-- Certifications -->
+          <section id="certifications" class="certs deck-panel" role="tabpanel" aria-labelledby="certs-title" data-deck-panel="certifications"
+                   data-status="Seven credentials, each linked to where it can be verified">
+            <div class="section-bar section-bar--tools">
+              <h2 id="certs-title" class="label">Credentials / Verified certifications</h2>
+              <div class="filter-pills" role="group" aria-label="Show certifications for" data-filter-group="certs">
+                <button class="filter-pill" type="button" aria-pressed="true" data-filter="all">All <span>7</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="cloud">Cloud <span>2</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="ai">AI <span>3</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="java">Java / OOP <span>1</span></button>
+                <button class="filter-pill" type="button" aria-pressed="false" data-filter="design">Design <span>1</span></button>
+              </div>
+              <p class="label lime section-count" data-filter-count="certs" aria-live="polite">7 of 7</p>
+            </div>
+
+            <ol class="ledger">
+              <li class="cert reveal" data-item data-tags="cloud">
+                <span class="cert-no" aria-hidden="true">01</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">AWS Academy Graduate — Cloud Architecting</h3>
+                  <p class="cert-meta">AWS Academy · Training badge on Credly</p>
+                </div>
+                <span class="cert-badge">Cloud</span>
+                <a class="cert-link" href="https://www.credly.com/badges/13411c87-d22e-49dd-9912-55ff76198ec3/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> AWS Academy Graduate — Cloud Architecting</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+              <li class="cert reveal" data-item data-tags="cloud">
+                <span class="cert-no" aria-hidden="true">02</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">AWS Academy Graduate — Cloud Foundations</h3>
+                  <p class="cert-meta">AWS Academy · Training badge on Credly</p>
+                </div>
+                <span class="cert-badge">Cloud</span>
+                <a class="cert-link" href="https://www.credly.com/badges/1e07ce1f-c949-442d-9d5a-a8b3bf7eae73/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> AWS Academy Graduate — Cloud Foundations</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+              <li class="cert reveal" data-item data-tags="ai">
+                <span class="cert-no" aria-hidden="true">03</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">AWS Academy Graduate — Generative AI Foundations</h3>
+                  <p class="cert-meta">AWS Academy · Training badge on Credly</p>
+                </div>
+                <span class="cert-badge">AI</span>
+                <a class="cert-link" href="https://www.credly.com/badges/97e0552f-0e5f-4835-a3a7-376931bf3eb6/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> AWS Academy Graduate — Generative AI Foundations</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+              <li class="cert reveal" data-item data-tags="ai">
+                <span class="cert-no" aria-hidden="true">04</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">Artificial Intelligence Fundamentals</h3>
+                  <p class="cert-meta">IBM SkillsBuild · Credential badge on Credly</p>
+                </div>
+                <span class="cert-badge">AI</span>
+                <a class="cert-link" href="https://www.credly.com/badges/3f9145d7-0feb-42cd-8941-d9586ded21f6/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> Artificial Intelligence Fundamentals</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+              <li class="cert reveal" data-item data-tags="java">
+                <span class="cert-no" aria-hidden="true">05</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">Java Object-Oriented Programming</h3>
+                  <p class="cert-meta">CodeChum · CIT-U · Course certificate #10004</p>
+                </div>
+                <span class="cert-badge">Java / OOP</span>
+                <a class="cert-link" href="https://citu.codechum.com/certificates/10004" target="_blank" rel="noopener">View<span class="visually-hidden"> the Java Object-Oriented Programming certificate</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+              <li class="cert reveal" data-item data-tags="ai">
+                <span class="cert-no" aria-hidden="true">06</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">ASEAN AI-Ready Certificate</h3>
+                  <p class="cert-meta">ASEAN Foundation · Program certificate</p>
+                </div>
+                <span class="cert-badge">AI</span>
+                <a class="cert-link" href="https://drive.google.com/file/d/1j4S4Mkx3tsy-fn5HbDKeiOfBX41udHHW/view?usp=sharing" target="_blank" rel="noopener">View<span class="visually-hidden"> the ASEAN AI-Ready Certificate</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+              <li class="cert reveal" data-item data-tags="design">
+                <span class="cert-no" aria-hidden="true">07</span>
+                <div class="cert-main">
+                  <h3 class="cert-title">Graphic Design Essentials</h3>
+                  <p class="cert-meta">Canva Design School · Certification award</p>
+                </div>
+                <span class="cert-badge">Design</span>
+                <a class="cert-link" href="https://www.canva.com/design-school/certification-award/8273b1c9-0dac-48ad-be4e-5637fcb4cb5e" target="_blank" rel="noopener">View<span class="visually-hidden"> the Graphic Design Essentials award</span> <span class="arrow" aria-hidden="true">↗</span></a>
+              </li>
+            </ol>
+          </section>
         </div>
-      </section>
 
-      <!-- Info -->
-      <section id="info" class="wrap" aria-labelledby="info-title">
-        <div class="context reveal">
-          <div class="context-copy">
-            <p class="label">A little context</p>
-            <h2 id="info-title" class="context-title">Graduating IT student.<br>Looking for an internship.</h2>
-            <p class="context-text">I’m Ken Patrick R. Ranis, an IT student in my final year, looking for an internship where I can learn from a real team and ship real work. I build across the stack: web apps with React, Django and Spring Boot, Android apps in Kotlin, and desktop software in Java. I like taking a project from first commit to something people can actually use.</p>
-          </div>
-          <div class="context-ojt">
-            <h3 class="label">OJT details</h3>
-            <dl class="ojt-list">
-              <div><dt>Start</dt><dd>January 2027</dd></div>
-              <div><dt>Setup</dt><dd>On-site · Hybrid · Remote</dd></div>
-              <div><dt>Based in</dt><dd>Cebu, Philippines</dd></div>
-            </dl>
-            <a class="btn btn--lime ojt-resume" href="assets/Ken-Patrick-R-Ranis-Resume.pdf" target="_blank" rel="noopener">View résumé <span aria-hidden="true">↗</span></a>
-          </div>
+        <div class="deck-next">
+          <button class="deck-next-btn" type="button" data-deck-next>
+            <span class="deck-next-kicker">Next up</span>
+            <span class="deck-next-label" data-deck-next-label>Info</span>
+            <span class="arrow" aria-hidden="true">→</span>
+          </button>
         </div>
-
-        <div class="process">
-          <h2 class="label">How I work</h2>
-          <ol class="process-steps">
-            <li class="reveal">
-              <h3>01 / Learn</h3>
-              <p>Read the codebase first. Ask good questions. Understand the problem before writing the fix.</p>
-            </li>
-            <li class="reveal">
-              <h3>02 / Build</h3>
-              <p>Ship in small, tested steps. Keep the code clear for the next person who reads it.</p>
-            </li>
-            <li class="reveal">
-              <h3>03 / Improve</h3>
-              <p>Take feedback seriously. Refactor, restore and finish what I start.</p>
-            </li>
-          </ol>
-        </div>
-      </section>
-
-      <!-- Technologies -->
-      <section id="stack" class="stack wrap" aria-labelledby="stack-title">
-        <div class="section-bar">
-          <h2 id="stack-title" class="label">Tools / Technologies I build with</h2>
-          <p class="label lime">Across my projects</p>
-        </div>
-        <div class="stack-groups">
-            <div class="stack-group reveal">
-              <h3 class="label">Languages</h3>
-              <ul class="stack-list">
-                <li><i class="tech-icon" style="--icon: url('assets/tech/openjdk.svg')" aria-hidden="true"></i>Java</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/kotlin.svg')" aria-hidden="true"></i>Kotlin</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/python.svg')" aria-hidden="true"></i>Python</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/typescript.svg')" aria-hidden="true"></i>TypeScript</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/javascript.svg')" aria-hidden="true"></i>JavaScript</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/rust.svg')" aria-hidden="true"></i>Rust</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/html5.svg')" aria-hidden="true"></i>HTML</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/css.svg')" aria-hidden="true"></i>CSS</li>
-              </ul>
-            </div>
-            <div class="stack-group reveal">
-              <h3 class="label">Frameworks &amp; libraries</h3>
-              <ul class="stack-list">
-                <li><i class="tech-icon" style="--icon: url('assets/tech/react.svg')" aria-hidden="true"></i>React</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/springboot.svg')" aria-hidden="true"></i>Spring Boot</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/django.svg')" aria-hidden="true"></i>Django</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/tailwindcss.svg')" aria-hidden="true"></i>Tailwind CSS</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/vite.svg')" aria-hidden="true"></i>Vite</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/capacitor.svg')" aria-hidden="true"></i>Capacitor</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/tauri.svg')" aria-hidden="true"></i>Tauri</li>
-              </ul>
-            </div>
-            <div class="stack-group reveal">
-              <h3 class="label">Data, platforms &amp; tools</h3>
-              <ul class="stack-list">
-                <li><i class="tech-icon" style="--icon: url('assets/tech/postgresql.svg')" aria-hidden="true"></i>PostgreSQL</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/sqlite.svg')" aria-hidden="true"></i>SQLite</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/supabase.svg')" aria-hidden="true"></i>Supabase</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/android.svg')" aria-hidden="true"></i>Android</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/git.svg')" aria-hidden="true"></i>Git</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/github.svg')" aria-hidden="true"></i>GitHub</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/vercel.svg')" aria-hidden="true"></i>Vercel</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/render.svg')" aria-hidden="true"></i>Render</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/junit5.svg')" aria-hidden="true"></i>JUnit 5</li>
-              </ul>
-            </div>
-            <div class="stack-group reveal">
-              <h3 class="label">AI tools</h3>
-              <ul class="stack-list">
-                <li><i class="tech-icon" style="--icon: url('assets/tech/claude.svg')" aria-hidden="true"></i>Claude</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/antigravity.svg')" aria-hidden="true"></i>Antigravity</li>
-                <li><i class="tech-icon" style="--icon: url('assets/tech/codex.svg')" aria-hidden="true"></i>Codex</li>
-              </ul>
-            </div>
-        </div>
-        <p class="stack-note">Logos from Simple Icons. Antigravity and Codex use generic marks.</p>
-      </section>
-
-      <!-- Certifications -->
-      <section id="certifications" class="certs wrap" aria-labelledby="certs-title">
-        <div class="section-bar">
-          <h2 id="certs-title" class="label">Credentials / Verified certifications</h2>
-          <p class="label lime">07 earned</p>
-        </div>
-        <div class="certs-grid">
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">Cloud</span>
-              <span class="label">AWS Academy</span>
-            </div>
-            <h3 class="cert-title">AWS Academy Graduate — Cloud Architecting</h3>
-            <p class="cert-meta">Training Badge · Verified via Credly</p>
-            <a class="feature-link cert-link" href="https://www.credly.com/badges/13411c87-d22e-49dd-9912-55ff76198ec3/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">Cloud</span>
-              <span class="label">AWS Academy</span>
-            </div>
-            <h3 class="cert-title">AWS Academy Graduate — Cloud Foundations</h3>
-            <p class="cert-meta">Training Badge · Verified via Credly</p>
-            <a class="feature-link cert-link" href="https://www.credly.com/badges/1e07ce1f-c949-442d-9d5a-a8b3bf7eae73/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">AI</span>
-              <span class="label">AWS Academy</span>
-            </div>
-            <h3 class="cert-title">AWS Academy Graduate — Generative AI Foundations</h3>
-            <p class="cert-meta">Training Badge · Verified via Credly</p>
-            <a class="feature-link cert-link" href="https://www.credly.com/badges/97e0552f-0e5f-4835-a3a7-376931bf3eb6/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">AI</span>
-              <span class="label">IBM SkillsBuild</span>
-            </div>
-            <h3 class="cert-title">Artificial Intelligence Fundamentals</h3>
-            <p class="cert-meta">Credential Badge · Verified via Credly</p>
-            <a class="feature-link cert-link" href="https://www.credly.com/badges/3f9145d7-0feb-42cd-8941-d9586ded21f6/public_url" target="_blank" rel="noopener">Verify credential <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">Java / OOP</span>
-              <span class="label">CodeChum · CIT-U</span>
-            </div>
-            <h3 class="cert-title">Java Object-Oriented Programming</h3>
-            <p class="cert-meta">Course Certificate · #10004</p>
-            <a class="feature-link cert-link" href="https://citu.codechum.com/certificates/10004" target="_blank" rel="noopener">View certificate <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">AI</span>
-              <span class="label">ASEAN Foundation</span>
-            </div>
-            <h3 class="cert-title">ASEAN AI-Ready Certificate</h3>
-            <p class="cert-meta">Program Certificate</p>
-            <a class="feature-link cert-link" href="https://drive.google.com/file/d/1j4S4Mkx3tsy-fn5HbDKeiOfBX41udHHW/view?usp=sharing" target="_blank" rel="noopener">View certificate <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-
-          <article class="cert-card reveal">
-            <div class="cert-top">
-              <span class="cert-badge">Design</span>
-              <span class="label">Canva Design School</span>
-            </div>
-            <h3 class="cert-title">Graphic Design Essentials</h3>
-            <p class="cert-meta">Certification Award</p>
-            <a class="feature-link cert-link" href="https://www.canva.com/design-school/certification-award/8273b1c9-0dac-48ad-be4e-5637fcb4cb5e" target="_blank" rel="noopener">View certificate <span class="arrow" aria-hidden="true">↗</span></a>
-          </article>
-        </div>
-      </section>
+      </div>
 
       <!-- Contact -->
       <section id="contact" class="cta band-dark" aria-labelledby="cta-title">
