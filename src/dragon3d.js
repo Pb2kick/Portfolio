@@ -1,5 +1,5 @@
 // Real-time 3D WebGL spirit dragon for the KPR intro (no external dependencies).
-// An original long-dragon design in the site's emerald, acid green and teal: a sculpted head
+// An original long-dragon design in a bright glowing lime: a sculpted head
 // with branching antlers, glowing eyes, a hinged jaw and S-wave whiskers, on a parallel-transport
 // serpentine body with overlapping scales, belly scutes, a sawtooth dorsal crest and HDR bloom.
 (function () {
@@ -719,7 +719,7 @@
         float lenFade = smoothstep(0.0, 0.14, vUv.x) * pow(1.0 - clamp(vUv.x, 0.0, 1.0), 1.4);
         float wispA = edgeFade * lenFade * (0.30 + 0.65 * flow) * (0.60 + 0.35 * uPower) * uAlpha;
         if (wispA < 0.01) discard;
-        vec3 wispCol = mix(vec3(0.10, 0.70, 0.45), vec3(0.55, 1.0, 0.80), flow * 0.75 + uPower * 0.2);
+        vec3 wispCol = mix(vec3(0.32, 0.80, 0.12), vec3(0.80, 0.98, 0.36), flow * 0.75 + uPower * 0.2);
         gl_FragColor = vec4(wispCol * wispA, clamp(wispA * 0.72, 0.0, 1.0));
         return;
       }
@@ -728,8 +728,8 @@
       if (vMat > 2.5 && vMat < 3.5) {
         float flicker = 0.94 + 0.06 * sin(uTime * 18.0 + vWorldPos.x * 5.0);
         float core = clamp(0.35 + pow(abs(dot(N, V)), 0.75) * 0.65, 0.0, 1.0);
-        // Teal edge -> near-white core
-        vec3 hotCol = mix(vec3(0.35, 1.0, 0.80), vec3(0.92, 1.0, 0.97), core) * (1.42 * flicker + uPower * 0.25);
+        // Lime edge -> near-white core
+        vec3 hotCol = mix(vec3(0.82, 1.0, 0.30), vec3(1.0, 1.0, 0.90), core) * (1.42 * flicker + uPower * 0.25);
         float a = clamp(uAlpha, 0.0, 1.0);
         gl_FragColor = vec4(hotCol * a, a);
         return;
@@ -760,14 +760,13 @@
       float flowWave = fbm(vec2(vUv.x * 6.0 - uTime * 1.8, vUv.y * 3.5 + uTime * 0.2));
       float chiPulse = smoothstep(0.48, 0.90, flowWave) * (0.14 + 0.26 * uPower);
 
-      // The site's own palette, matching the 2D hard-light intro:
-      // crevices and seams: near-black teal (#061a12); midtones: deep emerald -> acid green (#44d62c);
-      // grazing Fresnel edges and ridges: bright teal (#28f0b4)
-      vec3 colCrease = vec3(0.02, 0.10, 0.07);
-      vec3 colShadow = vec3(0.05, 0.30, 0.18);
-      vec3 colMid    = vec3(0.12, 0.60, 0.32);
-      vec3 colBright = vec3(0.27, 0.84, 0.17);
-      vec3 colRim    = vec3(0.16, 0.94, 0.71);
+      // Bright glowing lime: dark moss in the crevices and seams, a vivid yellow-green body,
+      // and pale lime-white on grazing edges and ridges so the silhouette glows.
+      vec3 colCrease = vec3(0.16, 0.34, 0.05);
+      vec3 colShadow = vec3(0.36, 0.64, 0.10);
+      vec3 colMid    = vec3(0.58, 0.87, 0.18);
+      vec3 colBright = vec3(0.76, 0.97, 0.30);
+      vec3 colRim    = vec3(0.90, 1.00, 0.56);
 
       float shade = clamp(ndl * 0.46 + fill * 0.12 + cavity * 0.62 - 0.16, 0.0, 1.0);
       // Guarantee deep sculpted dark-jade occlusion inside nostrils, eye sockets & nasal grooves even under direct front light!
@@ -776,22 +775,22 @@
       color = mix(color, colMid, smoothstep(0.28, 0.64, shade));
       color = mix(color, colBright, smoothstep(0.62, 0.96, shade));
       color += colRim * (fresnel * (0.34 + 0.26 * cavity));
-      color += vec3(0.16, 0.94, 0.70) * chiPulse;
+      color += vec3(0.70, 0.98, 0.26) * chiPulse;
 
-      // Antlers, dorsal crest & whiskers (MAT_CREST = 4.0): tips brighten to mint
+      // Antlers, dorsal crest & whiskers (MAT_CREST = 4.0): tips brighten to pale lime
       if (vMat > 3.5 && vMat < 4.5) {
         float tip = clamp(vUv.x, 0.0, 1.0);
-        color = mix(color, vec3(0.55, 1.0, 0.80), tip * 0.48);
+        color = mix(color, vec3(0.88, 1.0, 0.46), tip * 0.48);
         alpha *= mix(0.99, 0.88, tip);
       }
 
-      // Teeth (MAT_TOOTH = 2.0): pale mint, backlit by the glow inside the mouth
+      // Teeth (MAT_TOOTH = 2.0): pale lime-ivory, backlit by the glow inside the mouth
       if (vMat > 1.5 && vMat < 2.5) {
         vec3 toMouth = uMouthPos - vWorldPos;
         float mDist = length(toMouth);
         float toothBacklight = exp(-mDist * 2.4) * 0.55;
-        color = mix(vec3(0.42, 0.78, 0.62), vec3(0.92, 1.0, 0.95), clamp(vCavity * 0.72 + fresnel * 0.45, 0.0, 1.0));
-        color += vec3(0.85, 1.0, 0.95) * toothBacklight;
+        color = mix(vec3(0.66, 0.88, 0.22), vec3(0.97, 1.0, 0.74), clamp(vCavity * 0.72 + fresnel * 0.45, 0.0, 1.0));
+        color += vec3(1.0, 1.0, 0.84) * toothBacklight;
       }
 
       color *= (1.0 + uPower * 0.14);
@@ -824,8 +823,8 @@
       // Strong knee at > 0.82 catches MAT_FURNACE (eyes/mouth) + bright Fresnel rims; soft aura on body
       float hot = smoothstep(0.80, 0.99, lum);
       float aura = smoothstep(0.35, 0.85, lum) * 0.22;
-      vec3 emeraldTint = vec3(0.16, 0.85, 0.45) * lum;
-      vec3 hotTint = vec3(0.55, 1.0, 0.85);
+      vec3 emeraldTint = vec3(0.34, 0.86, 0.14) * lum;
+      vec3 hotTint = vec3(0.84, 1.0, 0.44);
       vec3 glow = mix(emeraldTint, hotTint, hot) * (aura + hot * 0.92);
       gl_FragColor = vec4(glow, 1.0);
     }
