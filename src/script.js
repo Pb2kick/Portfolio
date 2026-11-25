@@ -369,6 +369,8 @@ window.kprIntro = (function () {
     // While the sound choice shows, the coil follows the raised emblem and shrinks to fit above the buttons.
     let lift = 0, liftTarget = 0, fit = 1, fitTarget = 1, fitHalf = Infinity;
     const slashes = [], sparks = [], rings = [], motes = [], embers = [], petals = [];
+    const dragon3d = window.createShimadaDragon3D ? window.createShimadaDragon3D() : null;
+    window.__kprDragon3D = dragon3d;
     const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
 
     function size() {
@@ -379,6 +381,7 @@ window.kprIntro = (function () {
         c.height = Math.max(1, Math.round(H * dpr));
         x.setTransform(dpr, 0, 0, dpr, 0, 0);
       });
+      if (dragon3d) dragon3d.resize(W, H, dpr);
       dragon.len = Math.min(W, H) * (dragon.lunge ? 2 : 1.35);
     }
     const at = (f) => ({ x: W * f[0], y: H * f[1] });
@@ -386,7 +389,7 @@ window.kprIntro = (function () {
     // --- ambient: embers rise, pale petals drift down and across ---
     function newEmber(anywhere) {
       return { x: rand(0, W), y: anywhere ? rand(0, H) : H + rand(4, 40), vy: -rand(18, 60), sway: rand(0, TAU),
-        swayAmp: rand(6, 22), r: rand(0.7, 2.1), hue: rand(110, 165), flick: rand(0, TAU) };
+        swayAmp: rand(6, 22), r: rand(0.7, 2.1), hue: rand(76, 118), flick: rand(0, TAU) };
     }
     function newPetal(anywhere) {
       return { x: anywhere ? rand(0, W) : W + rand(10, 80), y: anywhere ? rand(0, H) : rand(-H * 0.3, H * 0.7),
@@ -411,6 +414,15 @@ window.kprIntro = (function () {
       return { x: W / 2 + px * Math.cos(tilt) - py * Math.sin(tilt), y: H / 2 - lift + px * Math.sin(tilt) + py * Math.cos(tilt), z: Math.sin(a) };
     }
     function updateDragon(dt, now) {
+      if (dragon3d) {
+        dragon3d.setLift(lift, fit);
+        dragon3d.update(dt, now, phase, phaseAt);
+        if (dt > 0 && (phase === 'charge' || phase === 'lunge')) {
+          const count = phase === 'lunge' ? 4 : 1;
+          for (let i = 0; i < count; i++) shed(dragon, phase === 'lunge' ? 1.6 : 1);
+        }
+        return;
+      }
       const d = dragon;
       if (dt === 0) return;
       let head;
@@ -441,11 +453,16 @@ window.kprIntro = (function () {
       if (d.hist.length > 600) d.hist.length = 600;
     }
     function shed(d, speedScale) {
-      if (d.hist.length < 4) return;
-      const p = d.hist[Math.floor(Math.random() * Math.min(d.hist.length, 120))];
+      let p = null;
+      if (dragon3d) {
+        p = dragon3d.sampleTrailPointScreen();
+      } else if (d.hist.length >= 4) {
+        p = d.hist[Math.floor(Math.random() * Math.min(d.hist.length, 120))];
+      }
+      if (!p) return;
       const a = rand(0, TAU), v = rand(60, 220) * speedScale;
       sparks.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.25, 0.55), age: 0,
-        width: rand(0.8, 1.8), color: Math.random() > 0.5 ? '#28f0b4' : '#eaffea' });
+        width: rand(0.8, 1.9), color: Math.random() > 0.45 ? '#c6ff38' : (Math.random() > 0.4 ? '#68f028' : '#f7ffd4') });
     }
 
     // Even spacing along the trail, so the body keeps its shape at any speed.
@@ -476,6 +493,10 @@ window.kprIntro = (function () {
       c.closePath();
     }
     function drawDragon(now) {
+      if (dragon3d) {
+        dragon3d.render(ctx2d, bctx, now);
+        return;
+      }
       const d = dragon;
       if (d.alpha < 0.01 || d.hist.length < 3) return;
       const N = 44;
@@ -697,9 +718,13 @@ window.kprIntro = (function () {
       const now = performance.now();
       freezeUntil = now + 80; // hit-stop: everything holds for a beat before the cut lands
       strike(spec);
-      const head = dragon.hist[0] || { x: W * 0.8, y: H * 0.3 };
-      dragon.lunge = { p0: { x: head.x, y: head.y }, cp: { x: W * 0.52, y: H * 0.46 }, p1: { x: -W * 0.4, y: H * 1.3 }, start: now + 80, dur: 430 };
-      dragon.len = Math.min(W, H) * 2;
+      if (dragon3d) {
+        dragon3d.triggerLunge(now + 80);
+      } else {
+        const head = dragon.hist[0] || { x: W * 0.8, y: H * 0.3 };
+        dragon.lunge = { p0: { x: head.x, y: head.y }, cp: { x: W * 0.52, y: H * 0.46 }, p1: { x: -W * 0.4, y: H * 1.3 }, start: now + 80, dur: 430 };
+        dragon.len = Math.min(W, H) * 2;
+      }
     }
     function ringBurst() {
       const cx = W / 2, cy = H / 2, radius = Math.min(W, H) * 0.22;
@@ -885,7 +910,7 @@ window.kprIntro = (function () {
         // the tilted orbit reaches about 0.72 rx above and below its centre, plus the body's width
         const rx = Math.min(W * 0.44, H * 0.42, 360);
         fitTarget = Math.min(1, Math.max(0.35, (fitHalf - Math.min(W, H) * 0.035) / (rx * 0.72)));
-        if (instant) { lift = px; fit = fitTarget; }
+        if (instant) { lift = px; fit = fitTarget; if (dragon3d) dragon3d.setLift(lift, fit); }
       },
       strike,
       cleave,
@@ -898,6 +923,7 @@ window.kprIntro = (function () {
         window.removeEventListener('resize', size);
         ctx2d.clearRect(0, 0, W, H);
         if (bctx) bctx.clearRect(0, 0, W, H);
+        if (dragon3d) dragon3d.dispose();
         marks.forEach((m) => { m.style.transform = ''; });
       },
     };
