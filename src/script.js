@@ -270,18 +270,24 @@ const siteAudio = (function () {
     playHoverTick(bodyFreq, clickFreq, vol);
   });
 
+  function setEnabled(on) {
+    enabled = !!on;
+    try { localStorage.setItem('hover-sounds', enabled ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
+    render();
+    if (enabled) unlock();
+  }
+
   if (toggle) {
     toggle.addEventListener('click', () => {
-      enabled = !enabled;
-      try { localStorage.setItem('hover-sounds', enabled ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
-      render();
-      if (enabled) { unlock(); playUiConfirm(); }
+      setEnabled(!enabled);
+      if (enabled) playUiConfirm();
     });
   }
   render();
 
   return {
     unlock,
+    setEnabled,
     playUnsheathe,
     playKatanaSlash,
     isEnabled: () => enabled,
@@ -289,14 +295,17 @@ const siteAudio = (function () {
 })();
 
 // ---- Genji Shimada Dragonblade Splash Intro ----
-// Plays on every page load/reload (unless reduced motion is enabled), then eases the site in from a blur.
+// On every page load the visitor first chooses to enter with or without sound. Then the
+// slashes play (skipped with reduced motion) and the site eases in from a blur.
 window.kprIntro = (function () {
   const splash = document.querySelector('[data-intro-splash]');
   const canvas = document.querySelector('[data-intro-canvas]');
   const skipBtn = document.querySelector('[data-intro-skip]');
+  const gate = splash ? splash.querySelector('[data-intro-gate]') : null;
   const ctx2d = canvas ? canvas.getContext('2d') : null;
+  const reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let active = root.classList.contains('intro-pending') && !!splash && !!ctx2d;
+  let active = root.classList.contains('intro-pending') && !!splash && !!gate;
   const doneCallbacks = [];
   let raf = 0, runToken = 0, timers = [], activeCleanup = null, unblurTimer = 0;
 
@@ -347,7 +356,8 @@ window.kprIntro = (function () {
     }
     sizeCanvas();
 
-    splash.classList.remove('is-charging', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+    // is-charging stays on: the gate already powered the mark up.
+    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
     splash.hidden = false;
     splash.removeAttribute('aria-hidden');
     splash.classList.add('is-active');
@@ -619,8 +629,56 @@ window.kprIntro = (function () {
     };
   }
 
+  // Step 0: sound on or off. This click is also what lets the browser play the blade audio;
+  // it blocks sound on a page nobody has clicked yet.
+  function showGate() {
+    clearTimeout(window.kprIntroFailsafe);
+    splash.hidden = false;
+    splash.removeAttribute('aria-hidden');
+    splash.classList.add('is-active', 'is-gate');
+    root.style.overflow = 'hidden';
+
+    const buttons = Array.from(gate.querySelectorAll('[data-intro-enter]'));
+    // Focus whichever option the visitor picked last time (sound on by default).
+    const preferred = buttons.find((b) => (b.dataset.introEnter === 'sound') === siteAudio.isEnabled()) || buttons[0];
+    requestAnimationFrame(() => {
+      splash.classList.add('is-charging');
+      if (preferred) preferred.focus({ preventScroll: true });
+    });
+
+    let chosen = false;
+    function choose(withSound) {
+      if (chosen) return;
+      chosen = true;
+      window.removeEventListener('keydown', onGateKey);
+      siteAudio.setEnabled(withSound);
+      splash.classList.remove('is-gate');
+      if (reducedMotion || !ctx2d) leaveQuietly();
+      else startSequence();
+    }
+    function onGateKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); choose(false); }
+    }
+    buttons.forEach((b) => b.addEventListener('click', () => choose(b.dataset.introEnter === 'sound')));
+    window.addEventListener('keydown', onGateKey);
+  }
+
+  // Reduced motion: no slashes, the screen fades and the site appears.
+  function leaveQuietly() {
+    root.classList.remove('intro-pending');
+    splash.classList.add('is-skipping');
+    setTimeout(() => {
+      splash.classList.remove('is-active', 'is-charging', 'is-skipping');
+      splash.hidden = true;
+      splash.setAttribute('aria-hidden', 'true');
+      root.style.overflow = '';
+      releaseSiteBlur();
+      notifyDone();
+    }, 240);
+  }
+
   if (active) {
-    startSequence();
+    showGate();
   } else {
     root.classList.remove('intro-pending', 'site-blur-hold', 'site-unblurring');
     if (splash) { splash.hidden = true; splash.setAttribute('aria-hidden', 'true'); }
