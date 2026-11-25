@@ -987,22 +987,51 @@ html.intro-pending .intro-splash,
 .intro-half--top .intro-logo.is-forced { transform: translate(-15px, -5px); }
 .intro-half--bottom .intro-logo.is-forced { transform: translate(15px, 5px); }
 
-.intro-hud {
-  position: absolute;
-  display: flex; flex-direction: column; gap: .2rem;
-  font-size: .72rem; font-weight: 600; letter-spacing: .16em;
-  text-transform: uppercase; color: rgba(68, 214, 44, .7);
-  opacity: 0;
-  transition: opacity .35s ease;
-}
-.intro-hud--tl { top: 1.75rem; left: var(--gutter); }
-.intro-hud--br { bottom: 1.75rem; left: var(--gutter); }
-.intro-hud-sub { color: rgba(240, 243, 239, .45); font-size: .68rem; }
-
 /* Phase 0: Power-on (completely solid, zero cut lines) */
 .intro-splash.is-charging .intro-logo--whole { opacity: 1; transform: scale(1); }
 .intro-splash.is-charging .intro-reticle--whole { opacity: 1; transform: rotate(45deg) scale(1); }
-.intro-splash.is-charging .intro-hud { opacity: 1; }
+
+/* While the visitor chooses sound, the mark breathes; once they choose, it overloads:
+   brighter, with the colour channels pulling apart before the first strike. */
+@keyframes mark-breathe {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.22); }
+}
+@keyframes mark-power {
+  0% { filter: brightness(1); }
+  70% { filter: brightness(1.35) drop-shadow(-2px 0 0 rgba(40, 240, 180, .7)) drop-shadow(2px 0 0 rgba(234, 255, 234, .45)); }
+  100% { filter: brightness(1.65) drop-shadow(-5px 0 0 rgba(40, 240, 180, .85)) drop-shadow(5px 0 0 rgba(234, 255, 234, .6)); }
+}
+.intro-splash.is-gate .intro-whole .intro-mark { animation: mark-breathe 3.2s ease-in-out infinite; }
+.intro-splash.is-powering .intro-whole .intro-mark { animation: mark-power .82s cubic-bezier(.5, 0, .75, 0) forwards; }
+
+/* Each strike jolts the whole stage sideways for a few frames. */
+@keyframes stage-glitch {
+  0% { transform: translate3d(-9px, 2px, 0) skewX(-3deg); clip-path: inset(0 0 46% 0); }
+  25% { transform: translate3d(7px, -1px, 0) skewX(2deg); clip-path: inset(38% 0 0 0); }
+  50% { transform: translate3d(-4px, 0, 0); clip-path: inset(12% 0 30% 0); }
+  100% { transform: none; clip-path: inset(0); }
+}
+.intro-splash.is-glitch .intro-whole { animation: stage-glitch .22s steps(4, end) 1; }
+/* A dark floor under the stage, so a jolted or sliced stage never shows the site early.
+   It drops at the cleave, when the halves part to reveal the site. */
+.intro-splash.is-active:not(.is-cleaved) { background: #040604; }
+
+/* Behind the mark: embers and the far side of the dragon's coil. */
+.intro-canvas--back { z-index: 0; }
+
+/* Strike flash: a short bright bloom over the stage, timed and sized per strike in script.js. */
+.intro-flash {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(234, 255, 234, .95) 0%, rgba(68, 214, 44, .55) 38%, rgba(4, 6, 4, 0) 78%);
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-splash .intro-whole .intro-mark { animation: none; }
+}
 
 @keyframes reticle-shatter-a {
   0% { opacity: 1; transform: translate(-4px, -3px) rotate(44deg) scale(1.01); }

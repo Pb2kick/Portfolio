@@ -294,20 +294,26 @@ const siteAudio = (function () {
   };
 })();
 
-// ---- Genji Shimada Dragonblade Splash Intro ----
-// On every page load the visitor first chooses to enter with or without sound. Then the
-// slashes play (skipped with reduced motion) and the site eases in from a blur.
+// ---- Cyber-ninja blade intro ----
+// Every page load opens on a choice: enter with or without sound (that click is also what
+// lets the browser play audio). While the visitor decides, an energy dragon coils around
+// the KPR mark among rising embers and drifting petals. Choosing charges it: focus lines and
+// motes pull in, three blade strikes shatter the reticle and shear the mark, and the dragon
+// tears through on the final cleave as the screen parts. Reduced motion: a still gate, then a fade.
 window.kprIntro = (function () {
   const splash = document.querySelector('[data-intro-splash]');
   const canvas = document.querySelector('[data-intro-canvas]');
+  const backCanvas = document.querySelector('[data-intro-canvas-back]');
+  const flashEl = document.querySelector('[data-intro-flash]');
   const skipBtn = document.querySelector('[data-intro-skip]');
   const gate = splash ? splash.querySelector('[data-intro-gate]') : null;
   const ctx2d = canvas ? canvas.getContext('2d') : null;
+  const bctx = backCanvas ? backCanvas.getContext('2d') : null;
   const reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let active = root.classList.contains('intro-pending') && !!splash && !!gate;
   const doneCallbacks = [];
-  let raf = 0, runToken = 0, timers = [], activeCleanup = null, unblurTimer = 0;
+  let runToken = 0, timers = [], unblurTimer = 0;
 
   function notifyDone() {
     active = false;
@@ -329,108 +335,284 @@ window.kprIntro = (function () {
   function clearTimers() {
     timers.forEach((id) => clearTimeout(id));
     timers = [];
-    if (raf) { cancelAnimationFrame(raf); raf = 0; }
   }
 
-  function startSequence() {
-    if (!splash || !ctx2d) {
-      root.classList.remove('site-blur-hold', 'site-unblurring');
-      notifyDone();
-      return;
-    }
-    if (activeCleanup) activeCleanup();
-    clearTimers();
-    clearTimeout(unblurTimer);
+  // Blade paths as fractions of the viewport, so they hold on any screen size.
+  const STRIKES = [
+    { step: 1, life: 0.40, widthK: 0.036, minW: 16, flash: 0.26, p0: [0.76, 0.20], cp: [0.46, 0.44], p1: [0.24, 0.80] },
+    { step: 2, life: 0.42, widthK: 0.040, minW: 18, flash: 0.30, p0: [0.22, 0.30], cp: [0.52, 0.47], p1: [0.78, 0.70] },
+    { step: 3, life: 0.50, widthK: 0.052, minW: 24, flash: 0.55, cleave: true, p0: [1.04, 0.14], cp: [0.50, 0.50], p1: [-0.04, 0.86] },
+  ];
 
-    const token = ++runToken;
-    active = true;
+  const fx = (ctx2d && !reducedMotion) ? createFx() : null;
 
-    let W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
-    function sizeCanvas() {
-      W = innerWidth;
-      H = innerHeight;
-      dpr = Math.min(devicePixelRatio || 1, 2);
-      canvas.width = Math.max(1, Math.round(W * dpr));
-      canvas.height = Math.max(1, Math.round(H * dpr));
-      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    sizeCanvas();
-
-    // is-charging stays on: the gate already powered the mark up.
-    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
-    splash.hidden = false;
-    splash.removeAttribute('aria-hidden');
-    splash.classList.add('is-active');
-    root.classList.remove('intro-pending', 'site-unblurring');
-    root.classList.add('site-blur-hold');
-    root.style.overflow = 'hidden';
-
-    requestAnimationFrame(() => {
-      if (token === runToken) splash.classList.add('is-charging');
-      if (skipBtn) skipBtn.focus({ preventScroll: true });
-    });
-
-    siteAudio.playUnsheathe();
-
-    const onSplashPointer = (e) => {
-      if (e.target.closest && e.target.closest('[data-intro-skip]')) return;
-      siteAudio.unlock();
-    };
-    splash.addEventListener('pointerdown', onSplashPointer);
-
-    const slashes = [];
-    const sparks = [];
-    let shake = 0;
-
+  // ---------- VFX engine: one canvas loop for the gate and the strike sequence ----------
+  function createFx() {
+    const TAU = Math.PI * 2;
+    const rand = (a, b) => a + Math.random() * (b - a);
     const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+    const easeInCubic = (t) => t * t * t;
     const quadPt = (p0, cp, p1, t) => {
       const m = 1 - t;
-      return {
-        x: m * m * p0.x + 2 * m * t * cp.x + t * t * p1.x,
-        y: m * m * p0.y + 2 * m * t * cp.y + t * t * p1.y,
-      };
+      return { x: m * m * p0.x + 2 * m * t * cp.x + t * t * p1.x, y: m * m * p0.y + 2 * m * t * cp.y + t * t * p1.y };
     };
+    const marks = splash.querySelectorAll('.intro-mark');
 
-    function spawnSparks(x, y, vxBase, vyBase, count, speedScale = 1) {
-      for (let i = 0; i < count; i++) {
-        const spread = (Math.random() - 0.5) * 1.45;
-        const speed = (220 + Math.random() * 580) * speedScale;
-        const angle = Math.atan2(vyBase, vxBase) + spread;
-        sparks.push({
-          x, y,
-          vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed,
-          life: 0.25 + Math.random() * 0.42,
-          age: 0,
-          width: 1.2 + Math.random() * 2.2,
-          color: Math.random() > 0.35 ? '#44d62c' : (Math.random() > 0.4 ? '#28f0b4' : '#eaffea'),
-        });
-      }
+    let W = innerWidth, H = innerHeight, dpr = 1;
+    let raf = 0, running = false, lastFrame = 0, freezeUntil = 0;
+    let phase = 'idle', phaseAt = 0, shake = 0, focus = 0, glitchTimer = 0;
+    const slashes = [], sparks = [], rings = [], motes = [], embers = [], petals = [];
+    const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
+
+    function size() {
+      W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
+      [[canvas, ctx2d], [backCanvas, bctx]].forEach(([c, x]) => {
+        if (!c || !x) return;
+        c.width = Math.max(1, Math.round(W * dpr));
+        c.height = Math.max(1, Math.round(H * dpr));
+        x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      });
+      dragon.len = Math.min(W, H) * (dragon.lunge ? 2 : 1.35);
+    }
+    const at = (f) => ({ x: W * f[0], y: H * f[1] });
+
+    // --- ambient: embers rise, pale petals drift down and across ---
+    function newEmber(anywhere) {
+      return { x: rand(0, W), y: anywhere ? rand(0, H) : H + rand(4, 40), vy: -rand(18, 60), sway: rand(0, TAU),
+        swayAmp: rand(6, 22), r: rand(0.7, 2.1), hue: rand(110, 165), flick: rand(0, TAU) };
+    }
+    function newPetal(anywhere) {
+      return { x: anywhere ? rand(0, W) : W + rand(10, 80), y: anywhere ? rand(0, H) : rand(-H * 0.3, H * 0.7),
+        vx: -rand(14, 38), vy: rand(14, 34), rot: rand(0, TAU), vr: rand(-2.2, 2.2), s: rand(2.4, 5), a: rand(0.16, 0.36) };
+    }
+    function seedAmbient() {
+      embers.length = 0; petals.length = 0;
+      const ne = Math.round(Math.min(70, Math.max(24, W * H / 20000)));
+      for (let i = 0; i < ne; i++) embers.push(newEmber(true));
+      const np = Math.round(Math.min(18, Math.max(7, W / 90)));
+      for (let i = 0; i < np; i++) petals.push(newPetal(true));
     }
 
-    function spawnRingBurst(cx, cy, radius, count) {
-      for (let i = 0; i < count; i++) {
-        const a = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
-        const px = cx + Math.cos(a) * radius * 0.7;
-        const py = cy + Math.sin(a) * radius * 0.7;
-        spawnSparks(px, py, Math.cos(a), Math.sin(a), 1, 0.85);
+    // --- the dragon: its head follows a tilted orbit round the mark, the body trails behind ---
+    function orbitPoint(a, now) {
+      const rx = Math.min(W * 0.44, H * 0.42, 360) * dragon.squeeze;
+      const ry = rx * 0.42;
+      const px = Math.cos(a) * rx;
+      const py = Math.sin(a) * ry + Math.sin(a * 2 + now * 0.0011) * ry * 0.22;
+      const tilt = -0.2;
+      // z > 0: the near (lower) side of the orbit, drawn in front of the mark
+      return { x: W / 2 + px * Math.cos(tilt) - py * Math.sin(tilt), y: H / 2 + px * Math.sin(tilt) + py * Math.cos(tilt), z: Math.sin(a) };
+    }
+    function updateDragon(dt, now) {
+      const d = dragon;
+      if (dt === 0) return;
+      let head;
+      if (d.lunge) {
+        const L = d.lunge;
+        const p = Math.max(0, Math.min(1, (now - L.start) / L.dur));
+        head = quadPt(L.p0, L.cp, L.p1, easeInCubic(p) * 0.6 + p * 0.4);
+        head.z = 1;
+        if (now > L.start + L.dur + 120) d.alpha = Math.max(0, d.alpha - dt / 0.35);
+        for (let i = 0; i < 4; i++) shed(d, 1.6);
+      } else {
+        if (phase === 'charge') {
+          const p = Math.min(1, (now - phaseAt) / 820);
+          d.speed = 0.75 + 3.6 * easeInCubic(p);
+          d.squeeze = 1 - 0.28 * easeOutCubic(p);
+          shed(d, 1);
+        }
+        d.angle += d.speed * dt;
+        head = orbitPoint(d.angle, now);
+        d.alpha = Math.min(1, d.alpha + dt / 0.9);
       }
+      d.hist.unshift(head);
+      let acc = 0;
+      for (let i = 1; i < d.hist.length; i++) {
+        acc += Math.hypot(d.hist[i].x - d.hist[i - 1].x, d.hist[i].y - d.hist[i - 1].y);
+        if (acc > d.len * 1.25) { d.hist.length = i + 1; break; }
+      }
+      if (d.hist.length > 600) d.hist.length = 600;
+    }
+    function shed(d, speedScale) {
+      if (d.hist.length < 4) return;
+      const p = d.hist[Math.floor(Math.random() * Math.min(d.hist.length, 120))];
+      const a = rand(0, TAU), v = rand(60, 220) * speedScale;
+      sparks.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.25, 0.55), age: 0,
+        width: rand(0.8, 1.8), color: Math.random() > 0.5 ? '#28f0b4' : '#eaffea' });
     }
 
-    function addSlash(spec) {
-      const now = performance.now();
-      slashes.push({ ...spec, born: now });
-      const p0 = spec.p0(), cp = spec.cp(), p1 = spec.p1();
-      const dx = p1.x - p0.x, dy = p1.y - p0.y;
-      for (let k = 0; k < 5; k++) {
-        const pt = quadPt(p0, cp, p1, 0.2 + k * 0.16);
-        spawnSparks(pt.x, pt.y, dx, dy, spec.cleave ? 9 : 5, spec.cleave ? 1.25 : 0.9);
+    // Even spacing along the trail, so the body keeps its shape at any speed.
+    function resample(pts, spacing, n) {
+      const out = [pts[0]];
+      let a = pts[0], acc = 0;
+      for (let k = 1; k < pts.length && out.length < n; k++) {
+        const b = pts[k];
+        let seg = Math.hypot(b.x - a.x, b.y - a.y);
+        while (seg > 0 && acc + seg >= spacing && out.length < n) {
+          const t = (spacing - acc) / seg;
+          const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
+          out.push(p);
+          a = p; acc = 0;
+          seg = Math.hypot(b.x - a.x, b.y - a.y);
+        }
+        acc += seg;
+        a = b;
       }
-      shake = spec.cleave ? 10 : 6;
-      siteAudio.playKatanaSlash(spec.step);
+      return out;
+    }
+    function quad(c, a, b, na, nb, wa, wb) {
+      c.beginPath();
+      c.moveTo(a.x + na.x * wa, a.y + na.y * wa);
+      c.lineTo(b.x + nb.x * wb, b.y + nb.y * wb);
+      c.lineTo(b.x - nb.x * wb, b.y - nb.y * wb);
+      c.lineTo(a.x - na.x * wa, a.y - na.y * wa);
+      c.closePath();
+    }
+    function drawDragon(now) {
+      const d = dragon;
+      if (d.alpha < 0.01 || d.hist.length < 3) return;
+      const N = 44;
+      const s = resample(d.hist, d.len / N, N + 1);
+      const M = s.length;
+      if (M < 3) return;
+      const maxW = Math.max(5, Math.min(W, H) * 0.017);
+      const nrm = [], wid = [];
+      for (let i = 0; i < M; i++) {
+        const a = s[Math.max(0, i - 1)], b = s[Math.min(M - 1, i + 1)];
+        const tx = a.x - b.x, ty = a.y - b.y, L = Math.hypot(tx, ty) || 1;
+        nrm.push({ x: -ty / L, y: tx / L });
+        const u = i / N;
+        const prof = u < 0.08 ? 0.62 + u * 4.75 : Math.pow(Math.max(0, 1 - (u - 0.08) / 0.92), 0.8);
+        wid.push(Math.max(0.6, maxW * prof));
+      }
+      const A = d.alpha;
+      const pick = (z) => (z < -0.04 && bctx && !d.lunge) ? bctx : ctx2d;
+      [ctx2d, bctx].forEach((c) => { if (c) { c.lineCap = 'butt'; c.lineJoin = 'round'; } });
+      // tail first, so the head lands on top
+      for (let k = M - 2; k >= 0; k--) {
+        const a = s[k], b = s[k + 1], na = nrm[k], nb = nrm[k + 1], wa = wid[k], wb = wid[k + 1];
+        const c = pick((a.z + b.z) / 2);
+        const u = k / N;
+        const dx = b.x - a.x, dy = b.y - a.y, dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl;
+        const hue = (160 - u * 45).toFixed(0);
+        // energy pulses travel from the head down to the tail
+        const ph = ((u * 3 - now / 700) % 1 + 1) % 1;
+        // ...and the whole body flares while it lunges through the cleave
+        const pulse = Math.max(d.lunge ? 0.7 : 0, 1 - Math.abs(ph - 0.5) * 9);
+        // faint aura
+        c.globalCompositeOperation = 'lighter';
+        quad(c, a, b, na, nb, wa * 1.9, wb * 1.9);
+        c.fillStyle = `rgba(68,214,44,${((0.045 + pulse * 0.08) * A).toFixed(3)})`;
+        c.fill();
+        // hard-light body: a dark core lit by its edges
+        c.globalCompositeOperation = 'source-over';
+        quad(c, a, b, na, nb, wa, wb);
+        c.fillStyle = `hsla(150,70%,${(6 + pulse * 26).toFixed(0)}%,${(0.92 * A).toFixed(3)})`;
+        c.fill();
+        // scales
+        if (k % 2 === 0 && u > 0.05) {
+          c.beginPath();
+          c.moveTo(a.x + na.x * wa * 0.78, a.y + na.y * wa * 0.78);
+          c.lineTo(a.x + ux * wa * 0.5, a.y + uy * wa * 0.5);
+          c.lineTo(a.x - na.x * wa * 0.78, a.y - na.y * wa * 0.78);
+          c.strokeStyle = `hsla(${hue},95%,62%,${((0.4 + pulse * 0.5) * A).toFixed(3)})`;
+          c.lineWidth = 1; c.stroke();
+        }
+        // neon edges
+        c.lineWidth = Math.max(1.1, wa * 0.16);
+        c.strokeStyle = `hsla(${hue},95%,${(58 + pulse * 25).toFixed(0)}%,${A.toFixed(3)})`;
+        c.beginPath();
+        c.moveTo(a.x + na.x * wa, a.y + na.y * wa); c.lineTo(b.x + nb.x * wb, b.y + nb.y * wb);
+        c.moveTo(a.x - na.x * wa, a.y - na.y * wa); c.lineTo(b.x - nb.x * wb, b.y - nb.y * wb);
+        c.stroke();
+        // dorsal fins, swept back
+        if (k % 3 === 1 && u > 0.06 && u < 0.88) {
+          c.beginPath();
+          c.moveTo(a.x + na.x * wa * 0.9 - ux * wa * 0.3, a.y + na.y * wa * 0.9 - uy * wa * 0.3);
+          c.lineTo(a.x + na.x * wa * 2.3 + ux * wa * 1.1, a.y + na.y * wa * 2.3 + uy * wa * 1.1);
+          c.lineTo(a.x + na.x * wa * 0.9 + ux * wa * 0.6, a.y + na.y * wa * 0.9 + uy * wa * 0.6);
+          c.closePath();
+          c.fillStyle = `hsla(165,92%,60%,${(0.85 * A).toFixed(3)})`;
+          c.fill();
+        }
+        // mane: flame wisps streaming back from the neck
+        if (k > 0 && k < 11) {
+          const f = 1 - k / 11;
+          c.globalCompositeOperation = 'lighter';
+          c.lineWidth = 1.1;
+          c.strokeStyle = `rgba(40,240,180,${(0.6 * f * A).toFixed(3)})`;
+          [1, -1].forEach((sd) => {
+            const reach = wa * (1.9 + Math.sin(now / 110 + k * 1.7 + sd) * 0.7);
+            c.beginPath();
+            c.moveTo(a.x + sd * na.x * wa, a.y + sd * na.y * wa);
+            c.quadraticCurveTo(a.x + sd * na.x * reach + ux * wa, a.y + sd * na.y * reach + uy * wa,
+              a.x + sd * na.x * reach * 0.8 + ux * wa * 3, a.y + sd * na.y * reach * 0.8 + uy * wa * 3);
+            c.stroke();
+          });
+          c.globalCompositeOperation = 'source-over';
+        }
+        // spine light
+        c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y);
+        c.strokeStyle = `rgba(234,255,234,${((0.3 + pulse * 0.6) * (1 - u * 0.7) * A).toFixed(3)})`;
+        c.lineWidth = Math.max(0.7, wa * 0.12); c.stroke();
+      }
+      drawHead(pick(s[0].z), s[0], s[1], wid[0], now, A);
+    }
+    function drawHead(c, h, nxt, w, now, A) {
+      let fx0 = h.x - nxt.x, fy0 = h.y - nxt.y;
+      const l0 = Math.hypot(fx0, fy0) || 1; fx0 /= l0; fy0 /= l0;
+      const nx = -fy0, ny = fx0;
+      const L = w * 3.2, hw = w * 1.25;
+      const P = (f, sd) => ({ x: h.x + fx0 * f + nx * sd, y: h.y + fy0 * f + ny * sd });
+      const sway = Math.sin(now / 170) * hw * 0.7;
+      // head aura and whiskers
+      c.globalCompositeOperation = 'lighter';
+      const g = c.createRadialGradient(h.x, h.y, 0, h.x, h.y, L * 1.6);
+      g.addColorStop(0, `rgba(68,214,44,${(0.35 * A).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(68,214,44,0)');
+      c.fillStyle = g; c.beginPath(); c.arc(h.x, h.y, L * 1.6, 0, TAU); c.fill();
+      [1, -1].forEach((sd) => {
+        const p0 = P(L * 0.78, sd * hw * 0.3), cp = P(-L * 0.4, sd * (hw * 0.4) + sway * 0.3), p1 = P(-L * 2.6, sd * hw * 1.7 + sway);
+        c.beginPath(); c.moveTo(p0.x, p0.y); c.quadraticCurveTo(cp.x, cp.y, p1.x, p1.y);
+        c.strokeStyle = `rgba(234,255,234,${(0.55 * A).toFixed(3)})`; c.lineWidth = 1.2; c.stroke();
+      });
+      c.globalCompositeOperation = 'source-over';
+      // horns
+      c.lineCap = 'round';
+      [1, -1].forEach((sd) => {
+        const b0 = P(-L * 0.05, sd * hw * 0.6), cp = P(-L * 0.7, sd * hw * 1.0), tip = P(-L * 1.25, sd * hw * 1.65);
+        c.beginPath(); c.moveTo(b0.x, b0.y); c.quadraticCurveTo(cp.x, cp.y, tip.x, tip.y);
+        c.strokeStyle = `hsla(165,92%,64%,${A.toFixed(3)})`; c.lineWidth = Math.max(1.4, w * 0.22); c.stroke();
+      });
+      c.lineCap = 'butt';
+      // skull
+      const pts = [P(L, 0), P(L * 0.55, hw * 0.42), P(L * 0.1, hw * 0.62), P(-L * 0.2, hw * 1.0), P(-L * 0.45, hw * 0.55),
+        P(-L * 0.45, -hw * 0.55), P(-L * 0.2, -hw * 1.0), P(L * 0.1, -hw * 0.62), P(L * 0.55, -hw * 0.42)];
+      c.beginPath(); c.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+      c.closePath();
+      c.fillStyle = `hsla(150,70%,7%,${(0.95 * A).toFixed(3)})`; c.fill();
+      c.strokeStyle = `hsla(155,95%,62%,${A.toFixed(3)})`; c.lineWidth = Math.max(1.3, w * 0.18); c.stroke();
+      const s0 = P(L * 0.9, 0), s1 = P(-L * 0.3, 0);
+      c.beginPath(); c.moveTo(s0.x, s0.y); c.lineTo(s1.x, s1.y);
+      c.strokeStyle = `hsla(155,95%,62%,${(0.45 * A).toFixed(3)})`; c.lineWidth = 1; c.stroke();
+      // eyes: hot white slits with a teal bloom
+      c.globalCompositeOperation = 'lighter';
+      [1, -1].forEach((sd) => {
+        const e = P(L * 0.12, sd * hw * 0.42);
+        const eg = c.createRadialGradient(e.x, e.y, 0, e.x, e.y, w * 1.6);
+        eg.addColorStop(0, `rgba(40,240,180,${(0.55 * A).toFixed(3)})`);
+        eg.addColorStop(1, 'rgba(40,240,180,0)');
+        c.fillStyle = eg; c.beginPath(); c.arc(e.x, e.y, w * 1.6, 0, TAU); c.fill();
+        c.beginPath();
+        c.ellipse(e.x, e.y, Math.max(1.6, w * 0.3), Math.max(0.8, w * 0.1), Math.atan2(fy0, fx0), 0, TAU);
+        c.fillStyle = `rgba(240,255,250,${A.toFixed(3)})`; c.fill();
+      });
+      c.globalCompositeOperation = 'source-over';
     }
 
-    function drawCrescent(p0, cp, p1, tStart, tEnd, maxW, alpha) {
+    // --- strike effects ---
+    function drawCrescent(c, p0, cp, p1, tStart, tEnd, maxW, alpha) {
       const steps = 28;
       if (tEnd <= tStart + 0.01) return;
       const topPts = [], botPts = [];
@@ -448,47 +630,178 @@ window.kprIntro = (function () {
         topPts.push({ x: pt.x + nx * profile * 0.85, y: pt.y + ny * profile * 0.85 });
         botPts.push({ x: pt.x - nx * profile * 0.35, y: pt.y - ny * profile * 0.35 });
       }
-      ctx2d.save();
-      ctx2d.globalAlpha = alpha;
-      ctx2d.beginPath();
-      ctx2d.moveTo(topPts[0].x, topPts[0].y);
-      for (let i = 1; i < topPts.length; i++) ctx2d.lineTo(topPts[i].x, topPts[i].y);
-      for (let i = botPts.length - 1; i >= 0; i--) ctx2d.lineTo(botPts[i].x, botPts[i].y);
-      ctx2d.closePath();
-
-      ctx2d.shadowColor = '#44d62c';
-      ctx2d.shadowBlur = 28;
-      ctx2d.fillStyle = '#44d62c';
-      ctx2d.fill();
-
-      ctx2d.shadowBlur = 10;
-      ctx2d.shadowColor = '#28f0b4';
-      ctx2d.fillStyle = '#edffea';
-      ctx2d.globalAlpha = alpha * 0.92;
-      ctx2d.fill();
-      ctx2d.restore();
+      c.save();
+      c.globalAlpha = alpha;
+      c.beginPath();
+      c.moveTo(topPts[0].x, topPts[0].y);
+      for (let i = 1; i < topPts.length; i++) c.lineTo(topPts[i].x, topPts[i].y);
+      for (let i = botPts.length - 1; i >= 0; i--) c.lineTo(botPts[i].x, botPts[i].y);
+      c.closePath();
+      c.shadowColor = '#44d62c';
+      c.shadowBlur = 28;
+      c.fillStyle = '#44d62c';
+      c.fill();
+      c.shadowBlur = 10;
+      c.shadowColor = '#28f0b4';
+      c.fillStyle = '#edffea';
+      c.globalAlpha = alpha * 0.92;
+      c.fill();
+      c.restore();
     }
+    function spawnSparks(x, y, vxBase, vyBase, count, speedScale) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.atan2(vyBase, vxBase) + (Math.random() - 0.5) * 1.45;
+        const speed = (220 + Math.random() * 580) * speedScale;
+        sparks.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 0.25 + Math.random() * 0.42, age: 0,
+          width: 1.2 + Math.random() * 2.2, color: Math.random() > 0.35 ? '#44d62c' : (Math.random() > 0.4 ? '#28f0b4' : '#eaffea') });
+      }
+    }
+    function flash(k, ms) {
+      if (!flashEl || !flashEl.animate) return;
+      flashEl.animate([{ opacity: k }, { opacity: 0 }], { duration: ms, easing: 'cubic-bezier(.16,1,.3,1)' });
+    }
+    function glitch() {
+      clearTimeout(glitchTimer);
+      splash.classList.remove('is-glitch');
+      void splash.offsetWidth;
+      splash.classList.add('is-glitch');
+      glitchTimer = setTimeout(() => splash.classList.remove('is-glitch'), 240);
+    }
+    function strike(spec) {
+      const now = performance.now();
+      const m = Math.min(W, H);
+      const s = { ...spec, born: now, width: Math.max(spec.minW, m * spec.widthK) };
+      slashes.push(s);
+      const p0 = at(s.p0), cp = at(s.cp), p1 = at(s.p1);
+      const dx = p1.x - p0.x, dy = p1.y - p0.y;
+      for (let k = 0; k < 5; k++) {
+        const pt = quadPt(p0, cp, p1, 0.2 + k * 0.16);
+        spawnSparks(pt.x, pt.y, dx, dy, spec.cleave ? 9 : 5, spec.cleave ? 1.25 : 0.9);
+      }
+      const mid = quadPt(p0, cp, p1, 0.5);
+      rings.push({ x: mid.x, y: mid.y, born: now, life: spec.cleave ? 0.7 : 0.45, max: m * (spec.cleave ? 0.95 : 0.5), w: spec.cleave ? 10 : 6, flat: !!spec.cleave });
+      shake = spec.cleave ? 12 : 7;
+      focus = 0;
+      phase = spec.cleave ? 'lunge' : 'strike';
+      flash(spec.flash, spec.cleave ? 420 : 260);
+      glitch();
+    }
+    function cleave(spec) {
+      const now = performance.now();
+      freezeUntil = now + 80; // hit-stop: everything holds for a beat before the cut lands
+      strike(spec);
+      const head = dragon.hist[0] || { x: W * 0.8, y: H * 0.3 };
+      dragon.lunge = { p0: { x: head.x, y: head.y }, cp: { x: W * 0.52, y: H * 0.46 }, p1: { x: -W * 0.4, y: H * 1.3 }, start: now + 80, dur: 430 };
+      dragon.len = Math.min(W, H) * 2;
+    }
+    function ringBurst() {
+      const cx = W / 2, cy = H / 2, radius = Math.min(W, H) * 0.22;
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * TAU + (Math.random() - 0.5) * 0.3;
+        spawnSparks(cx + Math.cos(a) * radius * 0.7, cy + Math.sin(a) * radius * 0.7, Math.cos(a), Math.sin(a), 1, 0.85);
+      }
+    }
+    function sparkBurst() { spawnSparks(W / 2, H / 2, 1, 0.36, 22, 1.05); }
 
-    let lastFrame = performance.now();
-    function tickFrame(now) {
-      if (token !== runToken) return;
-      const dt = Math.min(0.05, (now - lastFrame) / 1000);
-      lastFrame = now;
-
-      ctx2d.clearRect(0, 0, W, H);
-
+    // --- one frame ---
+    function update(dt, now) {
+      updateDragon(dt, now);
+      const charge = phase === 'charge' ? Math.min(1, (now - phaseAt) / 820) : 0;
+      if (phase === 'charge') {
+        focus = easeInCubic(charge);
+        for (let i = 0; i < 5; i++) {
+          motes.push({ a: rand(0, TAU), r0: Math.hypot(W, H) * rand(0.32, 0.58), born: now, life: rand(380, 640), w: rand(0.8, 2) });
+        }
+      }
+      const rise = 1 + 2.5 * charge;
+      for (const e of embers) {
+        e.y += e.vy * rise * dt;
+        e.sway += dt * 1.3;
+        if (e.y < -12) Object.assign(e, newEmber(false));
+      }
+      for (const p of petals) {
+        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+        if (p.x < -24 || p.y > H + 24) Object.assign(p, newPetal(false));
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const sp = sparks[i];
+        sp.age += dt;
+        if (sp.age >= sp.life) { sparks.splice(i, 1); continue; }
+        sp.x += sp.vx * dt; sp.y += sp.vy * dt;
+        sp.vx *= 0.94; sp.vy *= 0.94;
+      }
       if (shake > 0.2) {
-        const sx = (Math.random() - 0.5) * shake * 2;
-        const sy = (Math.random() - 0.5) * shake * 2;
-        splash.querySelectorAll('.intro-mark').forEach((m) => {
-          m.style.transform = `translate(calc(-50% + ${sx.toFixed(1)}px), calc(-50% + ${sy.toFixed(1)}px))`;
-        });
-        shake *= 0.80;
+        const sx = (Math.random() - 0.5) * shake * 2, sy = (Math.random() - 0.5) * shake * 2;
+        marks.forEach((m) => { m.style.transform = `translate(calc(-50% + ${sx.toFixed(1)}px), calc(-50% + ${sy.toFixed(1)}px))`; });
+        if (dt > 0) shake *= 0.8;
       } else if (shake > 0) {
         shake = 0;
-        splash.querySelectorAll('.intro-mark').forEach((m) => { m.style.transform = ''; });
+        marks.forEach((m) => { m.style.transform = ''; });
+      }
+    }
+    function render(now) {
+      ctx2d.clearRect(0, 0, W, H);
+      if (bctx) bctx.clearRect(0, 0, W, H);
+      const amb = bctx || ctx2d;
+
+      // ambient
+      amb.globalCompositeOperation = 'lighter';
+      for (const e of embers) {
+        const a = 0.22 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.006 + e.flick));
+        amb.fillStyle = `hsla(${e.hue.toFixed(0)},90%,62%,${a.toFixed(3)})`;
+        amb.beginPath();
+        amb.arc(e.x + Math.sin(e.sway) * e.swayAmp, e.y, e.r, 0, TAU);
+        amb.fill();
+      }
+      amb.globalCompositeOperation = 'source-over';
+      for (const p of petals) {
+        amb.save();
+        amb.translate(p.x, p.y); amb.rotate(p.rot);
+        amb.fillStyle = `rgba(234,255,234,${p.a.toFixed(3)})`;
+        amb.beginPath(); amb.ellipse(0, 0, p.s, p.s * 0.45, 0, 0, TAU); amb.fill();
+        amb.restore();
       }
 
+      // focus lines: speed lines pulling in toward the mark while it charges
+      if (focus > 0.02) {
+        const cx = W / 2, cy = H / 2, R = Math.hypot(W, H) * 0.6, rMin = Math.min(W, H) * 0.3;
+        ctx2d.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 64; i++) {
+          const a = rand(0, TAU), inner = rMin + rand(0, Math.min(W, H) * 0.22) * (1 - focus * 0.5), half = rand(0.002, 0.009);
+          ctx2d.fillStyle = `rgba(234,255,234,${(rand(0.03, 0.13) * focus).toFixed(3)})`;
+          ctx2d.beginPath();
+          ctx2d.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+          ctx2d.lineTo(cx + Math.cos(a - half) * R, cy + Math.sin(a - half) * R);
+          ctx2d.lineTo(cx + Math.cos(a + half) * R, cy + Math.sin(a + half) * R);
+          ctx2d.closePath();
+          ctx2d.fill();
+        }
+      } else if (focus > 0) {
+        focus = 0;
+      }
+
+      // motes: energy streaks drawn into the mark
+      ctx2d.globalCompositeOperation = 'lighter';
+      for (let i = motes.length - 1; i >= 0; i--) {
+        const mo = motes[i];
+        const p = (now - mo.born) / mo.life;
+        if (p >= 1) { motes.splice(i, 1); continue; }
+        const r = mo.r0 * (1 - easeInCubic(p));
+        const cx = W / 2 + Math.cos(mo.a) * r, cy = H / 2 + Math.sin(mo.a) * r;
+        const tail = mo.r0 * 0.07 * (0.4 + p);
+        ctx2d.strokeStyle = `rgba(40,240,180,${(0.85 * p).toFixed(3)})`;
+        ctx2d.lineWidth = mo.w;
+        ctx2d.beginPath();
+        ctx2d.moveTo(cx, cy);
+        ctx2d.lineTo(cx + Math.cos(mo.a) * tail, cy + Math.sin(mo.a) * tail);
+        ctx2d.stroke();
+      }
+      ctx2d.globalCompositeOperation = 'source-over';
+
+      drawDragon(now);
+      [ctx2d, bctx].forEach((c) => { if (c) c.globalCompositeOperation = 'source-over'; });
+
+      // blade crescents
       for (let i = slashes.length - 1; i >= 0; i--) {
         const s = slashes[i];
         const age = (now - s.born) / 1000;
@@ -497,100 +810,127 @@ window.kprIntro = (function () {
         const tEnd = easeOutCubic(Math.min(1, prog * 2.15));
         const tStart = Math.max(0, (prog - 0.14) * 1.15);
         const alpha = Math.max(0, 1 - Math.pow(prog, 1.8));
-        drawCrescent(s.p0(), s.cp(), s.p1(), tStart, tEnd, s.width * (1 - prog * 0.45), alpha);
+        drawCrescent(ctx2d, at(s.p0), at(s.cp), at(s.p1), tStart, tEnd, s.width * (1 - prog * 0.45), alpha);
       }
 
-      for (let i = sparks.length - 1; i >= 0; i--) {
-        const sp = sparks[i];
-        sp.age += dt;
-        if (sp.age >= sp.life) { sparks.splice(i, 1); continue; }
-        sp.x += sp.vx * dt;
-        sp.y += sp.vy * dt;
-        sp.vx *= 0.94;
-        sp.vy *= 0.94;
+      // shockwaves
+      ctx2d.globalCompositeOperation = 'lighter';
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
+        const p = (now - r.born) / (r.life * 1000);
+        if (p >= 1) { rings.splice(i, 1); continue; }
+        const rr = r.max * easeOutCubic(p);
+        ctx2d.beginPath();
+        if (r.flat) ctx2d.ellipse(r.x, r.y, rr, rr * 0.42, -0.2, 0, TAU);
+        else ctx2d.arc(r.x, r.y, rr, 0, TAU);
+        ctx2d.lineWidth = r.w * (1 - p) + 0.5;
+        ctx2d.strokeStyle = `rgba(68,214,44,${(0.8 * (1 - p)).toFixed(3)})`;
+        ctx2d.stroke();
+        ctx2d.beginPath();
+        if (r.flat) ctx2d.ellipse(r.x, r.y, rr * 0.92, rr * 0.92 * 0.42, -0.2, 0, TAU);
+        else ctx2d.arc(r.x, r.y, rr * 0.92, 0, TAU);
+        ctx2d.lineWidth = 1;
+        ctx2d.strokeStyle = `rgba(234,255,234,${(0.6 * (1 - p)).toFixed(3)})`;
+        ctx2d.stroke();
+      }
+      ctx2d.globalCompositeOperation = 'source-over';
+
+      // sparks
+      for (const sp of sparks) {
         const alpha = 1 - sp.age / sp.life;
-        ctx2d.save();
         ctx2d.globalAlpha = alpha;
         ctx2d.strokeStyle = sp.color;
-        ctx2d.shadowColor = '#44d62c';
-        ctx2d.shadowBlur = 10;
         ctx2d.lineWidth = sp.width;
         ctx2d.beginPath();
         ctx2d.moveTo(sp.x, sp.y);
         ctx2d.lineTo(sp.x - sp.vx * 0.032, sp.y - sp.vy * 0.032);
         ctx2d.stroke();
-        ctx2d.restore();
       }
-
-      raf = requestAnimationFrame(tickFrame);
+      ctx2d.globalAlpha = 1;
     }
-    raf = requestAnimationFrame(tickFrame);
+    function tick(now) {
+      if (!running) return;
+      let dt = Math.min(0.05, (now - lastFrame) / 1000);
+      lastFrame = now;
+      if (now < freezeUntil) dt = 0;
+      update(dt, now);
+      render(now);
+      raf = requestAnimationFrame(tick);
+    }
 
-    // 1) Slash 1: cuts across & physically shatters the diamond cyber-reticle
-    timers.push(setTimeout(() => {
-      if (token !== runToken) return;
-      addSlash({
-        step: 1, life: 0.40, width: Math.max(16, Math.min(W, H) * 0.036),
-        p0: () => ({ x: W * 0.76, y: H * 0.20 }),
-        cp: () => ({ x: W * 0.46, y: H * 0.44 }),
-        p1: () => ({ x: W * 0.24, y: H * 0.80 }),
-      });
-      timers.push(setTimeout(() => {
-        if (token !== runToken) return;
-        splash.classList.add('is-slash-1');
-        spawnRingBurst(W * 0.5, H * 0.5, Math.min(W, H) * 0.22, 20);
-      }, 55));
-    }, 460));
+    return {
+      start() {
+        if (running) return;
+        size();
+        seedAmbient();
+        running = true;
+        lastFrame = performance.now();
+        window.addEventListener('resize', size);
+        raf = requestAnimationFrame(tick);
+      },
+      charge() { phase = 'charge'; phaseAt = performance.now(); },
+      strike,
+      cleave,
+      ringBurst,
+      sparkBurst,
+      stop() {
+        running = false;
+        cancelAnimationFrame(raf);
+        clearTimeout(glitchTimer);
+        window.removeEventListener('resize', size);
+        ctx2d.clearRect(0, 0, W, H);
+        if (bctx) bctx.clearRect(0, 0, W, H);
+        marks.forEach((m) => { m.style.transform = ''; });
+      },
+    };
+  }
 
-    // 2) Slash 2: counter-cuts straight through KPR, physically shearing the letters in half
-    timers.push(setTimeout(() => {
-      if (token !== runToken) return;
-      addSlash({
-        step: 2, life: 0.42, width: Math.max(18, Math.min(W, H) * 0.04),
-        p0: () => ({ x: W * 0.22, y: H * 0.30 }),
-        cp: () => ({ x: W * 0.52, y: H * 0.47 }),
-        p1: () => ({ x: W * 0.78, y: H * 0.70 }),
-      });
-      timers.push(setTimeout(() => {
-        if (token !== runToken) return;
-        splash.classList.add('is-slash-2');
-        spawnSparks(W * 0.5, H * 0.5, 1, 0.36, 22, 1.05);
-      }, 55));
-    }, 780));
+  // ---------- the strike sequence, after the visitor has chosen ----------
+  function startSequence() {
+    const token = ++runToken;
+    active = true;
+    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+    root.classList.remove('intro-pending', 'site-unblurring');
+    root.classList.add('site-blur-hold');
+    root.style.overflow = 'hidden';
+    if (skipBtn) skipBtn.focus({ preventScroll: true });
 
-    // 3) Slash 3: sweeping Dragonblade cleave parts the entire viewport open (no ruler line)
-    timers.push(setTimeout(() => {
-      if (token !== runToken) return;
-      addSlash({
-        step: 3, cleave: true, life: 0.48, width: Math.max(24, Math.min(W, H) * 0.052),
-        p0: () => ({ x: W * 1.04, y: H * 0.14 }),
-        cp: () => ({ x: W * 0.50, y: H * 0.50 }),
-        p1: () => ({ x: -W * 0.04, y: H * 0.86 }),
-      });
-      timers.push(setTimeout(() => {
-        if (token !== runToken) return;
-        splash.classList.add('is-cleaved');
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (token !== runToken) return;
-            splash.classList.add('is-parting');
-          });
-        });
-      }, 75));
-    }, 1120));
+    splash.classList.add('is-powering');
+    siteAudio.playUnsheathe();
+    fx.charge();
 
-    // 4) Once the splash finishes parting, slowly ease the website in from a blur
-    timers.push(setTimeout(() => {
-      if (token !== runToken) return;
-      finish(false);
-    }, 1780));
+    const onSplashPointer = (e) => {
+      if (e.target.closest && e.target.closest('[data-intro-skip]')) return;
+      siteAudio.unlock();
+    };
+    splash.addEventListener('pointerdown', onSplashPointer);
+
+    const at = (ms, fn) => timers.push(setTimeout(() => { if (token === runToken) fn(); }, ms));
+    // 1) the first strike shatters the diamond reticle
+    at(820, () => { fx.strike(STRIKES[0]); siteAudio.playKatanaSlash(1); });
+    at(875, () => { splash.classList.add('is-slash-1'); fx.ringBurst(); });
+    // 2) the counter-cut shears KPR in half
+    at(1120, () => { fx.strike(STRIKES[1]); siteAudio.playKatanaSlash(2); });
+    at(1175, () => { splash.classList.add('is-slash-2'); fx.sparkBurst(); });
+    // 3) hit-stop, then the cleave: the dragon tears through and the screen parts
+    at(1400, () => { fx.cleave(STRIKES[2]); siteAudio.playKatanaSlash(3); });
+    at(1490, () => {
+      splash.classList.add('is-cleaved');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (token === runToken) splash.classList.add('is-parting');
+      }));
+    });
+    // 4) once the halves have parted, ease the website in from the blur
+    at(2150, () => finish(false));
 
     function finish(skipped) {
       if (token !== runToken) return;
       runToken++;
       clearTimers();
+      cleanupListeners();
       const finalizeHide = () => {
-        splash.classList.remove('is-active', 'is-charging', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+        fx.stop();
+        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
         splash.hidden = true;
         splash.setAttribute('aria-hidden', 'true');
         root.style.overflow = '';
@@ -604,7 +944,6 @@ window.kprIntro = (function () {
       } else {
         finalizeHide();
       }
-      cleanupListeners();
     }
 
     const onKey = (e) => {
@@ -612,21 +951,12 @@ window.kprIntro = (function () {
     };
     const onSkip = () => finish(true);
     function cleanupListeners() {
-      window.removeEventListener('resize', sizeCanvas);
       window.removeEventListener('keydown', onKey);
       splash.removeEventListener('pointerdown', onSplashPointer);
       if (skipBtn) skipBtn.removeEventListener('click', onSkip);
-      activeCleanup = null;
     }
-
-    window.addEventListener('resize', sizeCanvas);
     window.addEventListener('keydown', onKey);
     if (skipBtn) skipBtn.addEventListener('click', onSkip);
-    activeCleanup = () => {
-      clearTimers();
-      cleanupListeners();
-      root.style.overflow = '';
-    };
   }
 
   // Step 0: sound on or off. This click is also what lets the browser play the blade audio;
@@ -637,6 +967,7 @@ window.kprIntro = (function () {
     splash.removeAttribute('aria-hidden');
     splash.classList.add('is-active', 'is-gate');
     root.style.overflow = 'hidden';
+    if (fx) fx.start();
 
     const buttons = Array.from(gate.querySelectorAll('[data-intro-enter]'));
     // Focus whichever option the visitor picked last time (sound on by default).
@@ -653,8 +984,8 @@ window.kprIntro = (function () {
       window.removeEventListener('keydown', onGateKey);
       siteAudio.setEnabled(withSound);
       splash.classList.remove('is-gate');
-      if (reducedMotion || !ctx2d) leaveQuietly();
-      else startSequence();
+      if (fx) startSequence();
+      else leaveQuietly();
     }
     function onGateKey(e) {
       if (e.key === 'Escape') { e.preventDefault(); choose(false); }
@@ -663,7 +994,7 @@ window.kprIntro = (function () {
     window.addEventListener('keydown', onGateKey);
   }
 
-  // Reduced motion: no slashes, the screen fades and the site appears.
+  // Reduced motion: no strikes, the screen fades and the site appears.
   function leaveQuietly() {
     root.classList.remove('intro-pending');
     splash.classList.add('is-skipping');

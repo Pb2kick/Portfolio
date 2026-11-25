@@ -66,13 +66,8 @@
       <!-- Intact unclipped stage: zero polygon seam before blades strike -->
       <div class="intro-whole" aria-hidden="true">
         <div class="intro-grid"></div>
-        <div class="intro-hud intro-hud--tl">
-          <span class="intro-hud-tag">SYS // KPR-01</span>
-          <span class="intro-hud-sub">CHROMA RAZER BLADE</span>
-        </div>
-        <div class="intro-hud intro-hud--br">
-          <span class="intro-hud-sub">龍撃剣 // READY</span>
-        </div>
+        <!-- Behind the mark: ambient embers and the far side of the dragon's coil -->
+        <canvas class="intro-canvas intro-canvas--back" data-intro-canvas-back></canvas>
         <div class="intro-mark">
           <div class="intro-reticle intro-reticle--whole"></div>
           <div class="intro-reticle intro-reticle--shard-a"></div>
@@ -86,25 +81,19 @@
       <!-- Screen halves: hidden until the final cleave actively tears the viewport open -->
       <div class="intro-half intro-half--top" aria-hidden="true">
         <div class="intro-grid"></div>
-        <div class="intro-hud intro-hud--tl">
-          <span class="intro-hud-tag">SYS // KPR-01</span>
-          <span class="intro-hud-sub">CHROMA RAZER BLADE</span>
-        </div>
         <div class="intro-mark">
           <span class="intro-logo intro-logo--shard-top is-forced"></span>
         </div>
       </div>
       <div class="intro-half intro-half--bottom" aria-hidden="true">
         <div class="intro-grid"></div>
-        <div class="intro-hud intro-hud--br">
-          <span class="intro-hud-sub">龍撃剣 // READY</span>
-        </div>
         <div class="intro-mark">
           <span class="intro-logo intro-logo--shard-bot is-forced"></span>
         </div>
       </div>
 
       <canvas class="intro-canvas" data-intro-canvas aria-hidden="true"></canvas>
+      <div class="intro-flash" data-intro-flash aria-hidden="true"></div>
       <div class="intro-gate" data-intro-gate>
         <div class="intro-gate-actions">
           <button class="intro-gate-btn intro-gate-btn--sound" type="button" data-intro-enter="sound">
