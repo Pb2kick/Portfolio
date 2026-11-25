@@ -320,12 +320,23 @@ window.kprIntro = (function () {
   const doneCallbacks = [];
   let runToken = 0, timers = [], unblurTimer = 0;
 
+  function scrollToTopNow() {
+    root.style.scrollBehavior = 'auto';
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (window.kprLenis) window.kprLenis.scrollTo(0, { immediate: true, force: true });
+    root.style.scrollBehavior = '';
+  }
+
   function notifyDone() {
+    scrollToTopNow();
     active = false;
     while (doneCallbacks.length) {
       const fn = doneCallbacks.shift();
       try { fn(); } catch (e) {}
     }
+    requestAnimationFrame(scrollToTopNow);
   }
   function releaseSiteBlur() {
     clearTimeout(unblurTimer);
@@ -1125,10 +1136,15 @@ window.kprLenis = null;
     requestAnimationFrame(loop);
   }
 
-  // Hold the page still while the intro is up, then hand scrolling back.
+  // Hold the page still while the intro is up, then hand scrolling back at the very top.
   if (window.kprIntro && window.kprIntro.isActive()) {
     lenis.stop();
-    window.kprIntro.whenDone(() => lenis.start());
+    window.kprIntro.whenDone(() => {
+      lenis.start();
+      lenis.scrollTo(0, { immediate: true, force: true });
+    });
+  } else {
+    lenis.scrollTo(0, { immediate: true, force: true });
   }
 })();
 

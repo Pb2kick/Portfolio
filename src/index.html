@@ -18,6 +18,8 @@
       // GSAP motion (motion.js) unless the visitor asked for less motion. If GSAP hasn't taken
       // over within 3 s (slow or blocked CDN), fall back to the plain CSS animations.
       (function () {
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        window.scrollTo(0, 0);
         var c = document.documentElement.classList;
         var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
         window.kprMotionOff = function () {
