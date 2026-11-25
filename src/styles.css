@@ -819,18 +819,29 @@ html:not(.js) #info { margin-top: 2.9rem; }
   margin: 1.55rem 0 1.8rem;
 }
 .cta-contacts {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1.1rem;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem;
   padding-bottom: .6rem;
   border-bottom: 1px solid var(--line);
 }
-.cta-email {
-  display: inline-flex; align-items: center; gap: .35rem;
-  font-size: 1.125rem;
-  transition: gap .3s var(--ease), color .25s ease;
+/* The address itself, large and selectable in one click, with a Copy button beside it. */
+.cta-address {
+  font-size: clamp(1.35rem, 3vw, 2.25rem); font-weight: 400; line-height: 1.2; letter-spacing: -.005em;
+  overflow-wrap: anywhere;
+  user-select: all; -webkit-user-select: all;
 }
-.cta-email:hover { gap: .6rem; color: var(--accent-text); }
-.cta-email span { color: var(--accent-text); }
-button.cta-email { padding: 0; color: inherit; font-family: inherit; background: none; border: 0; cursor: pointer; }
+.cta-copy {
+  display: inline-flex; align-items: center; gap: .45rem; align-self: center;
+  padding: .55rem .9rem;
+  font: inherit; font-size: .78rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--accent-text); background: transparent;
+  border: 1px solid var(--accent-text);
+  clip-path: var(--chamfer-sm);
+  cursor: pointer;
+  transition: color .2s ease, background-color .2s ease;
+}
+.cta-copy svg { width: .95rem; height: .95rem; }
+.cta-copy:hover { color: var(--lime-ink); background: var(--lime); border-color: var(--lime); }
+.cta-copy:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent-text); }
 /* Confirmation after copying the email address */
 .toast {
   position: fixed; left: 50%; bottom: 1.5rem; z-index: 120;
@@ -844,7 +855,6 @@ button.cta-email { padding: 0; color: inherit; font-family: inherit; background:
   pointer-events: none;
 }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
-.cta-sep { font-size: 1.125rem; color: var(--muted); }
 .cta-note { max-width: 34rem; margin-top: 1.05rem; font-size: .8125rem; line-height: 1.5; color: var(--muted); }
 .spotlight-links { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin-bottom: 1rem; }
 
@@ -1637,6 +1647,4 @@ html.intro-pending .intro-splash,
   .cert-no { grid-row: span 2; align-self: start; font-size: 1.6rem; }
   .cert-main { grid-column: 2 / -1; }
   .cert-badge { justify-self: start; }
-
-  .cta-email, .cta-sep { font-size: 1rem; }
 }
