@@ -1,0 +1,11 @@
+{
+  "name": "portfolio-tools",
+  "private": true,
+  "description": "Local dev tools for the portfolio (not deployed: Vercel serves src/ only).",
+  "scripts": {
+    "shots": "node shots/splash.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}

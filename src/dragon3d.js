@@ -630,23 +630,6 @@
     uniform vec4 uLogoRect;
     uniform float uLogoOn;
 
-    // The KPR word as one solid shape: the letters' alpha, expanded (the max over two rings of
-    // samples) so the slanted gaps between the letters, the holes in P and R and a thin margin
-    // round the word are all covered. Masking only the exact letter shapes let the dragon show
-    // through the gaps, so sometimes it looked in front of KPR and sometimes behind it.
-    float logoCover(vec2 uv) {
-      vec2 r = vec2(0.06, 0.14);
-      float a = texture2D(uLogoTex, uv).a;
-      for (int ring = 1; ring <= 2; ring++) {
-        float k = float(ring) * 0.5;
-        for (int i = 0; i < 12; i++) {
-          float ang = float(i) * 0.5235988;
-          a = max(a, texture2D(uLogoTex, uv + vec2(cos(ang), sin(ang)) * r * k).a);
-        }
-      }
-      return a;
-    }
-
     float hash21(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
       p += dot(p, p + 45.32);
@@ -722,12 +705,13 @@
     void main() {
       if (uClipSide < -0.5 && vWorldPos.z > 0.015) discard;
       if (uClipSide > 0.5 && vWorldPos.z < -0.015) discard;
-      // Front pass: never draw over a KPR letter, so the dragon always passes behind the logo
-      // (it can still pass in front of the diamond).
+      // Front pass: never draw over a KPR letter. The orbit already keeps clear of the emblem;
+      // this is only for the final lunge across the screen. Exact letter shapes, no margin, so
+      // it never leaves a dark outline round the letters.
       if (uLogoOn > 0.5) {
         vec2 lp = (gl_FragCoord.xy - uLogoRect.xy) / max(uLogoRect.zw - uLogoRect.xy, vec2(1.0));
-        if (lp.x > -0.07 && lp.x < 1.07 && lp.y > -0.15 && lp.y < 1.15) {
-          if (logoCover(vec2(lp.x, 1.0 - lp.y)) > 0.3) discard;
+        if (lp.x > 0.0 && lp.x < 1.0 && lp.y > 0.0 && lp.y < 1.0) {
+          if (texture2D(uLogoTex, vec2(lp.x, 1.0 - lp.y)).a > 0.5) discard;
         }
       }
 
@@ -1160,23 +1144,31 @@
       return (px / W - 0.5) * 2 * HALF_H_AT_Z0 * aspect;
     }
 
-    // ---- Orbit: a tilted ring round the diamond ----
-    // The head flies a ring a little wider than the diamond round KPR, so every lap it passes
-    // behind KPR and the square (the back canvas sits under the mark) and then in front of them.
-    // Every lap or so the ring re-tilts at random and the dragon may turn back the other way:
-    // it swings out wide in a U-turn, off the ring's plane, so it never flies back through its
-    // own body, and the body simply follows the trail the head actually flew.
+    // ---- Orbit: a loop round the emblem (KPR and its diamond), never across it ----
+    // KPR and the diamond are one subject; the dragon is another, circling it. On screen the
+    // head flies an ellipse just outside the diamond's tips, and a keep-out circle round the
+    // diamond (its tips plus the dragon's own thickness) stops it ever cutting across. Depth
+    // is separate from the on-screen path: one side of the loop comes toward the viewer
+    // (bigger, drawn in front) and the other goes away (smaller, behind), so it still reads as
+    // circling in 3D, without ever passing over the emblem.
+    // Every lap or so the loop re-tilts and the dragon may turn back the other way, at the
+    // left or right of the loop where there's room, swinging out wide so it never flies back
+    // through its own body; the body simply follows the trail the head actually flew.
+    const CAM_Z = 9.2;
     const rand = (a, b) => a + Math.random() * (b - a);
-    const ring = { cx: 0, cy: 0, r: 2.4, alpha: 0.32, tau: -0.18, alphaT: 0.32, tauT: -0.18, dir: 1, side: 1 };
+    // a, b: the loop's on-screen half-width and half-height at z = 0; keep: the keep-out
+    // radius; alpha: depth (sign = which side comes near); tau: turn in the screen plane.
+    const ring = { cx: 0, cy: 0, a: 2.4, b: 2.2, r: 2.3, keep: 2.0, alpha: 0.8, tau: -0.12, alphaT: 0.8, tauT: -0.12, dir: 1 };
     let ringPx = null;          // the diamond on screen: { cx, cy, half } in CSS px (script.js)
     const head = { p: null, h: null, w: null }; // position, heading, angular velocity
     const trail = [];           // head positions, newest first
     let lapProgress = 0, lapGoal = TAU * 1.1, lastTheta = null;
     let uturnLeft = 0;          // seconds left of the outward push at the start of a U-turn
+    let reversePending = false; // a U-turn waiting for the head to reach the left or right
     const tmpP = { x: 0, y: 0, z: 0 };
 
-    // Centre and radius from the diamond: ~22% wider than its tips, so the sides of the ring
-    // (where the dragon crosses from behind to in front) sit outside the square.
+    // Centre and size from the diamond. keep = its tip radius plus room for the dragon's body
+    // (and spines); the loop runs a little outside that, wider than tall.
     function updateRingFrame() {
       const aspect = W / H;
       const worldPerPx = (2 * HALF_H_AT_Z0) / H;
@@ -1188,33 +1180,75 @@
       }
       ring.cx = cx;
       ring.cy = cy;
-      ring.r = Math.min(HALF_H_AT_Z0 * aspect * 0.9, Math.max(1.0, half * worldPerPx * 1.22)) * squeeze;
+      // the body's half-thickness with its spines, as big as it gets on the near side
+      const bodyPx = 46 * clamp(Math.min(W, H) / 860, 0.68, 1.15) * (0.72 + 0.28 * fitScale);
+      ring.keep = (half + bodyPx + 6) * worldPerPx;
+      const roomX = HALF_H_AT_Z0 * aspect * 0.94;
+      const s = 1 + 0.08 * squeeze; // the charge draws the loop in, never past the keep-out
+      ring.b = ring.keep * s;
+      ring.a = Math.max(ring.keep * s, Math.min(ring.keep * 1.24 * squeeze, roomX));
+      ring.r = (ring.a + ring.b) / 2;
     }
-    // The ring starts in the XZ plane, is opened toward the viewer by alpha (so the near side
-    // passes above or below the logo) and turned in the screen plane by tau.
+    function depthAmp() { return ring.alpha * 1.5; }
+    // On-screen ellipse point (turned by tau) at depth z, placed in 3D so that it projects
+    // exactly onto that ellipse whatever its depth.
     function ringPoint(theta, out) {
-      const R = ring.r;
-      const x0 = Math.cos(theta) * R, zr = Math.sin(theta) * R;
-      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
-      const y1 = -zr * sa, z1 = zr * ca;
+      const X = Math.cos(theta) * ring.a, Y = -Math.sin(theta) * ring.b;
       const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      out.x = ring.cx + x0 * ct - y1 * st;
-      out.y = ring.cy + x0 * st + y1 * ct;
-      out.z = z1;
+      const z = Math.sin(theta) * depthAmp();
+      const k = (CAM_Z - z) / CAM_Z;
+      out.x = (ring.cx + X * ct - Y * st) * k;
+      out.y = (ring.cy + X * st + Y * ct) * k;
+      out.z = z;
       return out;
     }
+    // Where p lands on the z = 0 plane, relative to the loop's centre.
+    function screenRel(p, out) {
+      const k = CAM_Z / Math.max(0.5, CAM_Z - p.z);
+      out.x = p.x * k - ring.cx;
+      out.y = p.y * k - ring.cy;
+      return out;
+    }
+    const tmpS = { x: 0, y: 0 };
     function ringAngleOf(p) {
-      const dx = p.x - ring.cx, dy = p.y - ring.cy;
+      screenRel(p, tmpS);
       const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      const x0 = dx * ct + dy * st;
-      const y1 = -dx * st + dy * ct;
-      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
-      return Math.atan2(-y1 * sa + p.z * ca, x0);
+      const X = tmpS.x * ct + tmpS.y * st;
+      const Y = -tmpS.x * st + tmpS.y * ct;
+      return Math.atan2(-Y / ring.b, X / ring.a);
+    }
+    // How far out p is, in loop radii (1 = on the loop).
+    function ringRho(p) {
+      screenRel(p, tmpS);
+      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
+      const X = tmpS.x * ct + tmpS.y * st;
+      const Y = -tmpS.x * st + tmpS.y * ct;
+      return Math.hypot(X / ring.a, Y / ring.b);
     }
     function ringNormal() {
-      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
       const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      return { x: -st * ca, y: ct * ca, z: sa };
+      const d = depthAmp(), b = ring.b;
+      const l = Math.hypot(d, b) || 1;
+      return { x: (-st * d) / l, y: (ct * d) / l, z: b / l };
+    }
+    // Never inside the keep-out: put the point back on its edge (on screen, at the same depth)
+    // and take the inward part out of the heading.
+    function keepOut(p, h) {
+      screenRel(p, tmpS);
+      const d = Math.hypot(tmpS.x, tmpS.y);
+      if (d >= ring.keep || d < 1e-6) return;
+      const ux = tmpS.x / d, uy = tmpS.y / d;
+      const k = (CAM_Z - p.z) / CAM_Z;
+      p.x = (ring.cx + ux * ring.keep) * k;
+      p.y = (ring.cy + uy * ring.keep) * k;
+      if (h) {
+        const inward = h.x * ux + h.y * uy;
+        if (inward < 0) {
+          h.x -= ux * inward; h.y -= uy * inward;
+          const hl = Math.hypot(h.x, h.y, h.z) || 1;
+          h.x /= hl; h.y /= hl; h.z /= hl;
+        }
+      }
     }
     function bodyLength() { return TAU * ring.r * 0.62; }
 
@@ -1246,15 +1280,18 @@
 
     // A new lap: re-tilt the ring at random and, about half the time, turn back the other way.
     function newLap() {
-      ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.16, 0.42);
-      ring.tauT = rand(-0.32, 0.32);
-      if (Math.random() < 0.55) {
-        ring.dir *= -1;
-        ring.side = Math.random() < 0.5 ? -1 : 1;
-        uturnLeft = 1.4;
-      }
+      ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.65, 1.0);
+      ring.tauT = rand(-0.22, 0.22);
+      if (Math.random() < 0.55) reversePending = true;
       lapProgress = 0;
       lapGoal = TAU * rand(0.75, 1.25);
+    }
+    // Turn back only at the left or right of the loop, where there's room to swing out.
+    function maybeReverse(theta) {
+      if (!reversePending || Math.abs(Math.cos(theta)) < 0.8) return;
+      reversePending = false;
+      ring.dir *= -1;
+      uturnLeft = 1.4;
     }
 
     // Steering with momentum. Rather than pivoting at a fixed rate (which read as a robot
@@ -1269,22 +1306,21 @@
       const theta = ringAngleOf(p);
       // Far off the ring (e.g. coming out of a wide U-turn): aim back at the nearest ring point
       // instead of one ahead, so it always curves home rather than wandering off.
-      const far = Math.hypot(p.x - ring.cx, p.y - ring.cy, p.z) > ring.r * 1.45;
+      const far = ringRho(p) > 1.4 || Math.abs(p.z) > Math.abs(depthAmp()) + 1.2;
       ringPoint(theta + (far ? 0 : ring.dir * 0.7), tmpP);
       let dx = tmpP.x - p.x, dy = tmpP.y - p.y, dz = tmpP.z - p.z;
       let dl = Math.hypot(dx, dy, dz) || 1;
       dx /= dl; dy /= dl; dz /= dl;
       // The outward push is only for the start of a U-turn, never for finding the way back.
       if (uturnLeft > 0 && !far && h.x * dx + h.y * dy + h.z * dz < -0.2) {
-        ringPoint(theta, tmpP);
-        const ox = tmpP.x - ring.cx, oy = tmpP.y - ring.cy, oz = tmpP.z;
-        const ol = Math.hypot(ox, oy, oz) || 1;
+        screenRel(p, tmpS);
+        const ol = Math.hypot(tmpS.x, tmpS.y) || 1;
         const n = ringNormal();
-        // Mostly up-and-over (off the ring's plane), a little outward: a sweeping arc that
-        // stays on screen instead of swinging far out to the side.
-        dx += (ox / ol) * 0.9 + n.x * 1.2 * ring.side;
-        dy += (oy / ol) * 0.9 + n.y * 1.2 * ring.side;
-        dz += (oz / ol) * 0.9 + n.z * 1.2 * ring.side;
+        // Outward (away from the emblem) and a little toward the viewer: a wide sweeping arc
+        // round the outside, never in over the logo.
+        dx += (tmpS.x / ol) * 1.3 + n.x * 0.5;
+        dy += (tmpS.y / ol) * 1.3 + n.y * 0.5;
+        dz += n.z * 0.5;
         dl = Math.hypot(dx, dy, dz) || 1;
         dx /= dl; dy /= dl; dz /= dl;
       }
@@ -1332,6 +1368,7 @@
       p.x += h.x * linSpeed * dt;
       p.y += h.y * linSpeed * dt;
       p.z += h.z * linSpeed * dt;
+      keepOut(p, h);
       return theta;
     }
 
@@ -1395,7 +1432,10 @@
         lapProgress += d * ring.dir;
         lastTheta = theta;
         // No turning back once the strikes have started: it just speeds round.
-        if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
+        if (phase !== 'charge' && phase !== 'strike') {
+          if (lapProgress > lapGoal) newLap();
+          maybeReverse(theta);
+        }
 
         trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
         const keep = bodyLength() * 1.2;
@@ -1428,6 +1468,9 @@
         const rise = Math.cos(u * 9.0 - tSec * 2.7) * amp * 0.45 * env;
         hist.push({ x: sp.x + sx * side + n.x * rise, y: sp.y + sy * side + n.y * rise, z: sp.z + sz * side + n.z * rise });
       }
+      // The body too stays outside the emblem, even where the trail was laid before the loop
+      // moved (the emblem gliding back to centre after the sound choice) or the wave swings in.
+      for (let i = 0; i < hist.length; i++) keepOut(hist[i], null);
     }
 
     function resampleSpine(pts, targetLen, count) {
@@ -1940,7 +1983,15 @@
       },
       // Read-only snapshot for checking the orbit in the browser console.
       debugState() {
-        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r, head: head.p && { ...head.p },
+        // clearPx: how far the body's centreline stays outside the diamond's tips, in CSS px.
+        const pxPerWorld = H / (2 * HALF_H_AT_Z0);
+        let clear = Infinity;
+        for (const p of hist) {
+          screenRel(p, tmpS);
+          clear = Math.min(clear, Math.hypot(tmpS.x, tmpS.y) * pxPerWorld - (ringPx ? ringPx.half : 0));
+        }
+        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r, a: ring.a, b: ring.b, keep: ring.keep,
+          clearPx: clear, lunge: !!lunge, head: head.p && { ...head.p },
           heading: head.h && { ...head.h }, turnRate: head.w ? Math.hypot(head.w.x, head.w.y, head.w.z) : 0, theta: lastTheta };
       },
       reset() {
@@ -1948,6 +1999,8 @@
         trail.length = 0;
         head.p = null;
         ring.dir = 1;
+        reversePending = false;
+        uturnLeft = 0;
         orbitAngle = 0.85;
         speed = 0.88;
         squeeze = 1.0;

@@ -1062,6 +1062,7 @@ window.kprIntro = (function () {
         const r = rings[i];
         const p = (now - r.born) / (r.life * 1000);
         if (p >= 1) { rings.splice(i, 1); continue; }
+        if (p < 0) continue; // scheduled for a moment from now
         const rr = r.max * easeOutCubic(p);
         ctx2d.beginPath();
         if (r.flat) ctx2d.ellipse(r.x, r.y, rr, rr * 0.42, -0.2, 0, TAU);
