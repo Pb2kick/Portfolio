@@ -2587,7 +2587,10 @@ function kprAfterIntro(fn) {
   function layout() {
     const sw = stage.clientWidth, sh = stage.clientHeight;
     const padX = Math.min(64, sw * 0.06);
-    fitS = Math.min((sw - padX * 2) / baseW, (sh - PAD_TOP - PAD_BOTTOM) / baseH);
+    // Never below a small minimum: a very short window (or a hidden one, 0x0) must not give a
+    // zero or negative page size; the resize handler lays it out again once there's room.
+    const availW = Math.max(80, sw - padX * 2), availH = Math.max(80, sh - PAD_TOP - PAD_BOTTOM);
+    fitS = Math.min(availW / baseW, availH / baseH);
     sheetW = baseW * fitS; sheetH = baseH * fitS;
     sheet.style.width = sheetW + 'px';
     sheet.style.height = sheetH + 'px';
@@ -2663,7 +2666,7 @@ function kprAfterIntro(fn) {
   // --- sharp rendering: re-draw at the zoom's resolution once it settles ---
   function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(render, 120); }
   function render() {
-    if (!page || !isOpen) return;
+    if (!page || !isOpen || !(fitS > 0) || stage.clientWidth === 0) return; // nothing to draw into yet
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let s = Math.max(fitS * dpr, fitS * tgt.z * dpr);
     s = Math.min(s, 8192 / baseW, 8192 / baseH, Math.sqrt(24e6 / (baseW * baseH)));
