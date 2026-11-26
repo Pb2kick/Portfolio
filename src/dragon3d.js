@@ -630,6 +630,23 @@
     uniform vec4 uLogoRect;
     uniform float uLogoOn;
 
+    // The KPR word as one solid shape: the letters' alpha, expanded (the max over two rings of
+    // samples) so the slanted gaps between the letters, the holes in P and R and a thin margin
+    // round the word are all covered. Masking only the exact letter shapes let the dragon show
+    // through the gaps, so sometimes it looked in front of KPR and sometimes behind it.
+    float logoCover(vec2 uv) {
+      vec2 r = vec2(0.06, 0.14);
+      float a = texture2D(uLogoTex, uv).a;
+      for (int ring = 1; ring <= 2; ring++) {
+        float k = float(ring) * 0.5;
+        for (int i = 0; i < 12; i++) {
+          float ang = float(i) * 0.5235988;
+          a = max(a, texture2D(uLogoTex, uv + vec2(cos(ang), sin(ang)) * r * k).a);
+        }
+      }
+      return a;
+    }
+
     float hash21(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
       p += dot(p, p + 45.32);
@@ -709,8 +726,8 @@
       // (it can still pass in front of the diamond).
       if (uLogoOn > 0.5) {
         vec2 lp = (gl_FragCoord.xy - uLogoRect.xy) / max(uLogoRect.zw - uLogoRect.xy, vec2(1.0));
-        if (lp.x > 0.0 && lp.x < 1.0 && lp.y > 0.0 && lp.y < 1.0) {
-          if (texture2D(uLogoTex, vec2(lp.x, 1.0 - lp.y)).a > 0.3) discard;
+        if (lp.x > -0.07 && lp.x < 1.07 && lp.y > -0.15 && lp.y < 1.15) {
+          if (logoCover(vec2(lp.x, 1.0 - lp.y)) > 0.3) discard;
         }
       }
 
