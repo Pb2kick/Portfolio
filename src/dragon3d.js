@@ -1152,10 +1152,10 @@
     const rand = (a, b) => a + Math.random() * (b - a);
     const ring = { cx: 0, cy: 0, r: 2.4, alpha: 0.32, tau: -0.18, alphaT: 0.32, tauT: -0.18, dir: 1, side: 1 };
     let ringPx = null;          // the diamond on screen: { cx, cy, half } in CSS px (script.js)
-    const head = { p: null, h: null };
+    const head = { p: null, h: null, w: null }; // position, heading, angular velocity
     const trail = [];           // head positions, newest first
     let lapProgress = 0, lapGoal = TAU * 1.1, lastTheta = null;
-    const TURN_RADIUS = 0.62;   // tightest turn, in world units (body is ~0.5 wide)
+    let uturnLeft = 0;          // seconds left of the outward push at the start of a U-turn
     const tmpP = { x: 0, y: 0, z: 0 };
 
     // Centre and radius from the diamond: ~22% wider than its tips, so the sides of the ring
@@ -1208,6 +1208,15 @@
       const hx = ahead.x - head.p.x, hy = ahead.y - head.p.y, hz = ahead.z - head.p.z;
       const hl = Math.hypot(hx, hy, hz) || 1;
       head.h = { x: hx / hl, y: hy / hl, z: hz / hl };
+      // Start already curving round the ring (axis from how the tangent turns just ahead, rate =
+      // the orbit's angular speed), so there's no settling wobble on the first frames.
+      const a2 = ringPoint(theta + ring.dir * 0.02, { x: 0, y: 0, z: 0 });
+      const a3 = ringPoint(theta + ring.dir * 0.03, { x: 0, y: 0, z: 0 });
+      let tx = a3.x - a2.x, ty = a3.y - a2.y, tz = a3.z - a2.z;
+      const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      let wx = head.h.y * tz - head.h.z * ty, wy = head.h.z * tx - head.h.x * tz, wz = head.h.x * ty - head.h.y * tx;
+      const wl = Math.hypot(wx, wy, wz) || 1;
+      head.w = { x: (wx / wl) * speed, y: (wy / wl) * speed, z: (wz / wl) * speed };
       // Lay the body out behind the head along the ring, so it is whole from the first frame.
       trail.length = 0;
       const len = bodyLength() * 1.15, steps = 160;
@@ -1225,39 +1234,81 @@
       if (Math.random() < 0.55) {
         ring.dir *= -1;
         ring.side = Math.random() < 0.5 ? -1 : 1;
+        uturnLeft = 1.4;
       }
       lapProgress = 0;
       lapGoal = TAU * rand(0.75, 1.25);
     }
 
-    // Steer the head toward a point a little ahead on the ring, turning no tighter than
-    // TURN_RADIUS. When the target is behind it (just reversed), the turn is pushed outward and
-    // off the ring's plane, so the U-turn swings wide of the logo and of its own body.
-    function steer(dt, linSpeed) {
-      const p = head.p, h = head.h;
+    // Steering with momentum. Rather than pivoting at a fixed rate (which read as a robot
+    // rotating on the spot), the head carries an angular velocity that eases toward what the
+    // turn needs, so every curve builds up and lets go gradually, like a dragon leaning into a
+    // glide. Turns are never tighter than ~40% of the ring's radius, and the dragon slows a
+    // little through its tightest curves, then picks back up coming out of them.
+    // When the target is behind it (just reversed), the turn is pushed outward and off the
+    // ring's plane, so the U-turn is a wide sweeping arc clear of the logo and its own body.
+    function steer(dt, baseSpeed) {
+      const p = head.p, h = head.h, w = head.w;
       const theta = ringAngleOf(p);
-      ringPoint(theta + ring.dir * 0.55, tmpP);
+      // Far off the ring (e.g. coming out of a wide U-turn): aim back at the nearest ring point
+      // instead of one ahead, so it always curves home rather than wandering off.
+      const far = Math.hypot(p.x - ring.cx, p.y - ring.cy, p.z) > ring.r * 1.45;
+      ringPoint(theta + (far ? 0 : ring.dir * 0.7), tmpP);
       let dx = tmpP.x - p.x, dy = tmpP.y - p.y, dz = tmpP.z - p.z;
       let dl = Math.hypot(dx, dy, dz) || 1;
       dx /= dl; dy /= dl; dz /= dl;
-      if (h.x * dx + h.y * dy + h.z * dz < -0.2) {
+      // The outward push is only for the start of a U-turn, never for finding the way back.
+      if (uturnLeft > 0 && !far && h.x * dx + h.y * dy + h.z * dz < -0.2) {
         ringPoint(theta, tmpP);
         const ox = tmpP.x - ring.cx, oy = tmpP.y - ring.cy, oz = tmpP.z;
         const ol = Math.hypot(ox, oy, oz) || 1;
         const n = ringNormal();
-        dx += (ox / ol) * 1.3 + n.x * 0.7 * ring.side;
-        dy += (oy / ol) * 1.3 + n.y * 0.7 * ring.side;
-        dz += (oz / ol) * 1.3 + n.z * 0.7 * ring.side;
+        // Mostly up-and-over (off the ring's plane), a little outward: a sweeping arc that
+        // stays on screen instead of swinging far out to the side.
+        dx += (ox / ol) * 0.9 + n.x * 1.2 * ring.side;
+        dy += (oy / ol) * 0.9 + n.y * 1.2 * ring.side;
+        dz += (oz / ol) * 0.9 + n.z * 1.2 * ring.side;
         dl = Math.hypot(dx, dy, dz) || 1;
         dx /= dl; dy /= dl; dz /= dl;
       }
-      const c = clamp(h.x * dx + h.y * dy + h.z * dz, -1, 1);
-      const ang = Math.acos(c);
-      if (ang > 1e-4) {
-        const t = Math.min(1, ((linSpeed / TURN_RADIUS) * dt) / ang);
-        const so = Math.sin(ang) || 1e-4;
-        const a = Math.sin((1 - t) * ang) / so, b = Math.sin(t * ang) / so;
-        h.x = h.x * a + dx * b; h.y = h.y * a + dy * b; h.z = h.z * a + dz * b;
+
+      // Axis and angle from the current heading to the wanted one.
+      let ax = h.y * dz - h.z * dy, ay = h.z * dx - h.x * dz, az = h.x * dy - h.y * dx;
+      const sinA = Math.hypot(ax, ay, az);
+      const ang = Math.atan2(sinA, clamp(h.x * dx + h.y * dy + h.z * dz, -1, 1));
+      if (sinA > 1e-3) {
+        ax /= sinA; ay /= sinA; az /= sinA;
+      } else if (ang > 1.5) {
+        // Target dead behind: the cross product vanishes, so turn about the ring's normal
+        // (made perpendicular to the heading) rather than not turning at all.
+        const n = ringNormal();
+        const nd = n.x * h.x + n.y * h.y + n.z * h.z;
+        ax = n.x - h.x * nd; ay = n.y - h.y * nd; az = n.z - h.z * nd;
+        const al = Math.hypot(ax, ay, az) || 1;
+        ax /= al; ay /= al; az /= al;
+      } else {
+        ax = 0; ay = 0; az = 0;
+      }
+
+      const turnRadius = Math.max(0.75, ring.r * 0.4);
+      const wNow = Math.hypot(w.x, w.y, w.z);
+      const linSpeed = baseSpeed * (1 - 0.28 * clamp(wNow / (baseSpeed / turnRadius), 0, 1));
+      const wDes = Math.min(ang * 1.8, linSpeed / turnRadius);
+      const k = 1 - Math.exp(-dt * 2.6); // how quickly the turn builds up / relaxes
+      w.x += (ax * wDes - w.x) * k;
+      w.y += (ay * wDes - w.y) * k;
+      w.z += (az * wDes - w.z) * k;
+
+      // Rotate the heading about w by |w| * dt (Rodrigues).
+      const wl = Math.hypot(w.x, w.y, w.z);
+      if (wl > 1e-6) {
+        const kx = w.x / wl, ky = w.y / wl, kz = w.z / wl;
+        const th = wl * dt, c = Math.cos(th), s = Math.sin(th);
+        const kd = kx * h.x + ky * h.y + kz * h.z;
+        const cx = ky * h.z - kz * h.y, cy = kz * h.x - kx * h.z, cz = kx * h.y - ky * h.x;
+        h.x = h.x * c + cx * s + kx * kd * (1 - c);
+        h.y = h.y * c + cy * s + ky * kd * (1 - c);
+        h.z = h.z * c + cz * s + kz * kd * (1 - c);
         const hl = Math.hypot(h.x, h.y, h.z) || 1;
         h.x /= hl; h.y /= hl; h.z /= hl;
       }
@@ -1320,6 +1371,7 @@
         ring.alpha += (ring.alphaT - ring.alpha) * k;
         ring.tau += (ring.tauT - ring.tau) * k;
 
+        uturnLeft = Math.max(0, uturnLeft - dt);
         const theta = steer(dt, speed * ring.r);
         let d = theta - lastTheta;
         d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
@@ -1339,8 +1391,26 @@
       }
 
       const spine = resampleSpine(trail, bodyLength(), BODY_RINGS);
+      // A gentle swimming wave travels from the neck to the tail (side to side, with a little
+      // rise and fall), so the body ripples like something alive instead of riding the head's
+      // path like a train on a track. It fades in behind the neck so the head stays on course.
+      const n = ringNormal();
+      const amp = ring.r * 0.045;
       hist.length = 0;
-      for (let i = 0; i < BODY_RINGS; i++) hist.push(spine[i]);
+      for (let i = 0; i < BODY_RINGS; i++) {
+        const u = i / (BODY_RINGS - 1);
+        const env = smoothstep(0.04, 0.22, u) * (1 - 0.35 * u);
+        const sp = spine[i];
+        if (env <= 0) { hist.push(sp); continue; }
+        const a = spine[Math.max(0, i - 1)], b = spine[Math.min(BODY_RINGS - 1, i + 1)];
+        let tx = a.x - b.x, ty = a.y - b.y, tz = a.z - b.z;
+        const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+        let sx = ty * n.z - tz * n.y, sy = tz * n.x - tx * n.z, sz = tx * n.y - ty * n.x;
+        const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
+        const side = Math.sin(u * 13.0 - tSec * 3.4) * amp * env;
+        const rise = Math.cos(u * 9.0 - tSec * 2.7) * amp * 0.45 * env;
+        hist.push({ x: sp.x + sx * side + n.x * rise, y: sp.y + sy * side + n.y * rise, z: sp.z + sz * side + n.z * rise });
+      }
     }
 
     function resampleSpine(pts, targetLen, count) {
@@ -1394,6 +1464,7 @@
     }
 
     const spineFrames = new Array(BODY_RINGS);
+    const bank = { x: 0, y: 0, z: 0, t: 0 }; // the head's smoothed lean into turns
     function buildDynamicGeometry(nowMs) {
       const tSec = nowMs * 0.001;
       const headScale = debugOverride
@@ -1424,9 +1495,26 @@
 
         let ux, uy, uz;
         if (i === 0) {
-          const worldUpX = debugOverride && debugOverride.up ? debugOverride.up[0] : -fx * 0.16;
-          const worldUpY = debugOverride && debugOverride.up ? debugOverride.up[1] : 1.0;
-          const worldUpZ = debugOverride && debugOverride.up ? debugOverride.up[2] : 0.12;
+          let worldUpX = debugOverride && debugOverride.up ? debugOverride.up[0] : -fx * 0.16;
+          let worldUpY = debugOverride && debugOverride.up ? debugOverride.up[1] : 1.0;
+          let worldUpZ = debugOverride && debugOverride.up ? debugOverride.up[2] : 0.12;
+          // Bank into the turn: tip the head's up toward the inside of the curve, more in tighter
+          // turns, eased over time so the roll flows in and out instead of snapping.
+          if (!debugOverride && BODY_RINGS > 4) {
+            const q0 = spinePts[0], q2 = spinePts[2], q4 = spinePts[4];
+            let bx = q0.x + q4.x - 2 * q2.x, by = q0.y + q4.y - 2 * q2.y, bz = q0.z + q4.z - 2 * q2.z;
+            const bd = bx * fx + by * fy + bz * fz;
+            bx -= fx * bd; by -= fy * bd; bz -= fz * bd;
+            const bl = Math.hypot(bx, by, bz);
+            const seg = Math.hypot(q0.x - q2.x, q0.y - q2.y, q0.z - q2.z) || 1;
+            const lean = clamp((bl / (seg * seg)) * 0.6, 0, 0.85); // curvature (1/radius) -> lean
+            const tx = bl > 1e-6 ? (bx / bl) * lean : 0, ty = bl > 1e-6 ? (by / bl) * lean : 0, tz = bl > 1e-6 ? (bz / bl) * lean : 0;
+            const dtB = clamp(tSec - (bank.t || tSec), 0, 0.1);
+            const kb = bank.t ? 1 - Math.exp(-dtB * 3.0) : 1;
+            bank.x += (tx - bank.x) * kb; bank.y += (ty - bank.y) * kb; bank.z += (tz - bank.z) * kb;
+            bank.t = tSec;
+            worldUpX += bank.x; worldUpY += bank.y; worldUpZ += bank.z;
+          }
           const dotFU = fx * worldUpX + fy * worldUpY + fz * worldUpZ;
           ux = worldUpX - fx * dotFU;
           uy = worldUpY - fy * dotFU;
@@ -1835,7 +1923,8 @@
       },
       // Read-only snapshot for checking the orbit in the browser console.
       debugState() {
-        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r, head: head.p && { ...head.p }, theta: lastTheta };
+        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r, head: head.p && { ...head.p },
+          heading: head.h && { ...head.h }, turnRate: head.w ? Math.hypot(head.w.x, head.w.y, head.w.z) : 0, theta: lastTheta };
       },
       reset() {
         hist.length = 0;
