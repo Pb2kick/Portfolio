@@ -129,28 +129,35 @@ const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: r
   });
 })();
 
-// ---- Site Audio (tactile Razer UI ticks + real CC0 sword slash foley) ----
+// ---- Site Audio (tactile Razer UI ticks, the splash's slash track and the background music) ----
+// The splash sound is one recording: a blade draw, then three slashes. These are where each
+// slash hits, in seconds into the file, so the intro can land its strikes exactly on them.
+const SPLASH_SFX_HITS = [0.555, 0.940, 1.375];
+
 const siteAudio = (function () {
-  const BLADE_SFX = {
-    unsheathe: 'assets/sfx/blade-unsheathe.ogg',
-    slash1: 'assets/sfx/blade-slash-1.ogg',
-    slash2: 'assets/sfx/blade-slash-2.ogg',
-    whoosh: 'assets/sfx/blade-whoosh.mp3',
-  };
+  const SPLASH_SFX = 'assets/sfx/splash-slashes.mp3';
+  const MUSIC_SRC = 'assets/audio/site-music.mp3';
 
   const toggle = document.querySelector('[data-sound-toggle]');
   const AC = window.AudioContext || window.webkitAudioContext;
   let enabled = true;
   try { enabled = localStorage.getItem('hover-sounds') !== 'off'; } catch (e) { /* storage blocked */ }
   let ctx = null, last = 0, noiseBuf = null;
-  const mediaPool = new Map();
 
-  // Preload the real recorded blade audio files immediately so reload playback has zero lag
-  Object.values(BLADE_SFX).forEach((src) => {
-    const a = new Audio(src);
-    a.preload = 'auto';
-    mediaPool.set(src, a);
-  });
+  // The splash track is small, so fetch it now; it is decoded once there is an audio context.
+  const splashBytes = fetch(SPLASH_SFX).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
+  let splashBuffer = null, splashDecode = null, splashVoice = null, splashToken = 0;
+  function splashReady() {
+    if (splashBuffer) return Promise.resolve(splashBuffer);
+    if (!ctx) return Promise.resolve(null);
+    if (!splashDecode) {
+      splashDecode = splashBytes
+        .then((bytes) => (bytes ? new Promise((res, rej) => ctx.decodeAudioData(bytes.slice(0), res, rej)) : null))
+        .then((buf) => (splashBuffer = buf))
+        .catch(() => null);
+    }
+    return splashDecode;
+  }
 
   function render() {
     if (!toggle) return;
@@ -161,7 +168,7 @@ const siteAudio = (function () {
   }
   function unlock() {
     if (!AC) return null;
-    if (!ctx) ctx = new AC();
+    if (!ctx) { ctx = new AC(); splashReady(); }
     if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     return ctx;
   }
@@ -176,17 +183,6 @@ const siteAudio = (function () {
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
     }
     return noiseBuf;
-  }
-
-  function playClip(src, rate = 1, volume = 0.75) {
-    if (!enabled || !src) return;
-    const base = mediaPool.get(src);
-    const clip = base ? base.cloneNode() : new Audio(src);
-    clip.volume = Math.max(0, Math.min(1, volume));
-    if ('preservesPitch' in clip) clip.preservesPitch = false;
-    else if ('webkitPreservesPitch' in clip) clip.webkitPreservesPitch = false;
-    clip.playbackRate = rate;
-    clip.play().catch(() => { /* blocked until first user gesture in fresh tabs */ });
   }
 
   // Subtle dampened Razer optical-switch / stealth HUD micro-tick
@@ -241,23 +237,43 @@ const siteAudio = (function () {
     ping.stop(t + 0.065);
   }
 
-  function playUnsheathe() {
-    playClip(BLADE_SFX.unsheathe, 1.0, 0.55);
+  // Play the splash track so the file's first moment is heard `delayMs` from now. It runs on
+  // the audio clock, offset by the device's output latency, so each slash in the recording
+  // lands on its strike on screen. If decoding finishes late, it starts part-way into the
+  // file instead, so the slashes that are left still line up.
+  function playSplashSfx(delayMs) {
+    stopSplashSfx(0);
+    if (!enabled || !unlock()) return;
+    const requested = performance.now(), token = splashToken;
+    splashReady().then((buf) => {
+      if (!buf || !enabled || !ctx || token !== splashToken) return;
+      const lag = ctx.outputLatency || ctx.baseLatency || 0;
+      const lead = (delayMs - (performance.now() - requested)) / 1000 - lag;
+      const offset = Math.max(0, -lead);
+      if (offset >= buf.duration) return;
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      src.buffer = buf;
+      g.gain.value = 0.9;
+      src.connect(g).connect(ctx.destination);
+      src.start(ctx.currentTime + Math.max(0, lead), offset);
+      const voice = { src, g };
+      src.onended = () => { if (splashVoice === voice) splashVoice = null; };
+      splashVoice = voice;
+    });
   }
-
-  function playKatanaSlash(step) {
-    if (step === 1) {
-      playClip(BLADE_SFX.slash1, 1.02, 0.72);
-      playClip(BLADE_SFX.whoosh, 1.05, 0.38);
-    } else if (step === 2) {
-      playClip(BLADE_SFX.slash2, 1.06, 0.76);
-      playClip(BLADE_SFX.whoosh, 1.12, 0.42);
-    } else {
-      // Heavy final cleave: deeper pitched blade slice + air whoosh
-      playClip(BLADE_SFX.slash2, 0.84, 0.90);
-      playClip(BLADE_SFX.slash1, 0.88, 0.50);
-      playClip(BLADE_SFX.whoosh, 0.82, 0.65);
-    }
+  // On skip: fade the slashes out quickly rather than letting them ring over the site.
+  function stopSplashSfx(fade = 0.15) {
+    splashToken++;
+    const v = splashVoice;
+    splashVoice = null;
+    if (!v || !ctx) return;
+    const t = ctx.currentTime;
+    try {
+      v.g.gain.cancelScheduledValues(t);
+      v.g.gain.setValueAtTime(v.g.gain.value, t);
+      v.g.gain.linearRampToValueAtTime(0, t + fade);
+      v.src.stop(t + fade + 0.02);
+    } catch (e) { /* not started yet or already stopped */ }
   }
 
   // Tactile switch profiles by element weight
@@ -277,182 +293,71 @@ const siteAudio = (function () {
     playHoverTick(bodyFreq, clickFreq, vol);
   });
 
-  // ---- Background music: an original cyber synth loop, composed live in Web Audio ----
-  // No audio file. 110 bpm on Am - F - C - G: a sixteenth-note saw arpeggio through a resonant
-  // filter that sweeps open and shut over eight bars, a pulsing eighth-note bass that ducks under
-  // each kick, four-on-the-floor kick, claps on 2 and 4, ticking hats, glassy chord stabs and the
-  // odd digital glitch blip. Patterns are re-picked every bar, so it never loops exactly.
-  // Quiet, fades in, plays only after "Enter with sound", and pauses while the tab is hidden.
+  // ---- Background music: the site's own track, looping quietly under everything ----
+  // Streamed from a media element (it is long, so it is never decoded whole) and routed
+  // through Web Audio so it can fade in and out smoothly, which element volume can't do on
+  // iOS. Plays only after "Enter with sound", and pauses while the tab is hidden.
   const music = (function () {
-    const BPM = 110, BEAT = 60 / BPM, BAR = BEAT * 4, SIX = BEAT / 4;
-    const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
-    const CHORDS = [
-      { bass: 33, notes: [57, 60, 64] }, // Am
-      { bass: 29, notes: [53, 57, 60] }, // F
-      { bass: 36, notes: [55, 60, 64] }, // C
-      { bass: 31, notes: [55, 59, 62] }, // G
-    ];
-    const ARPS = [
-      [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 2, 1, 0, 2, 1, 3],
-      [0, 2, 1, 3, 0, 2, 1, 3, 1, 3, 2, 0, 1, 3, 2, 4],
-      [0, 0, 2, 1, 3, 2, 4, 3, 0, 2, 1, 3, 2, 4, 3, 1],
-    ];
-    let out = null, bus = null, echo = null, duck = null, noise = null;
-    let timer = 0, playing = false, nextBar = 0, bar = 0;
-    let held = [];
+    const LEVEL = 0.198; // background level (was 0.22; 10% lower)
+    let el = null, gain = null, playing = false, fadeTimer = 0;
 
-    function env(g, t, peak, attack, decay) {
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(peak, t + attack);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
-    }
-    // Arp note: a bright saw through a resonant lowpass; the cutoff rides the 8-bar sweep.
-    function arp(t, m, vel, cutoff) {
-      const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-      o.type = 'sawtooth'; o.frequency.setValueAtTime(mtof(m), t);
-      lp.type = 'lowpass'; lp.Q.value = 7;
-      lp.frequency.setValueAtTime(cutoff * 1.6, t);
-      lp.frequency.exponentialRampToValueAtTime(cutoff, t + 0.09);
-      env(g, t, vel, 0.004, 0.16);
-      o.connect(lp).connect(g);
-      g.connect(bus); g.connect(echo);
-      o.start(t); o.stop(t + 0.22);
-    }
-    // Bass: a square/saw pair, low-passed, into the ducking bus so it pumps with the kick.
-    function bass(t, m) {
-      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-      o.type = 'sawtooth'; o2.type = 'square';
-      o.frequency.setValueAtTime(mtof(m), t); o2.frequency.setValueAtTime(mtof(m) * 0.5, t);
-      lp.type = 'lowpass'; lp.Q.value = 2;
-      lp.frequency.setValueAtTime(520, t);
-      lp.frequency.exponentialRampToValueAtTime(180, t + 0.18);
-      env(g, t, 0.16, 0.005, 0.2);
-      o.connect(lp); o2.connect(lp); lp.connect(g).connect(duck);
-      o.start(t); o2.start(t); o.stop(t + 0.26); o2.stop(t + 0.26);
-    }
-    // Glassy chord stab on the downbeat, detuned saws, softly filtered.
-    function stab(t, chord) {
-      chord.notes.forEach((m) => {
-        [0.997, 1.003].forEach((d) => {
-          const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
-          o.type = 'sawtooth'; o.frequency.setValueAtTime(mtof(m + 12) * d, t);
-          lp.type = 'lowpass'; lp.frequency.setValueAtTime(2200, t);
-          lp.frequency.exponentialRampToValueAtTime(700, t + 0.6);
-          env(g, t, 0.022, 0.01, 0.7);
-          o.connect(lp).connect(g);
-          g.connect(bus); g.connect(echo);
-          o.start(t); o.stop(t + 0.75);
-        });
-      });
-    }
-    function kick(t) {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(140, t);
-      o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-      env(g, t, 0.34, 0.003, 0.26);
-      o.connect(g).connect(bus);
-      o.start(t); o.stop(t + 0.3);
-      // sidechain: dip the bass bus under every kick
-      duck.gain.cancelScheduledValues(t);
-      duck.gain.setValueAtTime(0.25, t);
-      duck.gain.linearRampToValueAtTime(1, t + BEAT * 0.6);
-    }
-    function noiseHit(t, type, f, q, vel, decay) {
-      const s = ctx.createBufferSource(), flt = ctx.createBiquadFilter(), g = ctx.createGain();
-      s.buffer = noise;
-      flt.type = type; flt.frequency.value = f; flt.Q.value = q;
-      env(g, t, vel, 0.002, decay);
-      s.connect(flt).connect(g).connect(bus);
-      s.start(t, Math.random() * 0.5, decay + 0.05);
-    }
-    // A short high square blip, pitched off the chord: the "digital" sparkle.
-    function glitch(t, m) {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = 'square';
-      o.frequency.setValueAtTime(mtof(m + 24), t);
-      o.frequency.setValueAtTime(mtof(m + 31), t + 0.03);
-      env(g, t, 0.025, 0.002, 0.07);
-      o.connect(g); g.connect(bus); g.connect(echo);
-      o.start(t); o.stop(t + 0.1);
-    }
-
-    function scheduleBar(t) {
-      const chord = CHORDS[bar % CHORDS.length];
-      // five arp tones (indices 0-4, as the patterns use): the triad an octave up, then root and third above
-      const tones = chord.notes.map((m) => m + 12).concat([chord.notes[0] + 24, chord.notes[1] + 24]);
-      const pattern = ARPS[Math.floor(Math.random() * ARPS.length)];
-      // Filter sweep: opens and closes over 8 bars.
-      for (let i = 0; i < 16; i++) {
-        const st = t + i * SIX;
-        const phase = ((bar % 8) + i / 16) / 8;
-        const cutoff = 700 + 2600 * (0.5 - 0.5 * Math.cos(phase * Math.PI * 2));
-        if (Math.random() > 0.06) arp(st, tones[pattern[i]], i % 4 === 0 ? 0.06 : 0.04, cutoff);
-        if (i % 2 === 0) bass(st, chord.bass + (i % 8 === 6 ? 12 : 0));
-        noiseHit(st, 'highpass', 8500, 0.7, i % 2 === 1 ? 0.03 : 0.015, 0.035); // hats
+    function setup() {
+      if (el) return true;
+      if (!unlock()) return false;
+      el = new Audio(MUSIC_SRC);
+      el.loop = true;
+      el.preload = 'auto';
+      try {
+        gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        ctx.createMediaElementSource(el).connect(gain).connect(ctx.destination);
+      } catch (e) {
+        gain = null; // no Web Audio routing: fall back to the element's own volume
+        el.volume = LEVEL;
       }
-      for (let b = 0; b < 4; b++) kick(t + b * BEAT);
-      noiseHit(t + BEAT, 'bandpass', 1700, 0.9, 0.07, 0.13);       // clap on 2
-      noiseHit(t + BEAT * 3, 'bandpass', 1700, 0.9, 0.07, 0.13);   // clap on 4
-      stab(t, chord);
-      if (bar % 4 === 3) {
-        for (let k = 0; k < 3; k++) glitch(t + (10 + k * 2) * SIX, chord.notes[k % chord.notes.length]);
-      }
-      bar++;
+      return true;
     }
-    function tick() {
-      if (!playing || !ctx) return;
-      while (nextBar < ctx.currentTime + 0.6) { scheduleBar(nextBar); nextBar += BAR; }
+    function fadeTo(level, seconds) {
+      if (!gain) return;
+      const t = ctx.currentTime;
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(Math.max(0.0001, gain.gain.value), t);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, level), t + seconds);
+    }
+    // Called inside the "Enter with sound" click: browsers (iOS Safari above all) only let a
+    // media element play from a gesture, so play it silently there and stop it again. After
+    // that it may start on its own, which it does once the first slash has landed.
+    function prime() {
+      if (playing || !setup() || el.dataset.primed) return;
+      el.dataset.primed = '1';
+      const p = el.play();
+      const rewind = () => { if (!playing) { el.pause(); el.currentTime = 0; } };
+      if (p && p.then) p.then(rewind, () => {}); else rewind();
     }
     function start() {
-      if (playing || !unlock()) return;
-      const t = ctx.currentTime;
-      out = ctx.createGain();
-      out.gain.setValueAtTime(0.0001, t);
-      out.gain.exponentialRampToValueAtTime(0.42, t + 4); // slow fade in (levels are set per voice)
-      const comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -20; comp.ratio.value = 3.5; comp.attack.value = 0.005; comp.release.value = 0.2;
-      out.connect(comp).connect(ctx.destination);
-      bus = ctx.createGain(); bus.gain.value = 0.6;
-      bus.connect(out);
-      duck = ctx.createGain(); duck.gain.value = 1;
-      duck.connect(bus);
-      // Echo: dotted-eighth delay with gentle feedback, darkened so repeats sit back.
-      const delay = ctx.createDelay(1.5), fb = ctx.createGain(), wet = ctx.createGain(), dark = ctx.createBiquadFilter();
-      delay.delayTime.value = BEAT * 0.75;
-      fb.gain.value = 0.36; wet.gain.value = 0.28;
-      dark.type = 'lowpass'; dark.frequency.value = 2600;
-      echo = ctx.createGain(); echo.gain.value = 1;
-      echo.connect(delay); delay.connect(dark).connect(fb).connect(delay);
-      dark.connect(wet).connect(bus);
-      held = [out, bus, duck, echo, delay, fb, wet, dark, comp];
-      const len = Math.floor(ctx.sampleRate * 1);
-      noise = ctx.createBuffer(1, len, ctx.sampleRate);
-      const data = noise.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-
-      playing = true; bar = 0;
-      nextBar = t + 0.3;
-      tick();
-      timer = setInterval(tick, 150);
+      if (playing || !setup()) return;
+      playing = true;
+      clearTimeout(fadeTimer);
+      const p = el.play();
+      if (p && p.catch) p.catch(() => { playing = false; });
+      fadeTo(LEVEL, 2); // fade in
     }
     function stop() {
       if (!playing) return;
       playing = false;
-      clearInterval(timer);
-      const t = ctx.currentTime, o = out, nodes = held;
-      held = [];
-      o.gain.cancelScheduledValues(t);
-      o.gain.setValueAtTime(Math.max(0.0001, o.gain.value), t);
-      o.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
-      setTimeout(() => { nodes.forEach((n) => { try { n.disconnect(); } catch (e) {} }); }, 1000);
+      fadeTo(0.0001, 0.8);
+      clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(() => { if (!playing && el) el.pause(); }, gain ? 850 : 0);
     }
     document.addEventListener('visibilitychange', () => {
-      if (!ctx || !playing) return;
-      if (document.hidden) ctx.suspend().catch(() => {});
-      else ctx.resume().catch(() => {});
+      if (!el || !playing) return;
+      if (document.hidden) el.pause();
+      else {
+        if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+        el.play().catch(() => {});
+      }
     });
-    return { start, stop, isPlaying: () => playing };
+    return { prime, start, stop, isPlaying: () => playing };
   })();
 
   function setEnabled(on) {
@@ -475,10 +380,11 @@ const siteAudio = (function () {
   return {
     unlock,
     setEnabled,
+    primeMusic: () => { if (enabled) music.prime(); },
     startMusic: () => { if (enabled) music.start(); },
     isMusicPlaying: () => music.isPlaying(),
-    playUnsheathe,
-    playKatanaSlash,
+    playSplashSfx,
+    stopSplashSfx,
     isEnabled: () => enabled,
   };
 })();
@@ -906,6 +812,9 @@ window.kprIntro = (function () {
       splash.classList.add('is-glitch');
       glitchTimer = setTimeout(() => splash.classList.remove('is-glitch'), 240);
     }
+    // How long a strike's crescent takes to finish drawing (its leading edge eases out and
+    // reaches the end at 1/2.15 of the slash's life; see the blade crescents in the frame loop).
+    const cutMs = (spec) => (spec.life * 1000) / 2.15;
     function strike(spec) {
       const now = performance.now();
       const m = Math.min(W, H);
@@ -1125,6 +1034,13 @@ window.kprIntro = (function () {
         fitTarget = Math.min(1, Math.max(0.35, (fitHalf - Math.min(W, H) * 0.035) / (rx * 0.72)));
         if (instant) { lift = px; fit = fitTarget; if (dragon3d) dragon3d.setLift(lift, fit); }
       },
+      // The dragon flies this strike's blade path: it whips to the start of the cut over
+      // leadMs, then runs the cut as the crescent is drawn, its head the blade's tip.
+      dash(spec, leadMs) {
+        if (!dragon3d || !dragon3d.triggerDash) return;
+        dragon3d.triggerDash(performance.now(), { p0: at(spec.p0), cp: at(spec.cp), p1: at(spec.p1) }, leadMs, cutMs(spec));
+      },
+      cutMs,
       strike,
       cleave,
       ringBurst,
@@ -1153,8 +1069,15 @@ window.kprIntro = (function () {
     root.style.overflow = 'hidden';
     if (skipBtn) skipBtn.focus({ preventScroll: true });
 
+    // The slash track starts as the charge builds, timed so its three slashes fall on the three
+    // strikes: the first strike stays where the charge ends (820ms), the others follow the
+    // recording's own spacing, and everything after the cleave moves with it.
+    const SFX_START = 265;
+    const [HIT1, HIT2, HIT3] = SPLASH_SFX_HITS.map((s) => Math.round(SFX_START + s * 1000));
+    const after = (ms) => HIT3 + (ms - 1400); // later beats, kept where they sat relative to the cleave
+
     splash.classList.add('is-powering');
-    siteAudio.playUnsheathe();
+    siteAudio.playSplashSfx(SFX_START);
     fx.charge();
 
     const onSplashPointer = (e) => {
@@ -1164,33 +1087,41 @@ window.kprIntro = (function () {
     splash.addEventListener('pointerdown', onSplashPointer);
 
     const at = (ms, fn) => timers.push(setTimeout(() => { if (token === runToken) fn(); }, ms));
+    // The dragon flies the first two cuts: it whips in just before each strike and its head
+    // runs the blade's path as the crescent draws. The second whip starts as the first cut ends.
+    const CUT1_END = HIT1 + Math.round(fx.cutMs(STRIKES[0]));
+    at(HIT1 - 160, () => fx.dash(STRIKES[0], 160));
+    at(CUT1_END, () => fx.dash(STRIKES[1], HIT2 - CUT1_END));
+    // The music comes in once the first slash has finished.
+    at(CUT1_END, () => siteAudio.startMusic());
     // 1) the first strike shatters the diamond reticle
-    at(820, () => { fx.strike(STRIKES[0]); siteAudio.playKatanaSlash(1); });
-    at(875, () => { splash.classList.add('is-slash-1'); fx.ringBurst(); });
+    at(HIT1, () => fx.strike(STRIKES[0]));
+    at(HIT1 + 55, () => { splash.classList.add('is-slash-1'); fx.ringBurst(); });
     // 2) the counter-cut shears KPR in half
-    at(1120, () => { fx.strike(STRIKES[1]); siteAudio.playKatanaSlash(2); });
-    at(1175, () => { splash.classList.add('is-slash-2'); fx.sparkBurst(); });
+    at(HIT2, () => fx.strike(STRIKES[1]));
+    at(HIT2 + 55, () => { splash.classList.add('is-slash-2'); fx.sparkBurst(); });
     // 3) hit-stop, then the cleave: the dragon tears through and the screen parts
-    at(1400, () => { fx.cleave(STRIKES[2]); siteAudio.playKatanaSlash(3); });
+    at(HIT3, () => fx.cleave(STRIKES[2]));
     // The cut runs the whole screen along the cleave's line. The upper half is sliced off and
     // flies away along the cut, and the site shows through behind it, still blurred: a brief
     // glimpse. The lower half holds for a beat, then dissolves as the site comes into focus.
-    at(1490, () => {
+    at(after(1490), () => {
       splash.classList.add('is-cleaved');
       root.classList.add('site-glimpse');
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (token === runToken) splash.classList.add('is-parting');
       }));
     });
-    at(1950, () => splash.classList.add('is-revealing'));
+    at(after(1950), () => splash.classList.add('is-revealing'));
     // 4) once the last half has dissolved, ease the website in from the blur
-    at(2420, () => finish(false));
+    at(after(2420), () => finish(false));
 
     function finish(skipped) {
       if (token !== runToken) return;
       runToken++;
       clearTimers();
       cleanupListeners();
+      siteAudio.startMusic(); // if the intro was skipped before the music came in
       const finalizeHide = () => {
         fx.stop();
         splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-revealing', 'is-skipping');
@@ -1202,6 +1133,7 @@ window.kprIntro = (function () {
         if (window.ScrollTrigger) window.ScrollTrigger.refresh();
       };
       if (skipped) {
+        siteAudio.stopSplashSfx();
         splash.classList.add('is-skipping');
         setTimeout(finalizeHide, 220);
       } else {
@@ -1273,13 +1205,13 @@ window.kprIntro = (function () {
       window.removeEventListener('keydown', onGateKey);
       window.removeEventListener('resize', onGateResize);
       siteAudio.setEnabled(withSound);
-      if (withSound) siteAudio.startMusic(); // fades in under the strikes and keeps looping
+      if (withSound) siteAudio.primeMusic(); // starts once the first slash lands, then keeps looping
       splash.classList.remove('is-gate');
       // the emblem glides back to the centre at full size, where the strikes and the split screen expect it
       if (whole) { whole.style.setProperty('--gate-lift', '0px'); whole.style.setProperty('--gate-scale', '1'); }
       if (fx) fx.setLift(0, false, Infinity);
       if (fx) startSequence();
-      else leaveQuietly();
+      else { siteAudio.startMusic(); leaveQuietly(); }
     }
     function onGateKey(e) {
       if (e.key === 'Escape') { e.preventDefault(); choose(false); }

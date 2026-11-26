@@ -1268,7 +1268,7 @@
 
     const HALF_H_AT_Z0 = 9.2 * Math.tan((42 * Math.PI) / 360);
     const hist = [];
-    let orbitAngle = 0.85; // starts sweeping around the front-left -> front-center so face is immediately prominent!
+    let orbitAngle = 0.85; // where the head starts on the orbit; randomStart() picks a new one each load
     let speed = 0.88;
     let squeeze = 1.0;
     let alpha = 0.0;
@@ -1299,6 +1299,17 @@
     let lapProgress = 0, lapGoal = TAU * 1.1, lastTheta = null;
     let uturnLeft = 0;          // seconds left of the outward push at the start of a U-turn
     const tmpP = { x: 0, y: 0, z: 0 };
+
+    // Every load starts the dragon somewhere new: a random point on the orbit, flying either
+    // way round, with the ring tilted and rolled at random, so no two intros open the same.
+    function randomStart() {
+      orbitAngle = rand(0, TAU);
+      ring.dir = Math.random() < 0.5 ? -1 : 1;
+      ring.alpha = ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.22, 0.46);
+      ring.tau = ring.tauT = rand(-0.3, 0.3);
+      lapGoal = TAU * rand(0.75, 1.25);
+    }
+    randomStart();
 
     // Centre and radius from the diamond: slightly wider than its tips so the sides sweep
     // gracefully outside while the near and far passes weave freely through the diamond.
@@ -1461,6 +1472,84 @@
       return theta;
     }
 
+    // ---- Strike dashes: on the first two slashes the dragon flies the blade's own path ----
+    // It whips from wherever it is on the orbit to the start of the cut (`leadMs`), then runs
+    // the cut in step with the crescent being drawn (same ease-out, over `cutMs`), so its head
+    // is the tip of the blade. The cut swells toward the viewer mid-stroke, staying on the near
+    // side: in front of the diamond and, as always, behind the KPR letters. Afterwards it hooks
+    // back toward the ring under its own steering. The cleave keeps its own scripted lunge.
+    let dash = null;
+    const easeOut3 = (t) => 1 - Math.pow(1 - t, 3);
+    function screenToWorld(px, py, z) {
+      const k = (9.2 - z) / 9.2; // lands exactly on (px, py) after perspective
+      return { x: pxToWorldX(px) * k, y: pxToWorldY(py) * k, z };
+    }
+    function cutPoint(d, s) {
+      const u = 1 - s;
+      const px = u * u * d.p0.x + 2 * u * s * d.cp.x + s * s * d.p1.x;
+      const py = u * u * d.p0.y + 2 * u * s * d.cp.y + s * s * d.p1.y;
+      return screenToWorld(px, py, 0.35 + 0.9 * Math.sin(Math.PI * s));
+    }
+    function dashPoint(d, tMs) {
+      if (tMs >= d.cutAt) {
+        return cutPoint(d, easeOut3(clamp((tMs - d.cutAt) / d.cutMs, 0, 1)));
+      }
+      // Approach: a cubic from the head along its heading, into the cut along the cut's tangent.
+      const u = clamp((tMs - d.start) / (d.cutAt - d.start), 0, 1), v = 1 - u;
+      const A = d.a, B = d.b, C = d.c, D = d.s0;
+      const k0 = v * v * v, k1 = 3 * v * v * u, k2 = 3 * v * u * u, k3 = u * u * u;
+      return {
+        x: A.x * k0 + B.x * k1 + C.x * k2 + D.x * k3,
+        y: A.y * k0 + B.y * k1 + C.y * k2 + D.y * k3,
+        z: A.z * k0 + B.z * k1 + C.z * k2 + D.z * k3,
+      };
+    }
+    function triggerDash(nowMs, path, leadMs, cutMs) {
+      if (!head.p || !head.h || lunge) return;
+      const d = { p0: path.p0, cp: path.cp, p1: path.p1, start: nowMs, cutAt: nowMs + Math.max(1, leadMs), cutMs: Math.max(60, cutMs) };
+      d.end = d.cutAt + d.cutMs;
+      d.s0 = cutPoint(d, 0);
+      const s1 = cutPoint(d, 0.03);
+      let tx = s1.x - d.s0.x, ty = s1.y - d.s0.y, tz = s1.z - d.s0.z;
+      const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      const a = { ...head.p };
+      const L = Math.max(0.6, Math.hypot(d.s0.x - a.x, d.s0.y - a.y, d.s0.z - a.z) / 3);
+      d.a = a;
+      d.b = { x: a.x + head.h.x * L, y: a.y + head.h.y * L, z: a.z + head.h.z * L };
+      d.c = { x: d.s0.x - tx * L, y: d.s0.y - ty * L, z: d.s0.z - tz * L };
+      d.last = nowMs;
+      dash = d;
+      power = 1.0;
+    }
+    // Moves the head along the dash for this frame and lays the trail behind it in small steps,
+    // so the body follows the curve smoothly even at this speed.
+    function stepDash(nowMs) {
+      const d = dash;
+      const tEnd = Math.min(nowMs, d.end);
+      const steps = Math.max(1, Math.ceil((tEnd - d.last) / 4));
+      for (let i = 1; i <= steps; i++) {
+        const p = dashPoint(d, d.last + ((tEnd - d.last) * i) / steps);
+        trail.unshift(p);
+      }
+      d.last = tEnd;
+      const p = trail[0], q = dashPoint(d, tEnd - 6);
+      let hx = p.x - q.x, hy = p.y - q.y, hz = p.z - q.z;
+      const hl = Math.hypot(hx, hy, hz);
+      head.p = { x: p.x, y: p.y, z: p.z };
+      if (hl > 1e-5) head.h = { x: hx / hl, y: hy / hl, z: hz / hl };
+      power = 1.0;
+      if (nowMs < d.end) return;
+      // Release: follow through, already hooking back round toward the diamond.
+      dash = null;
+      const cx = ring.cx - head.p.x, cy = ring.cy - head.p.y, cz = -head.p.z;
+      const h = head.h;
+      let ax = h.y * cz - h.z * cy, ay = h.z * cx - h.x * cz, az = h.x * cy - h.y * cx;
+      const al = Math.hypot(ax, ay, az) || 1;
+      head.w = { x: (ax / al) * 6, y: (ay / al) * 6, z: (az / al) * 6 };
+      lastTheta = ringAngleOf(head.p);
+      lapProgress = 0;
+    }
+
     function updateState(dt, nowMs, phase, phaseAtMs) {
       const tSec = nowMs * 0.001;
       if (debugOverride) {
@@ -1515,15 +1604,19 @@
         ring.tau += (ring.tauT - ring.tau) * k;
 
         uturnLeft = Math.max(0, uturnLeft - dt);
-        const theta = steer(dt, speed * ring.r);
-        let d = theta - lastTheta;
-        d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
-        lapProgress += d * ring.dir;
-        lastTheta = theta;
-        // No turning back once the strikes have started: it just speeds round.
-        if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
+        if (dash) {
+          stepDash(nowMs); // moves the head and lays its trail itself
+        } else {
+          const theta = steer(dt, speed * ring.r);
+          let d = theta - lastTheta;
+          d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+          lapProgress += d * ring.dir;
+          lastTheta = theta;
+          // No turning back once the strikes have started: it just speeds round.
+          if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
 
-        trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
+          trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
+        }
         const keep = bodyLength() * 1.2;
         let acc = 0;
         for (let i = 1; i < trail.length; i++) {
@@ -2105,10 +2198,13 @@
         alpha = 0.0;
         power = 0.0;
         lunge = null;
+        dash = null;
+        randomStart();
       },
       update: updateState,
       render,
       triggerLunge,
+      triggerDash,
       sampleTrailPointScreen,
       setDebugPose(pose) {
         debugOverride = pose;
