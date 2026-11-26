@@ -155,7 +155,9 @@ const siteAudio = (function () {
   function render() {
     if (!toggle) return;
     toggle.setAttribute('aria-pressed', String(enabled));
-    toggle.setAttribute('aria-label', enabled ? 'Turn UI sounds off' : 'Turn UI sounds on');
+    toggle.setAttribute('aria-label', enabled ? 'Mute sound' : 'Turn sound on');
+    const label = toggle.querySelector('[data-sound-label]');
+    if (label) label.textContent = enabled ? 'Mute' : 'Sound on';
   }
   function unlock() {
     if (!AC) return null;
@@ -275,17 +277,137 @@ const siteAudio = (function () {
     playHoverTick(bodyFreq, clickFreq, vol);
   });
 
+  // ---- Background music: an original loop, composed live in Web Audio (no audio file) ----
+  // A low drone under a slowly moving filter, soft koto-like plucks on a Japanese in-scale
+  // (D Eb G A Bb), an occasional deep drum and a breath of wind. A new short phrase is picked
+  // every bar, so it never repeats exactly. Very quiet, fades in, and only plays once the
+  // visitor has chosen "Enter with sound"; it pauses while the tab is hidden.
+  const music = (function () {
+    const BAR = (60 / 64) * 4;                  // 64 bpm, 4 beats
+    const BASE = 146.83;                        // D3
+    const STEPS = [0, 1, 5, 7, 8, 12, 13, 17, 19, 20];
+    const freq = (s) => BASE * Math.pow(2, s / 12);
+    let out = null, timer = 0, playing = false, nextBar = 0, bar = 0, last = 4;
+    let sources = [];
+
+    function pluck(t, f, vel) {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator();
+      const lp = ctx.createBiquadFilter(), g = ctx.createGain(), g2 = ctx.createGain();
+      o.type = 'triangle'; o2.type = 'sine';
+      o.frequency.setValueAtTime(f * 1.008, t);                 // a tiny bend, like a plucked string
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.09);
+      o2.frequency.setValueAtTime(f * 2, t);
+      g2.gain.value = 0.22;
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(3400, t);
+      lp.frequency.exponentialRampToValueAtTime(650, t + 1.3);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vel, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
+      o.connect(lp); o2.connect(g2).connect(lp); lp.connect(g).connect(out);
+      o.start(t); o2.start(t); o.stop(t + 2.7); o2.stop(t + 2.7);
+    }
+    function drum(t, vel) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(96, t);
+      o.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vel, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+      o.connect(g).connect(out);
+      o.start(t); o.stop(t + 1.1);
+    }
+    function scheduleBar(t) {
+      const beat = BAR / 4;
+      const count = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < count; i++) {
+        last = Math.max(0, Math.min(STEPS.length - 1, last + Math.floor(Math.random() * 5) - 2));
+        const at = t + (Math.floor(Math.random() * 8) / 2) * beat;  // loose eighth-note grid
+        pluck(at, freq(STEPS[last]), 0.16 + Math.random() * 0.1);
+      }
+      if (bar % 2 === 0) drum(t, 0.42);
+      if (bar % 4 === 3) drum(t + beat * 2.5, 0.28);
+      bar++;
+    }
+    function tick() {
+      if (!playing || !ctx) return;
+      while (nextBar < ctx.currentTime + 0.8) { scheduleBar(nextBar); nextBar += BAR; }
+    }
+    function start() {
+      if (playing || !unlock()) return;
+      const t = ctx.currentTime;
+      out = ctx.createGain();
+      out.gain.setValueAtTime(0.0001, t);
+      out.gain.exponentialRampToValueAtTime(0.1, t + 4);        // slow fade in
+      out.connect(ctx.destination);
+
+      // Drone: a low D and its fifth, slightly detuned, under a slowly breathing lowpass.
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 0.6;
+      const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+      lfo.frequency.value = 0.045; lfoGain.gain.value = 150;
+      lfo.connect(lfoGain).connect(lp.frequency);
+      const droneGain = ctx.createGain(); droneGain.gain.value = 0.2;
+      [BASE / 2, (BASE / 2) * 0.996, (BASE / 2) * 1.5 * 1.003].forEach((f) => {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth'; o.frequency.value = f;
+        o.connect(lp); o.start(t); sources.push(o);
+      });
+      lp.connect(droneGain).connect(out);
+      lfo.start(t); sources.push(lfo);
+
+      // Wind: soft band-passed noise that drifts.
+      const len = Math.floor(ctx.sampleRate * 2);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      const wind = ctx.createBufferSource(); wind.buffer = buf; wind.loop = true;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.5;
+      const wlfo = ctx.createOscillator(), wlfoGain = ctx.createGain();
+      wlfo.frequency.value = 0.07; wlfoGain.gain.value = 420;
+      wlfo.connect(wlfoGain).connect(bp.frequency);
+      const windGain = ctx.createGain(); windGain.gain.value = 0.05;
+      wind.connect(bp).connect(windGain).connect(out);
+      wind.start(t); wlfo.start(t); sources.push(wind, wlfo);
+
+      playing = true; bar = 0;
+      nextBar = t + 0.4;
+      tick();
+      timer = setInterval(tick, 200);
+    }
+    function stop() {
+      if (!playing) return;
+      playing = false;
+      clearInterval(timer);
+      const t = ctx.currentTime, o = out, s = sources;
+      sources = [];
+      o.gain.cancelScheduledValues(t);
+      o.gain.setValueAtTime(Math.max(0.0001, o.gain.value), t);
+      o.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+      setTimeout(() => { s.forEach((n) => { try { n.stop(); } catch (e) {} }); try { o.disconnect(); } catch (e) {} }, 900);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!ctx || !playing) return;
+      if (document.hidden) ctx.suspend().catch(() => {});
+      else ctx.resume().catch(() => {});
+    });
+    return { start, stop, isPlaying: () => playing };
+  })();
+
   function setEnabled(on) {
     enabled = !!on;
     try { localStorage.setItem('hover-sounds', enabled ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
     render();
     if (enabled) unlock();
+    else music.stop();
   }
 
+  // The dock's mute button: the intro decides sound; this only lets a visitor change their mind.
   if (toggle) {
     toggle.addEventListener('click', () => {
       setEnabled(!enabled);
-      if (enabled) playUiConfirm();
+      if (enabled) { playUiConfirm(); music.start(); }
     });
   }
   render();
@@ -293,6 +415,8 @@ const siteAudio = (function () {
   return {
     unlock,
     setEnabled,
+    startMusic: () => { if (enabled) music.start(); },
+    isMusicPlaying: () => music.isPlaying(),
     playUnsheathe,
     playKatanaSlash,
     isEnabled: () => enabled,
@@ -343,7 +467,7 @@ window.kprIntro = (function () {
     if (!root.classList.contains('site-blur-hold')) return;
     void root.offsetWidth;
     root.classList.add('site-unblurring');
-    root.classList.remove('site-blur-hold');
+    root.classList.remove('site-blur-hold', 'site-glimpse');
     unblurTimer = setTimeout(() => {
       root.classList.remove('site-unblurring');
     }, 1950);
@@ -983,14 +1107,19 @@ window.kprIntro = (function () {
     at(1175, () => { splash.classList.add('is-slash-2'); fx.sparkBurst(); });
     // 3) hit-stop, then the cleave: the dragon tears through and the screen parts
     at(1400, () => { fx.cleave(STRIKES[2]); siteAudio.playKatanaSlash(3); });
+    // The cut runs the whole screen along the cleave's line. The upper half is sliced off and
+    // flies away along the cut, and the site shows through behind it, still blurred: a brief
+    // glimpse. The lower half holds for a beat, then dissolves as the site comes into focus.
     at(1490, () => {
       splash.classList.add('is-cleaved');
+      root.classList.add('site-glimpse');
       requestAnimationFrame(() => requestAnimationFrame(() => {
         if (token === runToken) splash.classList.add('is-parting');
       }));
     });
-    // 4) once the halves have parted, ease the website in from the blur
-    at(2150, () => finish(false));
+    at(1950, () => splash.classList.add('is-revealing'));
+    // 4) once the last half has dissolved, ease the website in from the blur
+    at(2420, () => finish(false));
 
     function finish(skipped) {
       if (token !== runToken) return;
@@ -999,7 +1128,7 @@ window.kprIntro = (function () {
       cleanupListeners();
       const finalizeHide = () => {
         fx.stop();
-        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-revealing', 'is-skipping');
         splash.hidden = true;
         splash.setAttribute('aria-hidden', 'true');
         root.style.overflow = '';
@@ -1078,6 +1207,7 @@ window.kprIntro = (function () {
       window.removeEventListener('keydown', onGateKey);
       window.removeEventListener('resize', onGateResize);
       siteAudio.setEnabled(withSound);
+      if (withSound) siteAudio.startMusic(); // fades in under the strikes and keeps looping
       splash.classList.remove('is-gate');
       // the emblem glides back to the centre at full size, where the strikes and the split screen expect it
       if (whole) { whole.style.setProperty('--gate-lift', '0px'); whole.style.setProperty('--gate-scale', '1'); }

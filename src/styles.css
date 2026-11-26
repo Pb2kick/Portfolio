@@ -1288,13 +1288,31 @@ html.intro-pending .intro-splash,
 .intro-splash.is-cleaved .intro-half {
   visibility: visible; opacity: 1;
 }
-.intro-splash.is-parting .intro-half {
-  transition: transform .62s cubic-bezier(.62, 0, .18, 1), opacity .48s ease .12s;
+/* The cut runs the whole screen along the cleave (top-right to bottom-left). The upper half is
+   sliced off: it slides away along the cut, accelerating, with a slight spin, and is gone. The
+   lower half holds for a beat, then dissolves (.is-revealing) as the site comes into focus. */
+.intro-splash.is-parting .intro-half--top {
+  transition: transform .55s cubic-bezier(.55, 0, .85, .35), opacity .3s ease .25s;
+  transform: translate3d(62%, -78%, 0) rotate(7deg);
   opacity: 0;
 }
-.intro-splash.is-parting .intro-half--top { transform: translate3d(-110%, -48%, 0); }
-.intro-splash.is-parting .intro-half--bottom { transform: translate3d(110%, 48%, 0); }
+.intro-splash.is-parting .intro-half--bottom { transform: none; }
+.intro-splash.is-revealing .intro-half--bottom {
+  transition: opacity .45s ease, filter .45s ease;
+  opacity: 0;
+  filter: blur(6px);
+}
 .intro-splash.is-parting .intro-skip { opacity: 0; pointer-events: none; }
+
+/* The glimpse: while the cut is open the site behind shows through, still softly blurred,
+   brighter than its usual held-back state so it reads; then the normal unblur takes over. */
+html.site-blur-hold.site-glimpse .site-header,
+html.site-blur-hold.site-glimpse main,
+html.site-blur-hold.site-glimpse .site-footer {
+  filter: blur(9px) brightness(.8);
+  opacity: .9;
+  transition: filter .35s ease, opacity .35s ease;
+}
 
 .intro-splash.is-skipping { transition: opacity .24s ease; opacity: 0; pointer-events: none; }
 
