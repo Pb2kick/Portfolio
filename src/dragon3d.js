@@ -1472,14 +1472,14 @@
       return theta;
     }
 
-    // ---- Strike dashes: on the first two slashes the dragon flies the blade's own path ----
-    // It whips from wherever it is on the orbit to the start of the cut (`leadMs`), then runs
-    // the cut in step with the crescent being drawn (same ease-out, over `cutMs`), so its head
-    // is the tip of the blade. The cut swells toward the viewer mid-stroke, staying on the near
-    // side: in front of the diamond and, as always, behind the KPR letters. Afterwards it hooks
-    // back toward the ring under its own steering. The cleave keeps its own scripted lunge.
+    // ---- Strike dashes: on the first two slashes the dragon is the blade ----
+    // Three beats, like a real cut: it whips round from the orbit and slows almost to a stop just
+    // behind where the cut begins, already facing along it (the wind-up); it creeps forward for a
+    // beat; then it explodes through the whole cut in a few frames, overshoots past the end and
+    // hooks back toward the ring under its own steering. The strike's ease starts at full speed,
+    // so the hit reads as a snap, not a drag. It stays on the near side (in front of the diamond,
+    // behind the KPR letters as always). The cleave keeps its own scripted lunge.
     let dash = null;
-    const easeOut3 = (t) => 1 - Math.pow(1 - t, 3);
     function screenToWorld(px, py, z) {
       const k = (9.2 - z) / 9.2; // lands exactly on (px, py) after perspective
       return { x: pxToWorldX(px) * k, y: pxToWorldY(py) * k, z };
@@ -1490,33 +1490,71 @@
       const py = u * u * d.p0.y + 2 * u * s * d.cp.y + s * s * d.p1.y;
       return screenToWorld(px, py, 0.35 + 0.9 * Math.sin(Math.PI * s));
     }
+    const unit = (a, b) => {
+      const x = b.x - a.x, y = b.y - a.y, z = b.z - a.z, l = Math.hypot(x, y, z) || 1;
+      return { x: x / l, y: y / l, z: z / l };
+    };
+    const addS = (p, v, s) => ({ x: p.x + v.x * s, y: p.y + v.y * s, z: p.z + v.z * s });
+    const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+    function bez3(A, B, C, D, u) {
+      const v = 1 - u, k0 = v * v * v, k1 = 3 * v * v * u, k2 = 3 * v * u * u, k3 = u * u * u;
+      return { x: A.x * k0 + B.x * k1 + C.x * k2 + D.x * k3, y: A.y * k0 + B.y * k1 + C.y * k2 + D.y * k3, z: A.z * k0 + B.z * k1 + C.z * k2 + D.z * k3 };
+    }
     function dashPoint(d, tMs) {
-      if (tMs >= d.cutAt) {
-        return cutPoint(d, easeOut3(clamp((tMs - d.cutAt) / d.cutMs, 0, 1)));
+      if (tMs < d.holdAt) {
+        // Whip in: leaves at its orbit speed, arrives at the wind-up point all but stopped.
+        const u = clamp((tMs - d.start) / (d.holdAt - d.start), 0, 1), v0 = d.v0;
+        const f = v0 * u + (3 - 2 * v0) * u * u + (v0 - 2) * u * u * u;
+        return bez3(d.a, d.b, d.c, d.w, f);
       }
-      // Approach: a cubic from the head along its heading, into the cut along the cut's tangent.
-      const u = clamp((tMs - d.start) / (d.cutAt - d.start), 0, 1), v = 1 - u;
-      const A = d.a, B = d.b, C = d.c, D = d.s0;
-      const k0 = v * v * v, k1 = 3 * v * v * u, k2 = 3 * v * u * u, k3 = u * u * u;
-      return {
-        x: A.x * k0 + B.x * k1 + C.x * k2 + D.x * k3,
-        y: A.y * k0 + B.y * k1 + C.y * k2 + D.y * k3,
-        z: A.z * k0 + B.z * k1 + C.z * k2 + D.z * k3,
-      };
+      if (tMs < d.cutAt) {
+        // Coiled: a slow creep along the line of the cut.
+        const u = clamp((tMs - d.holdAt) / (d.cutAt - d.holdAt), 0, 1);
+        return addS(d.w, d.t0, d.creep * u);
+      }
+      // The strike: ease-out that starts at full speed and keeps a little speed at the end, so it
+      // hands back to the orbit without stalling. Distance along the path, via its length table.
+      const x = clamp((tMs - d.cutAt) / d.strikeMs, 0, 1);
+      const f = 0.85 * (1 - Math.pow(1 - x, 4)) + 0.15 * x;
+      const target = f * d.len[d.len.length - 1];
+      let i = 1;
+      while (i < d.len.length - 1 && d.len[i] < target) i++;
+      const a = d.pts[i - 1], b = d.pts[i];
+      const seg = d.len[i] - d.len[i - 1] || 1;
+      const k = clamp((target - d.len[i - 1]) / seg, 0, 1);
+      return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: a.z + (b.z - a.z) * k };
     }
     function triggerDash(nowMs, path, leadMs, cutMs) {
       if (!head.p || !head.h || lunge) return;
-      const d = { p0: path.p0, cp: path.cp, p1: path.p1, start: nowMs, cutAt: nowMs + Math.max(1, leadMs), cutMs: Math.max(60, cutMs) };
-      d.end = d.cutAt + d.cutMs;
-      d.s0 = cutPoint(d, 0);
-      const s1 = cutPoint(d, 0.03);
-      let tx = s1.x - d.s0.x, ty = s1.y - d.s0.y, tz = s1.z - d.s0.z;
-      const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      const lead = Math.max(60, leadMs);
+      const d = { p0: path.p0, cp: path.cp, p1: path.p1, start: nowMs, cutAt: nowMs + lead };
+      d.holdAt = d.cutAt - Math.min(70, lead * 0.28);
+      d.strikeMs = Math.max(60, cutMs) * 1.4;
+      d.end = d.cutAt + d.strikeMs;
+      const s0 = cutPoint(d, 0);
+      d.t0 = unit(s0, cutPoint(d, 0.04));
+      const back = Math.max(0.7, ring.r * 0.32);
+      d.creep = back * 0.18;
+      d.w = addS(s0, d.t0, -back);                 // the wind-up point, behind the cut's start
+      // The strike path: from where the creep ends, through the whole cut, then on past its end.
+      const pts = [addS(d.w, d.t0, d.creep)];
+      for (let k = 0; k <= 24; k++) pts.push(cutPoint(d, k / 24));
+      const end = pts[pts.length - 1], tEnd = unit(pts[pts.length - 2], end);
+      const over = Math.max(0.9, ring.r * 0.45);
+      for (let k = 1; k <= 4; k++) pts.push(addS(end, tEnd, (over * k) / 4));
+      const len = [0];
+      for (let k = 1; k < pts.length; k++) len.push(len[k - 1] + dist3(pts[k], pts[k - 1]));
+      d.pts = pts; d.len = len;
+      // The whip in: a cubic from the head along its heading, into the wind-up along the cut.
       const a = { ...head.p };
-      const L = Math.max(0.6, Math.hypot(d.s0.x - a.x, d.s0.y - a.y, d.s0.z - a.z) / 3);
+      const L = Math.max(0.6, dist3(d.w, a) / 3);
       d.a = a;
-      d.b = { x: a.x + head.h.x * L, y: a.y + head.h.y * L, z: a.z + head.h.z * L };
-      d.c = { x: d.s0.x - tx * L, y: d.s0.y - ty * L, z: d.s0.z - tz * L };
+      d.b = addS(a, head.h, L);
+      d.c = addS(d.w, d.t0, -L);
+      // Start the whip at the speed it is already flying (capped so the curve stays smooth).
+      const curveLen = dist3(d.a, d.b) + dist3(d.b, d.c) + dist3(d.c, d.w);
+      const orbitSpeed = speed * ring.r;
+      d.v0 = clamp((orbitSpeed * (d.holdAt - d.start) / 1000) / (curveLen || 1), 0, 2.4);
       d.last = nowMs;
       dash = d;
       power = 1.0;

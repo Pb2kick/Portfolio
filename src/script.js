@@ -298,7 +298,7 @@ const siteAudio = (function () {
   // through Web Audio so it can fade in and out smoothly, which element volume can't do on
   // iOS. Plays only after "Enter with sound", and pauses while the tab is hidden.
   const music = (function () {
-    const LEVEL = 0.198; // background level (was 0.22; 10% lower)
+    const LEVEL = 0.178; // background level (was 0.22, then lowered 10% twice)
     let el = null, gain = null, playing = false, fadeTimer = 0;
 
     function setup() {
@@ -447,8 +447,8 @@ window.kprIntro = (function () {
 
   // Blade paths as fractions of the viewport, so they hold on any screen size.
   const STRIKES = [
-    { step: 1, life: 0.40, widthK: 0.036, minW: 16, flash: 0.26, p0: [0.76, 0.20], cp: [0.46, 0.44], p1: [0.24, 0.80] },
-    { step: 2, life: 0.42, widthK: 0.040, minW: 18, flash: 0.30, p0: [0.22, 0.30], cp: [0.52, 0.47], p1: [0.78, 0.70] },
+    { step: 1, life: 0.40, drawK: 4.8, widthK: 0.036, minW: 16, flash: 0.26, p0: [0.76, 0.20], cp: [0.46, 0.44], p1: [0.24, 0.80] },
+    { step: 2, life: 0.42, drawK: 4.8, widthK: 0.040, minW: 18, flash: 0.30, p0: [0.22, 0.30], cp: [0.52, 0.47], p1: [0.78, 0.70] },
     { step: 3, life: 0.50, widthK: 0.052, minW: 24, flash: 0.55, cleave: true, p0: [1.04, 0.14], cp: [0.50, 0.50], p1: [-0.04, 0.86] },
   ];
 
@@ -812,9 +812,10 @@ window.kprIntro = (function () {
       splash.classList.add('is-glitch');
       glitchTimer = setTimeout(() => splash.classList.remove('is-glitch'), 240);
     }
-    // How long a strike's crescent takes to finish drawing (its leading edge eases out and
-    // reaches the end at 1/2.15 of the slash's life; see the blade crescents in the frame loop).
-    const cutMs = (spec) => (spec.life * 1000) / 2.15;
+    // How long a strike's crescent takes to finish drawing: its leading edge eases out and
+    // reaches the end at 1/drawK of the slash's life (see the blade crescents in the frame loop).
+    // The first two strikes draw fast (~85ms) so they snap; the cleave keeps its heavier sweep.
+    const cutMs = (spec) => (spec.life * 1000) / (spec.drawK || 2.15);
     function strike(spec) {
       const now = performance.now();
       const m = Math.min(W, H);
@@ -962,7 +963,7 @@ window.kprIntro = (function () {
         const age = (now - s.born) / 1000;
         if (age > s.life) { slashes.splice(i, 1); continue; }
         const prog = age / s.life;
-        const tEnd = easeOutCubic(Math.min(1, prog * 2.15));
+        const tEnd = easeOutCubic(Math.min(1, prog * (s.drawK || 2.15)));
         const tStart = Math.max(0, (prog - 0.14) * 1.15);
         const alpha = Math.max(0, 1 - Math.pow(prog, 1.8));
         drawCrescent(ctx2d, at(s.p0), at(s.cp), at(s.p1), tStart, tEnd, s.width * (1 - prog * 0.45), alpha);
@@ -1089,8 +1090,9 @@ window.kprIntro = (function () {
     const at = (ms, fn) => timers.push(setTimeout(() => { if (token === runToken) fn(); }, ms));
     // The dragon flies the first two cuts: it whips in just before each strike and its head
     // runs the blade's path as the crescent draws. The second whip starts as the first cut ends.
-    const CUT1_END = HIT1 + Math.round(fx.cutMs(STRIKES[0]));
-    at(HIT1 - 160, () => fx.dash(STRIKES[0], 160));
+    // (dragon3d's strike runs 1.4x the crescent's draw time: the cut, then its follow-through)
+    const CUT1_END = HIT1 + Math.round(fx.cutMs(STRIKES[0]) * 1.4);
+    at(HIT1 - 230, () => fx.dash(STRIKES[0], 230));
     at(CUT1_END, () => fx.dash(STRIKES[1], HIT2 - CUT1_END));
     // The music comes in once the first slash has finished.
     at(CUT1_END, () => siteAudio.startMusic());
