@@ -2519,3 +2519,444 @@ function kprAfterIntro(fn) {
     }
   });
 })();
+
+// ---- Résumé viewer ----
+// A lightbox for the PDF instead of a new tab. The page flies out of the button that opened
+// it and is drawn by PDF.js (vector-sharp, re-drawn as you zoom). Zoom with the wheel, a
+// trackpad or touch pinch, a double-click/tap, the toolbar, the slider or the keyboard
+// (+ - 0 W, arrows); drag to move, with a little momentum and a soft spring at the edges.
+// A minimap shows where you are once zoomed in. Download and open-in-new-tab are always there.
+// If PDF.js can't load, the browser's own PDF viewer is shown; without JavaScript the links
+// just open the PDF.
+(function () {
+  const viewer = document.querySelector('[data-resume-viewer]');
+  const openers = document.querySelectorAll('[data-resume-open]');
+  if (!viewer || !openers.length) return;
+  const PDF_URL = 'assets/Ken-Patrick-R-Ranis-Resume.pdf';
+  const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+  const $ = (s) => viewer.querySelector(s);
+  const stage = $('[data-rv-stage]'), sheet = $('[data-rv-sheet]'), canvas = $('[data-rv-canvas]');
+  const loading = $('[data-rv-loading]'), pctEl = $('[data-rv-pct]'), slider = $('[data-rv-slider]');
+  const mini = $('[data-rv-mini]'), miniCanvas = $('[data-rv-mini-canvas]'), miniView = $('[data-rv-mini-view]');
+  const hint = $('[data-rv-hint]'), closeBtn = $('.rv-close');
+  const ZMIN = 0.5, ZMAX = 6;
+  const PAD_TOP = 70, PAD_BOTTOM = 90, OFFSET_Y = (PAD_TOP - PAD_BOTTOM) / 2;
+
+  let page = null, pdfFailed = false, baseW = 612, baseH = 792; // PDF points; Letter until loaded
+  let fitS = 1, sheetW = 0, sheetH = 0;
+  const cur = { z: 1, x: 0, y: 0 }, tgt = { z: 1, x: 0, y: 0 }; // zoom (1 = page fits) and pan, px
+  let raf = 0, last = 0, isOpen = false, opener = null, hintTimer = 0;
+  let renderTimer = 0, renderTask = null, renderedAt = 0, miniDrawn = false;
+
+  // --- PDF.js, fetched the first time the viewer opens ---
+  let loadPromise = null;
+  function loadPdf() {
+    if (loadPromise) return loadPromise;
+    loadPromise = new Promise((resolve, reject) => {
+      if (window.pdfjsLib) return resolve(window.pdfjsLib);
+      const s = document.createElement('script');
+      s.src = PDFJS + 'pdf.min.js';
+      s.onload = () => (window.pdfjsLib ? resolve(window.pdfjsLib) : reject(new Error('PDF.js missing')));
+      s.onerror = reject;
+      document.head.appendChild(s);
+    }).then((lib) => {
+      lib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
+      return lib.getDocument(PDF_URL).promise;
+    }).then((doc) => doc.getPage(1)).then((p) => {
+      page = p;
+      const vp = p.getViewport({ scale: 1 });
+      baseW = vp.width; baseH = vp.height;
+    });
+    return loadPromise;
+  }
+  // PDF.js unavailable: show the browser's own viewer in the sheet, keep download / new tab.
+  function fallback() {
+    pdfFailed = true;
+    viewer.classList.add('is-fallback');
+    loading.hidden = true;
+    canvas.hidden = true;
+    if (!sheet.querySelector('iframe')) {
+      const f = document.createElement('iframe');
+      f.src = PDF_URL + '#view=FitH';
+      f.title = 'Résumé of Ken Patrick R. Ranis';
+      sheet.appendChild(f);
+    }
+  }
+
+  // --- layout and view maths ---
+  function layout() {
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const padX = Math.min(64, sw * 0.06);
+    fitS = Math.min((sw - padX * 2) / baseW, (sh - PAD_TOP - PAD_BOTTOM) / baseH);
+    sheetW = baseW * fitS; sheetH = baseH * fitS;
+    sheet.style.width = sheetW + 'px';
+    sheet.style.height = sheetH + 'px';
+    sheet.style.marginLeft = -sheetW / 2 + 'px';
+    sheet.style.marginTop = -sheetH / 2 + OFFSET_Y + 'px';
+  }
+  // How far the sheet may move: centred when it fits, edge to edge (plus some air) when not.
+  function bounds(z) {
+    const bx = Math.max(0, (sheetW * z - stage.clientWidth) / 2 + 40);
+    const by = Math.max(0, (sheetH * z - stage.clientHeight) / 2 + 90);
+    return { bx, by };
+  }
+  function clampTarget() {
+    tgt.z = Math.min(ZMAX, Math.max(ZMIN, tgt.z));
+    const { bx, by } = bounds(tgt.z);
+    tgt.x = Math.max(-bx, Math.min(bx, tgt.x));
+    tgt.y = Math.max(-by, Math.min(by, tgt.y));
+  }
+  function stageCentre() {
+    const r = stage.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 + OFFSET_Y };
+  }
+  // Zoom so the point under (cx, cy) stays put.
+  function zoomTo(z, cx, cy) {
+    const c = stageCentre();
+    const px = (cx === undefined ? c.x : cx) - c.x, py = (cy === undefined ? c.y : cy) - c.y;
+    const nz = Math.min(ZMAX, Math.max(ZMIN, z));
+    const lx = (px - tgt.x) / tgt.z, ly = (py - tgt.y) / tgt.z;
+    tgt.x = px - lx * nz; tgt.y = py - ly * nz; tgt.z = nz;
+    clampTarget();
+    kick();
+  }
+  function fit(mode) {
+    if (mode === 'width') {
+      tgt.z = Math.min(ZMAX, Math.max(ZMIN, (stage.clientWidth - 80) / sheetW));
+      tgt.x = 0;
+      tgt.y = bounds(tgt.z).by; // show the top of the page
+    } else {
+      tgt.z = 1; tgt.x = 0; tgt.y = 0;
+    }
+    clampTarget();
+    kick();
+  }
+
+  // --- animation: the view eases toward its target (instant with reduced motion) ---
+  let dragging = false;
+  function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function frame(now) {
+    raf = 0;
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 14);
+    cur.z += (tgt.z - cur.z) * k;
+    if (!dragging) { cur.x += (tgt.x - cur.x) * k; cur.y += (tgt.y - cur.y) * k; }
+    const moving = Math.abs(tgt.z - cur.z) > 0.0005 ||
+      (!dragging && (Math.abs(tgt.x - cur.x) > 0.25 || Math.abs(tgt.y - cur.y) > 0.25));
+    if (moving) raf = requestAnimationFrame(frame);
+    else {
+      cur.z = tgt.z;
+      if (!dragging) { cur.x = tgt.x; cur.y = tgt.y; }
+      scheduleRender();
+    }
+    apply();
+  }
+  function apply() {
+    sheet.style.transform = `translate3d(${cur.x.toFixed(2)}px, ${cur.y.toFixed(2)}px, 0) scale(${cur.z.toFixed(4)})`;
+    // percent of printed size (PDF points are 1/72 inch, CSS pixels 1/96)
+    pctEl.textContent = Math.round(fitS * cur.z * 75) + '%';
+    slider.value = String(Math.round((Math.log(cur.z / ZMIN) / Math.log(ZMAX / ZMIN)) * 1000));
+    updateMini();
+  }
+
+  // --- sharp rendering: re-draw at the zoom's resolution once it settles ---
+  function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(render, 120); }
+  function render() {
+    if (!page || !isOpen) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let s = Math.max(fitS * dpr, fitS * tgt.z * dpr);
+    s = Math.min(s, 8192 / baseW, 8192 / baseH, Math.sqrt(24e6 / (baseW * baseH)));
+    if (renderedAt && Math.abs(s - renderedAt) / renderedAt < 0.12) return;
+    if (renderTask) { try { renderTask.cancel(); } catch (e) {} }
+    const vp = page.getViewport({ scale: s });
+    const off = document.createElement('canvas'); // draw off-screen, then swap: no blank flashes
+    off.width = Math.ceil(vp.width); off.height = Math.ceil(vp.height);
+    const task = page.render({ canvasContext: off.getContext('2d'), viewport: vp });
+    renderTask = task;
+    task.promise.then(() => {
+      if (renderTask !== task) return;
+      renderTask = null;
+      canvas.width = off.width; canvas.height = off.height;
+      canvas.getContext('2d').drawImage(off, 0, 0);
+      renderedAt = s;
+      loading.hidden = true;
+      if (!miniDrawn) drawMini();
+    }).catch(() => {});
+  }
+
+  // --- minimap: where you are on the page once zoomed in; click or drag it to move ---
+  function drawMini() {
+    const w = 240, h = Math.round(w * baseH / baseW);
+    miniCanvas.width = w; miniCanvas.height = h;
+    miniCanvas.getContext('2d').drawImage(canvas, 0, 0, w, h);
+    miniDrawn = true;
+  }
+  function updateMini() {
+    const on = cur.z > 1.08 && !pdfFailed && miniDrawn;
+    mini.classList.toggle('is-on', on);
+    if (!on) return;
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const W2 = sheetW * cur.z, H2 = sheetH * cur.z;
+    const left = (W2 / 2 - cur.x - sw / 2) / W2, top = (H2 / 2 - cur.y - sh / 2 + OFFSET_Y) / H2;
+    const c01 = (v) => Math.max(0, Math.min(1, v));
+    const x0 = c01(left), y0 = c01(top), x1 = c01(left + sw / W2), y1 = c01(top + sh / H2);
+    const mw = miniCanvas.clientWidth, mh = miniCanvas.clientHeight;
+    miniView.style.left = miniCanvas.offsetLeft + x0 * mw + 'px';
+    miniView.style.top = miniCanvas.offsetTop + y0 * mh + 'px';
+    miniView.style.width = (x1 - x0) * mw + 'px';
+    miniView.style.height = (y1 - y0) * mh + 'px';
+  }
+  function miniJump(e) {
+    const r = miniCanvas.getBoundingClientRect();
+    const fx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const fy = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+    tgt.x = -(fx - 0.5) * sheetW * tgt.z;
+    tgt.y = -(fy - 0.5) * sheetH * tgt.z;
+    clampTarget();
+    kick();
+  }
+  mini.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    mini.setPointerCapture(e.pointerId);
+    miniJump(e);
+    const move = (ev) => miniJump(ev);
+    const up = () => { mini.removeEventListener('pointermove', move); mini.removeEventListener('pointerup', up); };
+    mini.addEventListener('pointermove', move);
+    mini.addEventListener('pointerup', up);
+  });
+
+  // --- pointers: one drags (with momentum), two pinch about their midpoint ---
+  const pts = new Map();
+  let lastMove = null, vel = { x: 0, y: 0 }, pinch = null, lastTap = 0, travel = 0, downOnSheet = false;
+  function hideHint() { hint.classList.add('is-gone'); }
+  stage.addEventListener('pointerdown', (e) => {
+    if (pdfFailed || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    stage.setPointerCapture(e.pointerId);
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    hideHint();
+    if (pts.size === 1) {
+      downOnSheet = sheet.contains(e.target);
+      travel = 0;
+      const now = performance.now();
+      if (downOnSheet && now - lastTap < 300) { // double-click / double-tap
+        lastTap = 0;
+        if (tgt.z < 1.6) zoomTo(2.6, e.clientX, e.clientY); else fit('page');
+        return;
+      }
+      lastTap = now;
+      dragging = true;
+      stage.classList.add('is-dragging');
+      lastMove = { x: e.clientX, y: e.clientY, t: now };
+      vel = { x: 0, y: 0 };
+    } else if (pts.size === 2) {
+      dragging = false;
+      const [a, b] = [...pts.values()];
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: tgt.z, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+    }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch && pts.size >= 2) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      tgt.x += mx - pinch.mx; tgt.y += my - pinch.my;
+      pinch.mx = mx; pinch.my = my;
+      zoomTo(pinch.z * (d / pinch.d), mx, my);
+      return;
+    }
+    if (!dragging) return;
+    const now = performance.now();
+    const dx = e.clientX - lastMove.x, dy = e.clientY - lastMove.y;
+    travel += Math.abs(dx) + Math.abs(dy);
+    const ms = Math.max(1, now - lastMove.t);
+    vel = { x: (dx / ms) * 1000 * 0.7 + vel.x * 0.3, y: (dy / ms) * 1000 * 0.7 + vel.y * 0.3 };
+    lastMove = { x: e.clientX, y: e.clientY, t: now };
+    // past the edges the sheet resists like rubber, then springs back on release
+    const { bx, by } = bounds(cur.z);
+    cur.x += dx * (Math.abs(cur.x + dx) > bx ? 0.35 : 1);
+    cur.y += dy * (Math.abs(cur.y + dy) > by ? 0.35 : 1);
+    tgt.x = cur.x; tgt.y = cur.y;
+    apply();
+  });
+  function endPointer(e) {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size < 2) pinch = null;
+    if (pts.size === 1) { // pinch -> carry on dragging with the finger that's left
+      const p = [...pts.values()][0];
+      dragging = true;
+      lastMove = { x: p.x, y: p.y, t: performance.now() };
+      vel = { x: 0, y: 0 };
+      return;
+    }
+    if (pts.size === 0) {
+      const wasDragging = dragging;
+      dragging = false;
+      stage.classList.remove('is-dragging');
+      // a plain click off the page closes the viewer, like any lightbox
+      if (wasDragging && travel < 6 && !downOnSheet) { close(); return; }
+      // fling: keep going the way it was thrown, then settle inside the bounds
+      if (wasDragging && !reduceMotion && performance.now() - lastMove.t < 90) {
+        tgt.x = cur.x + vel.x * 0.22;
+        tgt.y = cur.y + vel.y * 0.22;
+      }
+      clampTarget();
+      kick();
+    }
+  }
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+
+  // Wheel: a mouse wheel or a trackpad pinch (ctrlKey) zooms toward the cursor; a trackpad's
+  // two-finger scroll moves the page.
+  stage.addEventListener('wheel', (e) => {
+    if (pdfFailed) return;
+    e.preventDefault();
+    hideHint();
+    const lines = e.deltaMode === 1;
+    const mouseWheel = lines || (Math.abs(e.deltaY) >= 40 && Math.abs(e.deltaX) < 1 && Number.isInteger(e.deltaY));
+    if (e.ctrlKey || mouseWheel) {
+      const dy = lines ? e.deltaY * 33 : e.deltaY;
+      zoomTo(tgt.z * Math.exp(-dy * (e.ctrlKey ? 0.012 : 0.0016)), e.clientX, e.clientY);
+    } else {
+      tgt.x -= e.deltaX; tgt.y -= e.deltaY;
+      clampTarget();
+      kick();
+    }
+  }, { passive: false });
+
+  // --- toolbar ---
+  viewer.querySelectorAll('[data-rv-zoom]').forEach((b) => b.addEventListener('click', () => {
+    zoomTo(tgt.z * (b.dataset.rvZoom === 'in' ? 1.35 : 1 / 1.35));
+  }));
+  viewer.querySelectorAll('[data-rv-fit]').forEach((b) => b.addEventListener('click', () => fit(b.dataset.rvFit)));
+  slider.addEventListener('input', () => zoomTo(ZMIN * Math.pow(ZMAX / ZMIN, slider.value / 1000)));
+  viewer.querySelectorAll('[data-rv-close]').forEach((b) => b.addEventListener('click', close));
+
+  // --- keyboard: + - 0 W and arrows; Esc closes; Tab stays inside the viewer ---
+  function focusables() {
+    return [...viewer.querySelectorAll('button, a[href], input')].filter((el) => el.offsetParent !== null);
+  }
+  viewer.addEventListener('keydown', (e) => {
+    e.stopPropagation(); // keep the page's own shortcuts (1 2 3 tabs) quiet while it's open
+    const k = e.key;
+    if (k === 'Escape') { e.preventDefault(); close(); return; }
+    if (k === 'Tab') {
+      const f = focusables(), i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+      else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      return;
+    }
+    if (e.target === slider && k.startsWith('Arrow')) return;
+    if (k === '+' || k === '=') zoomTo(tgt.z * 1.25);
+    else if (k === '-' || k === '_') zoomTo(tgt.z / 1.25);
+    else if (k === '0') fit('page');
+    else if (k === 'w' || k === 'W') fit('width');
+    else if (k.startsWith('Arrow')) {
+      const step = 90;
+      if (k === 'ArrowLeft') tgt.x += step;
+      if (k === 'ArrowRight') tgt.x -= step;
+      if (k === 'ArrowUp') tgt.y += step;
+      if (k === 'ArrowDown') tgt.y -= step;
+      clampTarget();
+      kick();
+    } else return;
+    e.preventDefault();
+    hideHint();
+  });
+
+  window.addEventListener('resize', () => {
+    if (!isOpen) return;
+    layout();
+    clampTarget();
+    Object.assign(cur, tgt);
+    apply();
+    renderedAt = 0;
+    scheduleRender();
+  });
+
+  // --- open / close: the sheet flies out of the button and back into it ---
+  function flight(el) {
+    const r = el.getBoundingClientRect(), s = sheet.getBoundingClientRect();
+    const baseCx = s.left + s.width / 2 - cur.x, baseCy = s.top + s.height / 2 - cur.y;
+    return {
+      dx: r.left + r.width / 2 - baseCx,
+      dy: r.top + r.height / 2 - baseCy,
+      sc: Math.max(0.04, r.width / sheetW),
+    };
+  }
+  let closeAnims = [];
+  function open(fromEl) {
+    if (isOpen) return;
+    isOpen = true;
+    // reopened while still closing: stop the close so it can't hide the viewer afterwards
+    closeAnims.forEach((a) => a.cancel());
+    closeAnims = [];
+    opener = fromEl;
+    viewer.hidden = false;
+    viewer.classList.remove('is-closing');
+    document.documentElement.style.overflow = 'hidden';
+    if (window.kprLenis) window.kprLenis.stop();
+    layout();
+    Object.assign(tgt, { z: 1, x: 0, y: 0 });
+    Object.assign(cur, tgt);
+    apply();
+    if (window.matchMedia && matchMedia('(pointer: coarse)').matches) {
+      hint.textContent = 'Pinch to zoom · drag to move · double-tap to zoom in';
+    }
+    hint.classList.remove('is-gone');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(hideHint, 5000);
+    if (!reduceMotion && fromEl && sheet.animate) {
+      const f = flight(fromEl);
+      sheet.animate([
+        { transform: `translate3d(${f.dx}px, ${f.dy}px, 0) scale(${f.sc})`, opacity: 0.25 },
+        { transform: 'translate3d(0px, 0px, 0) scale(1)', opacity: 1 },
+      ], { duration: 560, easing: 'cubic-bezier(.16, 1, .3, 1)' });
+    }
+    if (viewer.animate) viewer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: reduceMotion ? 120 : 260, easing: 'ease-out' });
+    closeBtn.focus({ preventScroll: true });
+    if (page) { renderedAt = 0; render(); }
+    else if (!pdfFailed) {
+      loading.hidden = false;
+      loadPdf().then(() => { layout(); apply(); render(); }).catch(fallback);
+    }
+  }
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    clearTimeout(renderTimer);
+    const done = () => {
+      closeAnims = [];
+      if (isOpen) return; // reopened in the meantime
+      viewer.hidden = true;
+      document.documentElement.style.overflow = '';
+      if (window.kprLenis) window.kprLenis.start();
+      if (opener && opener.isConnected) opener.focus({ preventScroll: true });
+    };
+    if (!reduceMotion && opener && sheet.animate) {
+      const f = flight(opener);
+      const a = sheet.animate([
+        { transform: sheet.style.transform, opacity: 1 },
+        { transform: `translate3d(${f.dx}px, ${f.dy}px, 0) scale(${f.sc})`, opacity: 0 },
+      ], { duration: 380, easing: 'cubic-bezier(.5, 0, .75, 0)', fill: 'forwards' });
+      const b = viewer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, easing: 'ease-in', fill: 'forwards' });
+      closeAnims = [a, b];
+      a.onfinish = () => { a.cancel(); b.cancel(); done(); };
+    } else {
+      done();
+    }
+  }
+
+  openers.forEach((a) => a.addEventListener('click', (e) => {
+    // let ctrl/cmd/shift/middle clicks open the PDF in a new tab or window as usual
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    open(a);
+  }));
+  // warm the cache when someone heads for a résumé link, so it opens instantly
+  openers.forEach((a) => a.addEventListener('pointerenter', () => { if (!page && !pdfFailed) loadPdf().catch(() => {}); }, { once: true }));
+  window.kprResume = { open: () => open(openers[0]), close, state: () => ({ open: isOpen, z: tgt.z, x: tgt.x, y: tgt.y, page: !!page, fallback: pdfFailed, renderedAt }) };
+})();

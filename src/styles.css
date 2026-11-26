@@ -719,13 +719,14 @@ html:not(.js) #info { margin-top: 2.9rem; }
 .chip[aria-pressed="true"] { color: var(--lime-ink); background: var(--lime); border-color: var(--lime); }
 .chip.is-related { color: var(--accent-text); border-color: var(--accent-text); }
 .stack.is-tracing .chip:not([aria-pressed="true"]):not(.is-related) { opacity: .45; }
-/* Each logo is a single-colour SVG used as a mask, so it follows the theme colour. */
+/* Each logo is a symbol in the inline sprite at the top of the page, filled with currentColor,
+   so it follows the theme. (It used to be a CSS mask fed through var(), which some browsers,
+   Safari among them, and Windows high-contrast mode don't render.) */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 .tech-icon {
   flex: none;
   width: 1rem; height: 1rem;
-  background-color: currentColor;
-  -webkit-mask: var(--icon) center / contain no-repeat;
-  mask: var(--icon) center / contain no-repeat;
+  fill: currentColor;
 }
 .stack-note { margin-top: 1rem; font-size: .72rem; color: var(--muted); }
 
@@ -1027,6 +1028,127 @@ html.has-dock .toast { bottom: 5.25rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dock, .dock-label { transition: none; }
+}
+
+/* ---------- Résumé viewer ----------
+   A lightbox for the PDF: dark in both themes, the page as a sheet you can zoom and drag.
+   script.js drives the sheet's transform and the open/close flight from the button. */
+.rv {
+  position: fixed; inset: 0; z-index: 200;
+  color: #eaffea;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+.rv[hidden] { display: none; }
+.rv-backdrop {
+  position: absolute; inset: 0;
+  background: radial-gradient(70% 70% at 50% 45%, rgba(10, 22, 10, .82) 0%, rgba(2, 4, 2, .94) 100%);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+.rv-stage { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
+.rv-stage.is-dragging { cursor: grabbing; }
+.rv-sheet {
+  position: absolute; left: 50%; top: 50%;
+  background: #fff;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .75), 0 0 0 1px rgba(68, 214, 44, .25);
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+.rv-canvas { display: block; width: 100%; height: 100%; }
+.rv-loading {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: .8125rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: #2a332a; background: #fff;
+}
+.rv-loading[hidden] { display: none; }
+.rv-sheet iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+.rv-top {
+  position: absolute; left: 0; right: 0; top: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: .9rem var(--gutter) 1.6rem;
+  /* a soft dark fade so the title stays readable when a zoomed page slides under it */
+  background: linear-gradient(to bottom, rgba(2, 4, 2, .88) 0%, rgba(2, 4, 2, .55) 60%, rgba(2, 4, 2, 0) 100%);
+  pointer-events: none;
+}
+.rv-top > * { pointer-events: auto; }
+.rv-title { font-size: .8125rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.rv-title span { color: #44d62c; }
+
+.rv-btn, .rv-pct {
+  display: inline-grid; place-items: center; grid-auto-flow: column; gap: .4rem;
+  min-width: 2.5rem; height: 2.5rem; padding: 0 .55rem;
+  font: inherit; font-size: .75rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: #eaffea; background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(68, 214, 44, .28);
+  clip-path: var(--chamfer-sm);
+  cursor: pointer;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+.rv-btn svg { width: 1.05rem; height: 1.05rem; }
+.rv-btn:hover, .rv-pct:hover { color: #040804; background: #44d62c; border-color: #44d62c; }
+.rv-btn:focus-visible, .rv-pct:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #eaffea; }
+.rv-download { color: #040804; background: #44d62c; border-color: #44d62c; }
+.rv-download:hover { background: #5fe04a; }
+.rv-pct { min-width: 4.2rem; font-variant-numeric: tabular-nums; }
+
+.rv-bar {
+  position: absolute; left: 50%; bottom: 1rem;
+  display: flex; align-items: center; gap: .35rem;
+  max-width: calc(100% - 2 * var(--gutter));
+  padding: .45rem;
+  translate: -50% 0;
+  background: rgba(8, 12, 8, .82);
+  border: 1px solid rgba(68, 214, 44, .22);
+  clip-path: var(--chamfer-md);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.rv-sep { width: 1px; height: 1.6rem; margin: 0 .2rem; background: rgba(68, 214, 44, .22); }
+.rv-slider { width: 7.5rem; accent-color: #44d62c; cursor: pointer; }
+
+.rv-mini {
+  position: absolute; right: var(--gutter); bottom: 5.2rem;
+  width: 7.5rem;
+  padding: .3rem;
+  background: rgba(8, 12, 8, .82);
+  border: 1px solid rgba(68, 214, 44, .3);
+  opacity: 0; visibility: hidden;
+  transition: opacity .25s ease, visibility 0s linear .25s;
+  cursor: crosshair;
+  touch-action: none;
+}
+.rv-mini.is-on { opacity: 1; visibility: visible; transition-delay: 0s; }
+.rv-mini canvas { display: block; width: 100%; height: auto; background: #fff; }
+.rv-mini-view {
+  position: absolute; left: 0; top: 0;
+  border: 1.5px solid #44d62c;
+  background: rgba(68, 214, 44, .14);
+  pointer-events: none;
+}
+.rv-hint {
+  position: absolute; left: 50%; bottom: 4.6rem;
+  translate: -50% 0;
+  padding: .35rem .7rem;
+  font-size: .72rem; white-space: nowrap;
+  color: rgba(234, 255, 234, .75);
+  background: rgba(8, 12, 8, .7);
+  pointer-events: none;
+  transition: opacity .6s ease;
+}
+.rv-hint.is-gone { opacity: 0; }
+/* PDF.js couldn't load: the browser's own viewer is in the sheet, so hide our zoom controls. */
+.rv.is-fallback [data-rv-zoom], .rv.is-fallback .rv-pct, .rv.is-fallback .rv-slider,
+.rv.is-fallback [data-rv-fit], .rv.is-fallback .rv-hint, .rv.is-fallback .rv-sep { display: none; }
+.rv.is-fallback .rv-stage { cursor: auto; }
+
+@media (max-width: 640px) {
+  .rv-slider, .rv-text span, .rv-sep { display: none; }
+  .rv-btn { min-width: 2.35rem; height: 2.35rem; }
+  .rv-mini { display: none; }
+  .rv-hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100% - 2rem); }
 }
 
 /* Hover/focus hint on links to sites that may need waking up */
