@@ -1,7 +1,11 @@
-// Real-time 3D WebGL spirit dragon for the KPR intro (no external dependencies).
-// An original long-dragon design in a bright glowing lime: a sculpted head
-// with branching antlers, glowing eyes, a hinged jaw and S-wave whiskers, on a parallel-transport
-// serpentine body with overlapping scales, belly scutes, a sawtooth dorsal crest and HDR bloom.
+// Real-time 3D WebGL Genji Shimada Spirit Dragon renderer (zero external dependencies).
+// Anatomically sculpted Overwatch-inspired Eastern Ryu head (carved stepped chevron snout,
+// organic Ruyi cloud-nose with flared comma nostrils, sculpted flame-brow plates over deep
+// recessed sockets & blazing almond spirit eyes, broad scooped dragon ears, majestic swept
+// crown horns, 6-tier overlapping lion-like cheek-mane & collar ruff, flowing wisdom beard,
+// poised hinged mandible with curved fangs & grooved glowing tongue, and calligraphic S-wave
+// whiskers) fused onto a high-res serpentine body with carved jade scales, curved belly scutes,
+// swept flame-blade dorsal crest, translucent subsurface-lit jade shader, and selective HDR bloom.
 (function () {
   'use strict';
 
@@ -228,45 +232,49 @@
     return { addVert, addTri, addQuad, loftRings, addSculptedSpike, buildFloat32 };
   }
 
-  // -------------------- Sculpt the dragon head --------------------
+  // -------------------- Sculpt Authentic Genji Shimada Ryu Head --------------------
   function buildDragonHeadMeshes() {
     const upper = createMeshBuilder();
 
-    // High-density sculpted cranium & chiseled Oriental muzzle with rounded Ruyi nose boss
-    const Z_RINGS = 46;
-    const RAD_SEGS = 36;
+    // High-density sculpted cranium & noble Eastern Ryu muzzle with sleek tapered bridge & Ruyi nose
+    const Z_RINGS = 56;
+    const RAD_SEGS = 44;
     const skullRings = [];
 
     for (let r = 0; r < Z_RINGS; r++) {
       const u = r / (Z_RINGS - 1);
-      // Cosine-clustered spacing near snout tip (u > 0.8) so the rounded front nose & nostrils have high detail!
-      const uMapped = u < 0.80 ? (u / 0.80) * 0.86 : 0.86 + Math.sin(((u - 0.80) / 0.20) * (Math.PI * 0.5)) * 0.14;
-      const z = lerp(-0.62, 1.48, uMapped);
+      // Cosine-clustered spacing near snout tip so the Ruyi nose & comma nostrils sculpt cleanly
+      const uMapped = u < 0.76 ? (u / 0.76) * 0.84 : 0.84 + Math.sin(((u - 0.76) / 0.24) * (Math.PI * 0.5)) * 0.16;
+      const z = lerp(-0.74, 1.48, uMapped);
 
-      // Smooth rounded dome closure over the front of the Ruyi nose pad (zero flat square shovel!)
-      const domeT = clamp((z - 1.24) / 0.24, 0, 1);
-      const snoutDome = Math.sqrt(Math.max(0.004, 1 - domeT * domeT));
+      // Smooth rounded Ruyi nose dome closure (tucks cleanly without a sharp front pole pinch!)
+      const domeT = clamp((z - 1.30) / 0.18, 0, 1);
+      const snoutDome = Math.sqrt(Math.max(0.012, 1 - domeT * domeT));
 
-      // Width profile: muscular cranium -> wide cheekbones -> tapered muzzle waist -> compact Oriental Ruyi nose shield
-      const cheekFlare = Math.exp(-Math.pow((z - 0.04) / 0.32, 2)) * 0.19;
-      const muzzleWaist = -Math.exp(-Math.pow((z - 0.72) / 0.28, 2)) * 0.12;
-      const nosePad = Math.exp(-Math.pow((z - 1.22) / 0.18, 2)) * 0.05;
-      const halfW = (0.39 + cheekFlare + muzzleWaist + nosePad) * snoutDome;
+      // Authentic Ref 1/2/3 proportions: WIDE commanding cranium & cheekbones -> SLEEK tapered muzzle -> compact Ruyi nose!
+      const backNeckTaper = lerp(0.82, 1.0, smoothstep(-0.74, -0.32, z));
+      const muzzleTaper = lerp(1.0, 0.60, smoothstep(0.18, 1.04, z));
+      const cheekFlare = Math.exp(-Math.pow((z - 0.04) / 0.34, 2)) * 0.22;
+      const muzzleWaist = -Math.exp(-Math.pow((z - 0.78) / 0.26, 2)) * 0.055;
+      const nosePad = Math.exp(-Math.pow((z - 1.22) / 0.17, 2)) * 0.072;
+      const halfW = (0.42 * backNeckTaper * muzzleTaper + cheekFlare + muzzleWaist + nosePad) * snoutDome;
 
-      // Dorsal profile: crown -> scowling brow -> saddle dip -> proud upturned Eastern nasal boss!
-      const browPeak = Math.exp(-Math.pow((z - 0.14) / 0.25, 2)) * 0.17;
-      const bridgeDip = -Math.exp(-Math.pow((z - 0.72) / 0.28, 2)) * 0.14;
-      const upturnedNose = Math.exp(-Math.pow((z - 1.22) / 0.19, 2)) * 0.19;
-      const rawTopY = 0.43 + browPeak + bridgeDip + upturnedNose;
-      const noseCenterY = 0.24;
+      // Authentic Ref 2 side profile: HIGH commanding crown & brow -> graceful descending bridge -> sleek slightly upturned Ruyi nose
+      const crownSlope = lerp(0.38, 0.50, smoothstep(-0.74, -0.10, z));
+      const bridgeDrop = lerp(0.0, -0.18, smoothstep(0.24, 0.86, z));
+      const browPeak = Math.exp(-Math.pow((z - 0.14) / 0.26, 2)) * 0.16;
+      const bridgeDip = -Math.exp(-Math.pow((z - 0.76) / 0.24, 2)) * 0.06;
+      const upturnedNose = Math.exp(-Math.pow((z - 1.22) / 0.17, 2)) * 0.115;
+      const rawTopY = crownSlope + bridgeDrop + browPeak + bridgeDip + upturnedNose;
+      const noseCenterY = 0.21;
       const topY = lerp(noseCenterY, rawTopY, snoutDome);
 
-      // Scalloped fierce Oriental upper lip margin
+      // Scalloped Oriental dragon upper lip line (Ref 2)
       const lipS =
-        Math.sin((z + 0.12) * 4.5) * 0.028 -
-        Math.exp(-Math.pow((z - 1.06) / 0.13, 2)) * 0.050 +
-        smoothstep(1.20, 1.44, z) * 0.08;
-      const rawBotY = z < -0.10 ? lerp(-0.22, 0.04, smoothstep(-0.62, -0.10, z)) : (0.03 + lipS);
+        Math.sin((z + 0.14) * 4.5) * 0.026 -
+        Math.exp(-Math.pow((z - 1.02) / 0.13, 2)) * 0.045 +
+        smoothstep(1.18, 1.44, z) * 0.092;
+      const rawBotY = z < -0.12 ? lerp(-0.26, 0.03, smoothstep(-0.74, -0.12, z)) : (0.025 + lipS);
       const botY = lerp(noseCenterY, rawBotY, snoutDome);
 
       const row = [];
@@ -276,91 +284,102 @@
         const absCa = Math.abs(ca);
         const sideSign = ca >= 0 ? 1 : -1;
 
-        // Chiseled mid-snout bridge that relaxes back to organic rounded Ruyi nose bosses at the front!
-        const boxiness = smoothstep(-0.08, 0.45, z) * smoothstep(1.22, 0.88, z) * 0.24;
+        const boxiness = smoothstep(-0.08, 0.44, z) * smoothstep(1.14, 0.82, z) * 0.18;
         const shapedX = Math.sign(ca) * Math.pow(absCa, 1 - boxiness);
-        const shapedY = sa >= 0 ? Math.pow(sa, 1 - boxiness * 0.8) : sa;
+        const shapedY = sa >= 0 ? Math.pow(sa, 1 - boxiness * 0.7) : sa;
 
-        // Taper lower snout/gumline inward near the front tip so the nose pad forms a proud shield (wider at nostrils than lip, never duckbilled!)
-        const frontLipTaper = 1.0 - smoothstep(0.92, 1.44, z) * (1.0 - clamp(sa, 0.0, 1.0)) * 0.34;
+        // Round the lower-front lip corners inward cleanly so the Ruyi nose pad has an organic cloud silhouette (Ref 3)
+        const frontLipTaper = 1.0 - smoothstep(0.94, 1.44, z) * (1.0 - smoothstep(-0.1, 0.55, sa)) * 0.36;
         let x = shapedX * halfW * frontLipTaper;
         let y = sa >= 0 ? lerp(botY, topY, shapedY) : botY;
         let zOut = z;
-        let cavity = 0.52;
+        let cavity = 0.54;
         let mId = MAT_HEAD;
 
         if (sa >= 0) {
-          // 1) DEEP ANGRY V-SHAPED BROW FURROW & OVERHANGING SUPRAORBITAL RIDGE
-          const browRegion = Math.exp(-Math.pow((z - 0.22) / 0.20, 2));
-          const centerScowl = browRegion * Math.exp(-Math.pow(absCa / 0.22, 2)) * smoothstep(0.58, 0.98, sa);
-          y -= centerScowl * 0.16;
-          cavity -= centerScowl * 0.46;
+          // 1) NOBLE FURROWED GLABELLA & DEEP-SET ORBITAL ARCH (Ref 1, 2, 3, 4)
+          const browRegion = Math.exp(-Math.pow((z - 0.18) / 0.22, 2));
+          const centerScowl = browRegion * Math.exp(-Math.pow(absCa / 0.20, 2)) * smoothstep(0.50, 0.98, sa);
+          y -= centerScowl * 0.145;
+          cavity -= centerScowl * 0.54;
 
-          const browCrest = Math.exp(-Math.pow((z - (0.32 - absCa * 0.25)) / 0.14, 2)) *
-            Math.exp(-Math.pow((absCa - 0.68) / 0.23, 2)) * smoothstep(0.36, 0.84, sa);
-          y += browCrest * 0.24;
+          const browCrest = Math.exp(-Math.pow((z - (0.30 - absCa * 0.24)) / 0.15, 2)) *
+            Math.exp(-Math.pow((absCa - 0.64) / 0.23, 2)) * smoothstep(0.38, 0.86, sa);
+          y += browCrest * 0.21;
           x += sideSign * browCrest * 0.14;
-          cavity += browCrest * 0.36;
+          cavity += browCrest * 0.34;
 
-          // Deep dark-olive orbital socket recessed clearly inward so the protruding blazing eye gem is 100% unoccluded!
-          const socketDist = Math.hypot((z - 0.26) / 0.16, (absCa - 0.78) / 0.22, (sa - 0.42) / 0.24);
-          if (socketDist < 1.35) {
-            const pit = Math.exp(-Math.pow(socketDist / 0.75, 2));
+          // Deep dark-jade orbital socket recessed cleanly so the piercing eyes shine from both front & 3/4!
+          const socketDist = Math.hypot((z - 0.26) / 0.18, (absCa - 0.74) / 0.24, (sa - 0.44) / 0.24);
+          if (socketDist < 1.38) {
+            const pit = Math.exp(-Math.pow(socketDist / 0.78, 2));
             x -= sideSign * pit * 0.19;
-            y -= pit * 0.09;
-            cavity -= pit * 0.65;
+            y -= pit * 0.075;
+            cavity -= pit * 0.72;
           }
 
-          // 2) Smooth nasal bridge with a single soft central ridge line
-          if (z > 0.34 && z < 1.10 && sa > 0.60) {
-            const bridgeMask = smoothstep(0.34, 0.50, z) * smoothstep(1.10, 0.92, z) * smoothstep(0.60, 0.85, sa);
-            const ridge = Math.exp(-Math.pow(absCa / 0.12, 2));
-            y += ridge * 0.035 * bridgeMask;
-            cavity += (ridge - 0.3) * 0.3 * bridgeMask;
+          // 2) CARVED STEPPED CHEVRON NASAL BRIDGE PLATES (Ref 1, 3, 4!)
+          if (z > 0.32 && z < 1.08 && sa > 0.52) {
+            const bridgeMask = smoothstep(0.32, 0.44, z) * smoothstep(1.08, 0.94, z) * smoothstep(0.52, 0.84, sa);
+            const chev = z + absCa * 0.13;
+            const stepWave = Math.pow(0.5 + 0.5 * Math.cos((chev - 0.36) * 26.0), 1.6);
+            const centerCrest = Math.exp(-Math.pow(absCa / 0.20, 2)) * 0.022;
+            y += ((stepWave - 0.32) * 0.052 + centerCrest) * bridgeMask;
+            cavity += (stepWave - 0.48) * 0.58 * bridgeMask;
           }
 
-          // 3) Rounded nose and forward-facing teardrop nostrils
-          const philtrum = Math.exp(-Math.pow((z - 1.34) / 0.14, 2)) * Math.exp(-Math.pow(absCa / 0.18, 2)) * smoothstep(0.15, 0.95, sa);
-          y -= philtrum * 0.065;
-          zOut -= philtrum * 0.045;
-          cavity -= philtrum * 0.36;
+          // 3) ORGANIC RUYI CLOUD-SCROLL NOSE & DEEP FORWARD-FACING COMMA NOSTRILS (Ref 1, 3, 4!)
+          const philtrum = Math.exp(-Math.pow((z - 1.38) / 0.13, 2)) * Math.exp(-Math.pow(absCa / 0.16, 2)) * smoothstep(0.05, 0.95, sa);
+          y -= philtrum * 0.048;
+          zOut -= philtrum * 0.052;
+          cavity -= philtrum * 0.48;
 
-          // Forward-and-slightly-outward facing dark teardrop nostrils right on the front snout boss!
-          const nDz = (z - 1.35) / 0.12;
-          const nDx = (absCa - 0.50) / 0.22;
-          const nDy = (sa - 0.58) / 0.24;
+          // Sculpted Ruyi scroll lobes curling neatly above each nostril
+          const lobe = Math.exp(-Math.pow((z - 1.24) / 0.13, 2)) * Math.exp(-Math.pow((absCa - 0.56) / 0.24, 2)) * smoothstep(0.42, 0.92, sa);
+          x += sideSign * lobe * 0.052;
+          y += lobe * 0.048;
+          cavity += lobe * 0.28;
+
+          // Deep sculpted forward-facing comma nostrils right on the front Ruyi nose face (Ref 3 & Ref 4!)
+          const nDz = (z - 1.36) / 0.12;
+          const nDx = (absCa - 0.48) / 0.22;
+          const nDy = (sa - 0.48) / 0.24;
           const nDist = Math.hypot(nDz, nDx, nDy);
-          if (nDist < 1.45) {
-            const wing = Math.exp(-Math.pow((nDist - 0.88) / 0.25, 2));
-            const hole = Math.exp(-Math.pow(nDist / 0.60, 2));
-            x += sideSign * (wing * 0.068 - hole * 0.072);
-            y += wing * 0.055 - hole * 0.062;
-            zOut += wing * 0.038 - hole * 0.13; // deep sculpted forward-facing nostril cavity!
-            cavity += wing * 0.36 - hole * 0.92;
+          if (nDist < 1.48) {
+            const wing = Math.exp(-Math.pow((nDist - 0.90) / 0.24, 2));
+            const hole = Math.exp(-Math.pow(nDist / 0.64, 2));
+            x += sideSign * (wing * 0.070 - hole * 0.068);
+            y += wing * 0.052 - hole * 0.055;
+            zOut += wing * 0.044 - hole * 0.16;
+            cavity += wing * 0.36 - hole * 1.15;
           }
 
-          // 4) Zygomatic cheek ridge + flared upper lip curl
-          const zygoma = Math.exp(-Math.pow((z - 0.02) / 0.26, 2)) * Math.exp(-Math.pow((sa - 0.18) / 0.14, 2));
-          x += sideSign * zygoma * 0.075;
-          cavity += zygoma * 0.25;
+          // 4) Zygomatic cheek ridge + sculpted flared upper lip scroll + canine boss
+          const zygoma = Math.exp(-Math.pow((z - 0.04) / 0.28, 2)) * Math.exp(-Math.pow((sa - 0.18) / 0.15, 2));
+          x += sideSign * zygoma * 0.088;
+          cavity += zygoma * 0.24;
 
-          const lipCurl = smoothstep(-0.04, 0.14, z) * smoothstep(1.44, 1.24, z) * Math.exp(-Math.pow(sa / 0.13, 2));
-          x += sideSign * lipCurl * 0.042;
+          const canineBoss = Math.exp(-Math.pow((z - 1.03) / 0.12, 2)) * Math.exp(-Math.pow((sa - 0.14) / 0.16, 2));
+          x += sideSign * canineBoss * 0.038;
+          cavity += canineBoss * 0.20;
+
+          const lipCurl = smoothstep(-0.06, 0.14, z) * smoothstep(1.42, 1.20, z) * Math.exp(-Math.pow(sa / 0.13, 2));
+          x += sideSign * lipCurl * 0.038;
           cavity += lipCurl * 0.22;
         } else {
-          if (z > -0.04) {
-            const vault = Math.sin(-sa) * smoothstep(1.36, 0.98, z) * smoothstep(-0.04, 0.14, z);
+          if (z > -0.06) {
+            const vault = Math.sin(-sa) * smoothstep(1.34, 0.96, z) * smoothstep(-0.06, 0.14, z);
             y = botY + vault * 0.15;
             x *= 1 - Math.sin(-sa) * 0.15;
-            if (vault > 0.055 && z < 0.95 && absCa < 0.72) {
+            if (vault > 0.065 && z < 0.88 && absCa < 0.66) {
               mId = MAT_FURNACE;
               cavity = 1.0;
             } else {
-              cavity = 0.25;
+              cavity = 0.22;
             }
           } else {
-            y = lerp(botY, -0.25, Math.sin(-sa));
-            cavity = 0.32;
+            y = lerp(botY, -0.28, Math.sin(-sa));
+            cavity = 0.34;
           }
         }
 
@@ -370,85 +389,194 @@
     }
     upper.loftRings(skullRings, true);
 
-    const tipCenter = upper.addVert(0, 0.24, 1.485, 1, 0.25, MAT_HEAD, 0.55);
+    // Tuck nose tip center neatly inside the philtrum cleft so the front Ruyi nose rounds smoothly with zero pole pinch!
+    const tipCenter = upper.addVert(0, 0.205, 1.445, 1, 0.25, MAT_HEAD, 0.36);
     const lastRing = skullRings[Z_RINGS - 1];
     for (let s = 0; s < RAD_SEGS; s++) {
       upper.addTri(lastRing[s], tipCenter, lastRing[(s + 1) % RAD_SEGS]);
     }
 
-    // --- UNMISTAKABLE BLAZING SCOWLING SPIRIT EYES (protruding cleanly out of recessed dark eye sockets!) ---
+    // --- SCULPTED FLAME-BROW PLATES & LOWER EYELID RIMS (commanding wise gaze visible in front & 3/4 - Ref 1, 2, 3!) ---
     upper.addSculptedSpike({
-      rings: 9, segs: 12, matId: MAT_FURNACE, mirrorX: true,
+      rings: 10, segs: 10, matId: MAT_HEAD, mirrorX: true,
       sample: (t) => ({
-        // Angled fiercely back-and-upward along the orbital rim, fully outside the recessed socket wall!
-        x: lerp(0.35, 0.53, t) + Math.sin(t * Math.PI) * 0.035,
-        y: lerp(0.28, 0.40, t) + Math.sin(t * Math.PI) * 0.015,
-        z: lerp(0.42, 0.13, t) + Math.sin(t * Math.PI) * 0.025,
-        rx: 0.072 * Math.sin(Math.max(0.08, t) * Math.PI * 0.92),
-        ry: 0.082 * Math.sin(Math.max(0.08, t) * Math.PI * 0.92),
+        x: lerp(0.11, 0.66, Math.pow(t, 0.85)),
+        y: lerp(0.47, 0.72, Math.pow(t, 0.88)) + Math.sin(t * Math.PI) * 0.045,
+        z: lerp(0.48, -0.08, Math.pow(t, 1.04)),
+        rx: 0.095 * (1 - 0.15 * t),
+        ry: 0.056,
+        taperPow: 1.55,
+        rotZ: -0.34,
+        sharp: 0.26,
+        cav: lerp(0.42, 0.88, t),
+      }),
+    });
+    // Secondary temple brow plume curling subtly upward (Ref 3)
+    upper.addSculptedSpike({
+      rings: 8, segs: 8, matId: MAT_HEAD, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.36, 0.69, t),
+        y: lerp(0.58, 0.84, Math.pow(t, 0.88)),
+        z: lerp(0.22, -0.22, t),
+        rx: 0.068,
+        ry: 0.038,
+        taperPow: 1.5,
+        rotZ: -0.44,
+        sharp: 0.30,
+        cav: lerp(0.42, 0.88, t),
+      }),
+    });
+    // Sculpted lower eyelid cheek rim framing the piercing eye cleanly from below (Ref 3)
+    upper.addSculptedSpike({
+      rings: 8, segs: 8, matId: MAT_HEAD, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.25, 0.58, t),
+        y: lerp(0.285, 0.365, Math.sin(t * Math.PI * 0.85)),
+        z: lerp(0.48, 0.06, t),
+        rx: 0.060 * Math.sin(Math.max(0.12, t) * Math.PI * 0.92),
+        ry: 0.036 * Math.sin(Math.max(0.12, t) * Math.PI * 0.92),
+        taperPow: 1.35,
+        sharp: 0.16,
+        cav: 0.56,
+      }),
+    });
+
+    // --- PIERCING BLAZING ALMOND SPIRIT EYES (focused wise gaze locked forward & 3/4 - Ref 1, 2, 3!) ---
+    upper.addSculptedSpike({
+      rings: 10, segs: 12, matId: MAT_FURNACE, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.26, 0.54, t) + Math.sin(t * Math.PI) * 0.034,
+        y: lerp(0.355, 0.480, t) + Math.sin(t * Math.PI) * 0.016,
+        z: lerp(0.47, 0.13, t) + Math.sin(t * Math.PI) * 0.025,
+        rx: 0.068 * Math.sin(Math.max(0.08, t) * Math.PI * 0.94),
+        ry: 0.056 * Math.sin(Math.max(0.08, t) * Math.PI * 0.94),
         taperPow: 1.25,
-        sharp: 0.28,
+        sharp: 0.24,
         cav: 1.0,
       }),
     });
 
-    // --- DEEP INNER THROAT FURNACE (strictly recessed inside mouth so outer snout stays crisp jade!) ---
+    // --- DEEP INNER THROAT FURNACE (recessed deep in throat so mouth glows with rich depth instead of flat white!) ---
     upper.addSculptedSpike({
-      rings: 6, segs: 12, matId: MAT_FURNACE, mirrorX: false,
+      rings: 8, segs: 14, matId: MAT_FURNACE, mirrorX: false,
       sample: (t) => ({
         x: 0,
-        y: lerp(-0.07, 0.04, t),
-        z: lerp(-0.06, 0.32, t),
-        rx: lerp(0.27, 0.16, t),
-        ry: lerp(0.20, 0.12, t),
+        y: lerp(-0.08, 0.04, t),
+        z: lerp(-0.14, 0.22, t),
+        rx: lerp(0.26, 0.15, t),
+        ry: lerp(0.19, 0.11, t),
         sharp: 0.0,
         cav: 1.0,
       }),
     });
 
-    // --- Branching antlers: a swept-back main beam with two tines per side ---
+    // --- 2 BROAD SCULPTED SCOOPED DRAGON EARS (Ref 1 & Ref 3 #1 iconic silhouette!) ---
     upper.addSculptedSpike({
-      rings: 14, segs: 10, matId: MAT_CREST, mirrorX: true,
+      rings: 14, segs: 16, matId: MAT_HEAD, mirrorX: true,
       sample: (t) => ({
-        x: lerp(0.20, 0.46, t),
-        y: lerp(0.52, 1.05, Math.pow(t, 0.8)),
-        z: lerp(-0.10, -1.05, t),
-        rx: 0.078,
-        ry: 0.070,
-        taperPow: 1.35,
-        sharp: 0.22,
-        cav: lerp(0.40, 0.92, t),
+        x: lerp(0.31, 0.70, Math.pow(t, 0.90)) + Math.sin(t * Math.PI) * 0.03,
+        y: lerp(0.48, 1.28, Math.pow(t, 0.86)) - Math.pow(t, 2.4) * 0.05,
+        z: lerp(-0.08, -0.68, Math.pow(t, 1.05)),
+        rx: 0.245 * (1 - 0.14 * t) * (1 + Math.sin(t * Math.PI) * 0.24),
+        ry: 0.092,
+        taperPow: 1.48,
+        rotZ: -0.42,
+        sharp: 0.24,
+        scoop: 0.82,
+        cav: lerp(0.36, 0.84, t),
       }),
     });
-    const antlerTines = [
-      { bx: 0.29, by: 0.75, bz: -0.43, tx: 0.36, ty: 1.14, tz: -0.22, r: 0.05 },
-      { bx: 0.37, by: 0.89, bz: -0.72, tx: 0.62, ty: 1.22, tz: -0.62, r: 0.045 },
+
+    // --- 2 MAJESTIC S-CURVED SWEPT-BACK CROWN HORNS + NOBLE SPUR (graceful curve, Ref 2!) ---
+    upper.addSculptedSpike({
+      rings: 16, segs: 12, matId: MAT_CREST, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.20, 0.46, Math.pow(t, 0.82)) + Math.sin(t * Math.PI * 1.1) * 0.06,
+        y: lerp(0.55, 1.16, Math.pow(t, 0.72)) - Math.pow(t, 2.2) * 0.16 + Math.pow(Math.max(0, t - 0.65) / 0.35, 2.0) * 0.12,
+        z: lerp(-0.16, -1.62, Math.pow(t, 1.04)),
+        rx: 0.122,
+        ry: 0.102,
+        taperPow: 1.52,
+        sharp: 0.24,
+        cav: lerp(0.34, 0.86, t),
+      }),
+    });
+    // Flowing secondary spur sweeping gracefully upward off the crown horn
+    upper.addSculptedSpike({
+      rings: 9, segs: 10, matId: MAT_CREST, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.34, 0.60, Math.pow(t, 0.88)),
+        y: lerp(0.86, 1.28, Math.pow(t, 0.80)) - Math.pow(t, 2.2) * 0.06,
+        z: lerp(-0.72, -1.16, t),
+        rx: 0.064,
+        ry: 0.054,
+        taperPow: 1.55,
+        sharp: 0.24,
+        cav: lerp(0.40, 0.88, t),
+      }),
+    });
+
+    // --- CENTRAL CROWN CREST (gracefully curved sculpted plates bridging occiput into dorsal spine!) ---
+    const crownFins = [
+      { by: 0.54, bz: 0.02, ty: 0.74, tz: -0.34, rx: 0.044, ry: 0.090 },
+      { by: 0.50, bz: -0.24, ty: 0.78, tz: -0.74, rx: 0.052, ry: 0.110 },
+      { by: 0.44, bz: -0.54, ty: 0.72, tz: -1.10, rx: 0.050, ry: 0.105 },
     ];
-    for (const tn of antlerTines) {
+    for (const cf of crownFins) {
       upper.addSculptedSpike({
-        rings: 8, segs: 8, matId: MAT_CREST, mirrorX: true,
+        rings: 8, segs: 8, matId: MAT_CREST, mirrorX: false,
         sample: (t) => ({
-          x: lerp(tn.bx, tn.tx, t),
-          y: lerp(tn.by, tn.ty, Math.pow(t, 0.85)),
-          z: lerp(tn.bz, tn.tz, t),
-          rx: tn.r,
-          ry: tn.r * 0.9,
+          x: 0,
+          y: lerp(cf.by, cf.ty, Math.pow(t, 0.76)) - Math.pow(t, 2.2) * 0.05,
+          z: lerp(cf.bz, cf.tz, Math.pow(t, 1.06)),
+          rx: cf.rx,
+          ry: cf.ry,
           taperPow: 1.5,
-          sharp: 0.24,
-          cav: lerp(0.45, 0.94, t),
+          sharp: 0.32,
+          cav: lerp(0.32, 0.84, t),
         }),
       });
     }
 
-    // --- UPPER DENTITION: 4 Front Incisors + 2 Massive Curved Canine Sabers + 8 Lateral Teeth ---
+    // --- 6 PAIRS OF CURVED FLOWING FLAME-MANE & COLLAR RUFF LOCKS (graceful calligraphic sweep - Ref 2 & Ref 1!) ---
+    const cheekPlates = [
+      // Upper temple flame-locks sweeping gracefully up-then-back behind ears
+      { bx: 0.40, by: 0.48, bz: -0.10, tx: 0.80, ty: 0.86, tz: -1.24, arcY: 0.11, arcX: 0.08, rx: 0.165, ry: 0.060, rot: -0.40 },
+      { bx: 0.48, by: 0.34, bz: -0.06, tx: 0.92, ty: 0.56, tz: -1.32, arcY: 0.09, arcX: 0.10, rx: 0.185, ry: 0.065, rot: -0.24 },
+      // Heroic main zygomatic cheek-mane wave (widest noble lion-like dragon silhouette!)
+      { bx: 0.52, by: 0.18, bz: -0.05, tx: 0.94, ty: 0.24, tz: -1.34, arcY: 0.06, arcX: 0.11, rx: 0.195, ry: 0.068, rot: -0.06 },
+      { bx: 0.50, by: 0.03, bz: -0.08, tx: 0.86, ty: -0.05, tz: -1.22, arcY: 0.03, arcX: 0.09, rx: 0.175, ry: 0.060, rot: 0.12 },
+      // Lower jaw-angle ruff & neck-collar mane wave
+      { bx: 0.42, by: -0.11, bz: -0.14, tx: 0.72, ty: -0.28, tz: -1.04, arcY: -0.03, arcX: 0.07, rx: 0.155, ry: 0.054, rot: 0.28 },
+      { bx: 0.28, by: -0.22, bz: -0.24, tx: 0.48, ty: -0.42, tz: -0.98, arcY: -0.05, arcX: 0.05, rx: 0.135, ry: 0.048, rot: 0.42 },
+    ];
+    for (const cp of cheekPlates) {
+      upper.addSculptedSpike({
+        rings: 12, segs: 10, matId: MAT_CREST, mirrorX: true,
+        sample: (t) => ({
+          // Flowing S-curve flame-lock: flares out smoothly, arches, then sweeps into a graceful recurved tip!
+          x: lerp(cp.bx, cp.tx, Math.pow(t, 0.80)) + Math.sin(t * Math.PI) * cp.arcX - Math.pow(t, 2.5) * 0.06,
+          y: lerp(cp.by, cp.ty, Math.pow(t, 0.84)) + Math.sin(t * Math.PI) * cp.arcY + Math.pow(Math.max(0, t - 0.6) / 0.4, 2) * 0.05,
+          z: lerp(cp.bz, cp.tz, Math.pow(t, 1.05)),
+          rx: cp.rx * (1 + Math.sin(t * Math.PI) * 0.18),
+          ry: cp.ry * 0.84,
+          taperPow: 1.48,
+          rotZ: cp.rot,
+          sharp: 0.42,
+          cav: lerp(0.28, 0.86, t),
+        }),
+      });
+    }
+
+    // --- UPPER DENTITION: Seated neatly inside the sleeker scalloped upper lip (Ref 1, 2, 3) ---
     const upperTeeth = [
-      { x: 0.065, y: 0.08, z: 1.34, dx: 0.0, dy: -0.14, dz: 0.01, r: 0.030 },
-      { x: 0.165, y: 0.07, z: 1.30, dx: 0.01, dy: -0.16, dz: 0.00, r: 0.035 },
-      { x: 0.31, y: 0.04, z: 1.07, dx: -0.02, dy: -0.32, dz: -0.07, r: 0.066 },
-      { x: 0.30, y: 0.05, z: 0.86, dx: -0.01, dy: -0.18, dz: -0.03, r: 0.044 },
-      { x: 0.31, y: 0.05, z: 0.68, dx: -0.01, dy: -0.15, dz: -0.03, r: 0.040 },
-      { x: 0.34, y: 0.05, z: 0.50, dx: -0.01, dy: -0.13, dz: -0.02, r: 0.036 },
-      { x: 0.37, y: 0.06, z: 0.33, dx: -0.01, dy: -0.11, dz: -0.02, r: 0.032 },
+      { x: 0.055, y: 0.075, z: 1.32, dx: 0.0, dy: -0.11, dz: 0.01, r: 0.024 },
+      { x: 0.135, y: 0.065, z: 1.28, dx: 0.01, dy: -0.125, dz: 0.00, r: 0.028 },
+      { x: 0.245, y: 0.040, z: 1.04, dx: -0.015, dy: -0.255, dz: -0.055, r: 0.054 },
+      { x: 0.255, y: 0.048, z: 0.84, dx: -0.01, dy: -0.150, dz: -0.025, r: 0.036 },
+      { x: 0.280, y: 0.050, z: 0.66, dx: -0.01, dy: -0.130, dz: -0.025, r: 0.033 },
+      { x: 0.320, y: 0.052, z: 0.48, dx: -0.01, dy: -0.110, dz: -0.02, r: 0.030 },
+      { x: 0.365, y: 0.058, z: 0.31, dx: -0.01, dy: -0.095, dz: -0.02, r: 0.027 },
     ];
     for (const td of upperTeeth) {
       upper.addSculptedSpike({
@@ -460,26 +588,26 @@
           rx: td.r,
           ry: td.r * 0.88,
           taperPow: 1.7,
-          sharp: 0.18,
-          cav: lerp(0.50, 0.98, t),
+          sharp: 0.16,
+          cav: lerp(0.44, 0.96, t),
         }),
       });
     }
 
-    // === 2. ARTICULATED ROARING LOWER JAW (MANDIBLE + CURLED TONGUE + LOWER TUSKS) ===
+    // === 2. ARTICULATED NOBLE LOWER JAW (SLEEK MANDIBLE + FLOWING CURVED BEARD + GROOVED TONGUE + TUSKS) ===
     const lower = createMeshBuilder();
-    const J_RINGS = 24;
-    const J_SEGS = 24;
+    const J_RINGS = 28;
+    const J_SEGS = 28;
     const jawRings = [];
 
     for (let r = 0; r < J_RINGS; r++) {
       const u = r / (J_RINGS - 1);
-      const z = lerp(-0.06, 1.18, u);
-      const chinRound = smoothstep(1.18, 1.04, z);
-      const halfW = lerp(0.43, 0.27, Math.pow(u, 0.72)) * Math.max(0.36, Math.pow(chinRound, 0.7));
-      const chinHook = Math.exp(-Math.pow((z - 1.13) / 0.11, 2)) * 0.085;
+      const z = lerp(-0.10, 1.16, u);
+      const chinRound = smoothstep(1.16, 1.02, z);
+      const halfW = lerp(0.42, 0.225, Math.pow(u, 0.74)) * Math.max(0.36, Math.pow(chinRound, 0.68));
+      const chinHook = Math.exp(-Math.pow((z - 1.11) / 0.11, 2)) * 0.082;
       const topGumY = 0.02 + chinHook;
-      const botChinY = -0.20 + u * 0.032 + chinHook * 0.55 - Math.exp(-Math.pow((z - 0.98) / 0.16, 2)) * 0.045;
+      const botChinY = -0.195 + u * 0.030 + chinHook * 0.55 - Math.exp(-Math.pow((z - 0.96) / 0.16, 2)) * 0.044;
 
       const row = [];
       for (let s = 0; s < J_SEGS; s++) {
@@ -489,72 +617,84 @@
         let x = Math.sign(ca) * Math.pow(absCa, 0.82) * halfW;
         let y = sa >= 0 ? topGumY : lerp(topGumY, botChinY, Math.pow(-sa, 0.80));
         let mId = MAT_HEAD;
-        let cavity = 0.48;
+        let cavity = 0.50;
 
         if (sa >= 0) {
-          const trough = Math.sin(sa) * smoothstep(1.06, 0.82, z) * smoothstep(-0.04, 0.12, z);
-          y = topGumY - trough * 0.11;
-          if (trough > 0.035 && absCa < 0.68 && z < 0.92) {
+          const trough = Math.sin(sa) * smoothstep(1.02, 0.78, z) * smoothstep(-0.06, 0.12, z);
+          y = topGumY - trough * 0.105;
+          if (trough > 0.045 && absCa < 0.58 && z < 0.84) {
             mId = MAT_FURNACE;
             cavity = 1.0;
           } else {
-            cavity = 0.56;
+            cavity = 0.44;
           }
         } else {
-          // Chiseled chin ridges & ventral jaw bevels
           const jawBevel = Math.exp(-Math.pow((absCa - 0.72) / 0.20, 2)) * Math.sin(-sa);
           y -= jawBevel * 0.032;
-          cavity += jawBevel * 0.24 - Math.exp(-Math.pow(absCa / 0.22, 2)) * 0.16;
+          cavity += jawBevel * 0.24 - Math.exp(-Math.pow(absCa / 0.22, 2)) * 0.18;
         }
         row.push(lower.addVert(x, y, z, u, s / J_SEGS, mId, clamp(cavity, 0.12, 1.0)));
       }
       jawRings.push(row);
     }
     lower.loftRings(jawRings, true);
-    const jawTip = lower.addVert(0, 0.02, 1.20, 1, 0.25, MAT_HEAD, 0.62);
+    const jawTip = lower.addVert(0, 0.025, 1.18, 1, 0.25, MAT_HEAD, 0.58);
     const lastJawRing = jawRings[J_RINGS - 1];
     for (let s = 0; s < J_SEGS; s++) {
       lower.addTri(lastJawRing[s], jawTip, lastJawRing[(s + 1) % J_SEGS]);
     }
 
-    // Sculpted chin beard spikes
+    // Flowing curved Eastern dragon wisdom beard (sweeps smoothly along chin & curls gracefully back!)
     lower.addSculptedSpike({
-      rings: 6, segs: 8, matId: MAT_CREST, mirrorX: false,
-      sample: (t) => ({
-        x: 0, y: lerp(-0.18, -0.31, t), z: lerp(1.02, 0.86, t),
-        rx: 0.055, ry: 0.045, sharp: 0.35, cav: lerp(0.35, 0.85, t),
-      }),
-    });
-    lower.addSculptedSpike({
-      rings: 6, segs: 8, matId: MAT_CREST, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.16, 0.22, t), y: lerp(-0.16, -0.27, t), z: lerp(0.92, 0.75, t),
-        rx: 0.045, ry: 0.038, sharp: 0.35, cav: lerp(0.35, 0.85, t),
-      }),
-    });
-
-    // Curled glowing dragon tongue
-    lower.addSculptedSpike({
-      rings: 10, segs: 10, matId: MAT_FURNACE, mirrorX: false,
+      rings: 12, segs: 8, matId: MAT_CREST, mirrorX: false,
       sample: (t) => ({
         x: 0,
-        y: 0.01 + Math.sin(t * Math.PI * 0.95) * 0.11 + Math.pow(t, 3) * 0.08,
-        z: lerp(0.08, 0.96, t),
-        rx: lerp(0.16, 0.025, Math.pow(t, 0.85)),
-        ry: lerp(0.052, 0.014, t),
-        sharp: 0.15,
-        cav: 1.0,
+        y: lerp(-0.17, -0.34, Math.pow(t, 0.75)) - Math.sin(t * Math.PI) * 0.06 + Math.pow(t, 2.4) * 0.06,
+        z: lerp(1.00, 0.26, Math.pow(t, 0.96)),
+        rx: 0.082, ry: 0.048, taperPow: 1.55, sharp: 0.30, cav: lerp(0.32, 0.84, t),
+      }),
+    });
+    lower.addSculptedSpike({
+      rings: 10, segs: 8, matId: MAT_CREST, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.13, 0.25, Math.pow(t, 0.85)),
+        y: lerp(-0.15, -0.29, Math.pow(t, 0.80)) - Math.sin(t * Math.PI) * 0.04,
+        z: lerp(0.90, 0.28, t),
+        rx: 0.060, ry: 0.038, taperPow: 1.55, rotZ: 0.22, sharp: 0.30, cav: lerp(0.32, 0.84, t),
+      }),
+    });
+    lower.addSculptedSpike({
+      rings: 9, segs: 8, matId: MAT_CREST, mirrorX: true,
+      sample: (t) => ({
+        x: lerp(0.24, 0.42, Math.pow(t, 0.85)),
+        y: lerp(-0.12, -0.22, t) - Math.sin(t * Math.PI) * 0.03,
+        z: lerp(0.58, 0.02, t),
+        rx: 0.066, ry: 0.038, taperPow: 1.5, rotZ: 0.30, sharp: 0.30, cav: lerp(0.30, 0.82, t),
       }),
     });
 
-    // Lower Dentition: 4 Front Incisors + 2 Huge Upward Canine Tusks + 6 Cheek Teeth
+    // Curled glowing dragon tongue (sculpted translucent jade-lime tongue that reads cleanly against the bright throat - Ref 2 & 3!)
+    lower.addSculptedSpike({
+      rings: 14, segs: 12, matId: MAT_HEAD, mirrorX: false,
+      sample: (t) => ({
+        x: 0,
+        y: 0.01 + Math.sin(t * Math.PI * 0.92) * 0.095 + Math.pow(t, 3) * 0.065,
+        z: lerp(0.10, 0.94, t),
+        rx: lerp(0.145, 0.022, Math.pow(t, 0.85)),
+        ry: lerp(0.044, 0.014, t),
+        sharp: 0.14,
+        cav: lerp(0.88, 0.64, t),
+      }),
+    });
+
+    // Lower Dentition: Seated cleanly inside the sleeker mandible
     const lowerTeeth = [
-      { x: 0.055, y: 0.05, z: 1.11, dx: 0.0, dy: 0.11, dz: 0.01, r: 0.025 },
-      { x: 0.135, y: 0.04, z: 1.09, dx: 0.0, dy: 0.13, dz: 0.01, r: 0.029 },
-      { x: 0.235, y: 0.02, z: 0.99, dx: 0.015, dy: 0.27, dz: -0.03, r: 0.058 },
-      { x: 0.255, y: 0.01, z: 0.78, dx: 0.0, dy: 0.15, dz: -0.02, r: 0.038 },
-      { x: 0.285, y: 0.01, z: 0.58, dx: 0.0, dy: 0.13, dz: -0.02, r: 0.034 },
-      { x: 0.315, y: 0.01, z: 0.40, dx: 0.0, dy: 0.10, dz: -0.01, r: 0.030 },
+      { x: 0.048, y: 0.050, z: 1.09, dx: 0.0, dy: 0.092, dz: 0.01, r: 0.021 },
+      { x: 0.115, y: 0.040, z: 1.07, dx: 0.0, dy: 0.110, dz: 0.01, r: 0.025 },
+      { x: 0.195, y: 0.022, z: 0.96, dx: 0.012, dy: 0.225, dz: -0.025, r: 0.048 },
+      { x: 0.220, y: 0.012, z: 0.76, dx: 0.0, dy: 0.130, dz: -0.02, r: 0.032 },
+      { x: 0.255, y: 0.012, z: 0.56, dx: 0.0, dy: 0.112, dz: -0.02, r: 0.029 },
+      { x: 0.295, y: 0.012, z: 0.38, dx: 0.0, dy: 0.088, dz: -0.01, r: 0.026 },
     ];
     for (const td of lowerTeeth) {
       lower.addSculptedSpike({
@@ -566,8 +706,8 @@
           rx: td.r,
           ry: td.r * 0.88,
           taperPow: 1.7,
-          sharp: 0.18,
-          cav: lerp(0.50, 0.98, t),
+          sharp: 0.16,
+          cav: lerp(0.48, 0.98, t),
         }),
       });
     }
@@ -663,36 +803,32 @@
       float bellyDist = abs(uv.y - 0.5) * 2.0;
       float bellyMask = 1.0 - smoothstep(0.24, 0.38, bellyDist);
 
-      // 1) Ventral Belly Scutes
-      float scuteU = uv.x * 64.0;
+      // 1) Ventral Belly Scutes (Ref 1 & Ref 3: smooth curved horizontal jade plates along throat/belly)
+      float scuteU = uv.x * 58.0;
       float scuteFrac = fract(scuteU);
-      // Asymmetric imbricated plate: sharp dark groove at trailing seam, smooth convex ramp across plate!
-      float scuteGroove = smoothstep(0.0, 0.18, scuteFrac) * smoothstep(1.0, 0.86, scuteFrac);
-      float scuteCurve = 0.72 + 0.28 * cos((uv.y - 0.5) * 14.0);
+      float scuteGroove = smoothstep(0.0, 0.20, scuteFrac) * smoothstep(1.0, 0.84, scuteFrac);
+      float scuteCurve = 0.76 + 0.24 * cos((uv.y - 0.5) * 13.0);
       float scuteH = scuteGroove * scuteCurve;
-      float scuteDu = (0.5 - scuteFrac) * 1.35 * scuteGroove;
+      float scuteDu = (0.5 - scuteFrac) * 1.15 * scuteGroove;
 
-      // 2) Tightly Packed Overlapping Diamond/Shield Scales
-      // Evaluate two staggered scale layers and take max() so every scale genuinely overlaps the next!
-      vec2 baseUv = vec2(uv.x * 38.0, uv.y * 12.0);
+      // 2) Sculpted Overlapping Carved-Jade Shield Scales (Ref 2 — refined, smooth beveled lips)
+      vec2 baseUv = vec2(uv.x * 32.0, uv.y * 10.0);
       float bestH = -1.0;
       float bestDu = 0.0;
       float bestDv = 0.0;
       for (int layer = 0; layer < 2; layer++) {
         vec2 o = layer == 0 ? vec2(0.0, 0.0) : vec2(0.5, 0.5);
         vec2 g = baseUv + o;
-        vec2 f = fract(g) - 0.5; // f.x along spine [-0.5..0.5], f.y around circumference [-0.5..0.5]
-        // Parabolic pointed dragon scale shield pointing backward (+u along spine)
-        float edgeCurve = f.x + 0.95 * f.y * f.y - 0.24;
-        float inside = 1.0 - smoothstep(-0.08, 0.09, edgeCurve);
-        // Ramp height from scale root (-0.5) up to the raised overlapping scale lip (+0.24)
-        float ramp = clamp((f.x + 0.5) * 0.95, 0.0, 1.0);
-        float crown = 1.0 - 0.55 * f.y * f.y;
-        float h = inside * (0.18 + 0.82 * ramp * crown);
+        vec2 f = fract(g) - 0.5;
+        float edgeCurve = f.x + 0.88 * f.y * f.y - 0.25;
+        float inside = 1.0 - smoothstep(-0.10, 0.08, edgeCurve);
+        float ramp = clamp((f.x + 0.52) * 0.92, 0.0, 1.0);
+        float crown = 1.0 - 0.45 * f.y * f.y;
+        float h = inside * (0.24 + 0.76 * ramp * crown);
         if (h > bestH) {
           bestH = h;
-          bestDu = inside * (0.55 - smoothstep(-0.08, 0.06, edgeCurve) * 2.2);
-          bestDv = inside * (-f.y * 1.45);
+          bestDu = inside * (0.48 - smoothstep(-0.09, 0.05, edgeCurve) * 1.9);
+          bestDv = inside * (-f.y * 1.25);
         }
       }
 
@@ -715,97 +851,97 @@
         }
       }
 
+      // Smooth sculpted normals (no harsh low-poly triangle faceting!)
       vec3 N = normalize(vNormal);
-      // Blend in a little faceted crispness on the head and crest
-      if (uHasDeriv > 0.5 && vMat < 4.5 && (vMat < 0.5 || vMat > 3.5)) {
-        vec3 dx = dFdx(vWorldPos);
-        vec3 dy = dFdy(vWorldPos);
-        vec3 fN = normalize(cross(dx, dy) + vec3(1e-6));
-        if (dot(fN, N) < 0.0) fN = -fN;
-        N = normalize(mix(N, fN, 0.26));
-      }
       if (!gl_FrontFacing) N = -N;
       vec3 V = normalize(uCamPos - vWorldPos);
 
-      // Translucent Spirit-Flame Mane Wisps (MAT_SPIRIT = 5.0)
+      // Translucent Spirit-Flame Mane & Coil Wisps (MAT_SPIRIT = 5.0)
       if (vMat > 4.5) {
-        float flow = fbm(vec2(vUv.x * 5.0 - uTime * 2.6, vUv.y * 3.0));
-        float edgeFade = sin(clamp(vUv.y, 0.0, 1.0) * 3.14159265);
-        float lenFade = smoothstep(0.0, 0.14, vUv.x) * pow(1.0 - clamp(vUv.x, 0.0, 1.0), 1.4);
-        // vCavity carries each wisp's life fade, so they flicker in and out instead of sitting still
-        float wispA = edgeFade * lenFade * (0.30 + 0.65 * flow) * (0.60 + 0.35 * uPower) * uAlpha * vCavity;
-        if (wispA < 0.01) discard;
-        vec3 wispCol = mix(vec3(0.32, 0.80, 0.12), vec3(0.80, 0.98, 0.36), flow * 0.75 + uPower * 0.2);
-        gl_FragColor = vec4(wispCol * wispA, clamp(wispA * 0.72, 0.0, 1.0));
+        float flow = fbm(vec2(vUv.x * 4.5 - uTime * 2.3, vUv.y * 2.8));
+        float edgeFade = pow(sin(clamp(vUv.y, 0.0, 1.0) * 3.14159265), 1.35);
+        float lenFade = smoothstep(0.0, 0.16, vUv.x) * pow(1.0 - clamp(vUv.x, 0.0, 1.0), 1.5);
+        float wispA = edgeFade * lenFade * (0.26 + 0.68 * flow) * (0.58 + 0.38 * uPower) * uAlpha * vCavity;
+        if (wispA < 0.008) discard;
+        vec3 wispCol = mix(vec3(0.38, 0.84, 0.12), vec3(0.88, 1.00, 0.48), flow * 0.78 + uPower * 0.2);
+        gl_FragColor = vec4(wispCol * wispA, clamp(wispA * 0.66, 0.0, 1.0));
         return;
       }
 
-      // Blazing Incandescent Furnace: Scowling Eyes + Deep Inner Mouth + Tongue (MAT_FURNACE = 3.0)
+      // Blazing Incandescent Spirit Core: Eyes + Deep Inner Throat (MAT_FURNACE = 3.0)
       if (vMat > 2.5 && vMat < 3.5) {
-        float flicker = 0.94 + 0.06 * sin(uTime * 18.0 + vWorldPos.x * 5.0);
-        float core = clamp(0.35 + pow(abs(dot(N, V)), 0.75) * 0.65, 0.0, 1.0);
-        // Lime edge -> near-white core
-        vec3 hotCol = mix(vec3(0.82, 1.0, 0.30), vec3(1.0, 1.0, 0.90), core) * (1.42 * flicker + uPower * 0.25);
+        float flicker = 0.95 + 0.05 * sin(uTime * 15.0 + vWorldPos.x * 4.5);
+        float core = clamp(0.24 + pow(abs(dot(N, V)), 0.85) * 0.76, 0.0, 1.0);
+        // Luminous chartreuse-lime edge -> warm glowing cream-white core (never flat blown-out block!)
+        vec3 hotCol = mix(vec3(0.76, 0.98, 0.22), vec3(1.0, 1.0, 0.88), core) * (1.28 * flicker + uPower * 0.22);
         float a = clamp(uAlpha, 0.0, 1.0);
         gl_FragColor = vec4(hotCol * a, a);
         return;
       }
 
       float cavity = vCavity;
-      float alpha = 0.98;
+      // Keep solid dragon geometry 100% opaque so zero internal triangle self-blending seams appear!
+      float alpha = 1.0;
 
-      // Apply overlapping scales + ventral belly scute relief on serpentine body
+      // Apply sculpted carved-jade scales + ventral belly scutes on serpentine body
       if (vMat > 0.5 && vMat < 1.5) {
         vec3 rel = bodyRelief(vUv);
         vec3 T1 = normalize(cross(N, vec3(0.0, 1.0, 0.15)) + vec3(1e-4));
         vec3 T2 = normalize(cross(N, T1));
-        N = normalize(N + T1 * rel.y * 0.38 + T2 * rel.z * 0.38);
-        cavity = clamp(0.14 + rel.x * 0.82, 0.05, 1.0);
-        alpha *= 1.0 - smoothstep(0.86, 1.0, vUv.x);
+        N = normalize(N + T1 * rel.y * 0.34 + T2 * rel.z * 0.34);
+        cavity = clamp(0.16 + rel.x * 0.80, 0.05, 1.0);
+        alpha *= 1.0 - smoothstep(0.85, 1.0, vUv.x);
       }
 
-      // One material family across head and body:
-      vec3 Lkey = normalize(vec3(0.28, 0.76, 0.58));
-      vec3 Lfill = normalize(vec3(-0.60, -0.35, 0.42));
+      // Carved Translucent-Style Overwatch Jade Spirit Shader (Ref 1, 2, 3, 4):
+      // Rich midtone jade + deep carved crevices + silky specular sheen + razor Fresnel rim!
+      vec3 Lkey = normalize(vec3(0.38, 0.78, 0.48));
+      vec3 Lfill = normalize(vec3(-0.62, -0.35, 0.40));
+      vec3 Hkey = normalize(Lkey + V);
       float ndl = dot(N, Lkey) * 0.5 + 0.5;
       float fill = max(0.0, dot(N, Lfill));
       float ndv = clamp(abs(dot(N, V)), 0.0, 1.0);
-      float fresnel = pow(1.0 - ndv, 2.35);
+      float fresnel = pow(1.0 - ndv, 2.65);
+      // Silky polished carved-jade specular highlight (Ref 1 & Ref 3 gloss!)
+      float spec = pow(max(0.0, dot(N, Hkey)), 32.0) * (0.24 + 0.18 * cavity);
 
-      // Subtle surging spirit chi along the dragon
-      float flowWave = fbm(vec2(vUv.x * 6.0 - uTime * 1.8, vUv.y * 3.5 + uTime * 0.2));
-      float chiPulse = smoothstep(0.48, 0.90, flowWave) * (0.14 + 0.26 * uPower);
+      // Localized subtle inner spirit warmth near the open mouth only (never washes out brows or nose!)
+      float mouthDist = length(uMouthPos - vWorldPos);
+      float sssMouth = exp(-mouthDist * 2.85) * (0.14 + 0.18 * (1.0 - ndv)) * smoothstep(0.18, 0.65, cavity);
 
-      // Bright glowing lime: dark moss in the crevices and seams, a vivid yellow-green body,
-      // and pale lime-white on grazing edges and ridges so the silhouette glows.
-      vec3 colCrease = vec3(0.16, 0.34, 0.05);
-      vec3 colShadow = vec3(0.36, 0.64, 0.10);
-      vec3 colMid    = vec3(0.58, 0.87, 0.18);
-      vec3 colBright = vec3(0.76, 0.97, 0.30);
-      vec3 colRim    = vec3(0.90, 1.00, 0.56);
+      // Subtle drifting spirit chi along the scales
+      float flowWave = fbm(vec2(vUv.x * 5.5 - uTime * 1.6, vUv.y * 3.2 + uTime * 0.18));
+      float chiPulse = smoothstep(0.50, 0.92, flowWave) * (0.10 + 0.24 * uPower);
 
-      float shade = clamp(ndl * 0.46 + fill * 0.12 + cavity * 0.62 - 0.16, 0.0, 1.0);
-      // Guarantee deep sculpted dark-jade occlusion inside nostrils, eye sockets & nasal grooves even under direct front light!
-      shade *= smoothstep(0.0, 0.30, cavity) * 0.78 + 0.22 * smoothstep(0.02, 0.18, cavity);
-      vec3 color = mix(colCrease, colShadow, smoothstep(0.02, 0.32, shade));
-      color = mix(color, colMid, smoothstep(0.28, 0.64, shade));
-      color = mix(color, colBright, smoothstep(0.62, 0.96, shade));
-      color += colRim * (fresnel * (0.34 + 0.26 * cavity));
-      color += vec3(0.70, 0.98, 0.26) * chiPulse;
+      // Calibrated directly to Ref 1-4 so EVERY brow ridge, nostril, ear scoop & mane blade reads sharply!
+      vec3 colCrease = vec3(0.11, 0.26, 0.03);
+      vec3 colShadow = vec3(0.28, 0.52, 0.07);
+      vec3 colMid    = vec3(0.49, 0.76, 0.13);
+      vec3 colBright = vec3(0.68, 0.89, 0.24);
+      vec3 colRim    = vec3(0.92, 1.00, 0.54);
 
-      // Antlers, dorsal crest & whiskers (MAT_CREST = 4.0): tips brighten to pale lime
+      float shade = clamp(ndl * 0.48 + fill * 0.12 + cavity * 0.56 - 0.19, 0.0, 1.0);
+      // Deep carved dark-jade occlusion inside nostrils, eye sockets, brow furrows, ear hollows & scale seams
+      shade *= smoothstep(0.0, 0.32, cavity) * 0.80 + 0.20 * smoothstep(0.02, 0.18, cavity);
+      vec3 color = mix(colCrease, colShadow, smoothstep(0.02, 0.34, shade));
+      color = mix(color, colMid, smoothstep(0.30, 0.66, shade));
+      color = mix(color, colBright, smoothstep(0.64, 0.98, shade));
+      color += vec3(0.92, 1.00, 0.62) * spec;
+      color += colRim * (fresnel * (0.40 + 0.24 * cavity));
+      color += vec3(0.86, 1.00, 0.36) * sssMouth;
+      color += vec3(0.62, 0.92, 0.20) * chiPulse;
+
+      // Cheek-mane locks, crown horns, curved dorsal fins, wisdom beard & whiskers (MAT_CREST = 4.0)
+      // Keep the same rich carved jade family with a refined luminous edge toward tips (no neon yellow blowout!)
       if (vMat > 3.5 && vMat < 4.5) {
         float tip = clamp(vUv.x, 0.0, 1.0);
-        color = mix(color, vec3(0.88, 1.0, 0.46), tip * 0.48);
-        alpha *= mix(0.99, 0.88, tip);
+        color = mix(color, vec3(0.80, 0.97, 0.38), tip * 0.24);
       }
 
-      // Teeth (MAT_TOOTH = 2.0): pale lime-ivory, backlit by the glow inside the mouth
+      // Fangs & Teeth (MAT_TOOTH = 2.0): crisp sculpted ivory-jade backlit by inner mouth glow
       if (vMat > 1.5 && vMat < 2.5) {
-        vec3 toMouth = uMouthPos - vWorldPos;
-        float mDist = length(toMouth);
-        float toothBacklight = exp(-mDist * 2.4) * 0.55;
-        color = mix(vec3(0.66, 0.88, 0.22), vec3(0.97, 1.0, 0.74), clamp(vCavity * 0.72 + fresnel * 0.45, 0.0, 1.0));
+        float toothBacklight = exp(-mouthDist * 2.4) * 0.42;
+        color = mix(vec3(0.56, 0.78, 0.18), vec3(0.96, 1.00, 0.74), clamp(vCavity * 0.70 + fresnel * 0.40, 0.0, 1.0));
         color += vec3(1.0, 1.0, 0.84) * toothBacklight;
       }
 
@@ -813,8 +949,7 @@
 
       float finalA = clamp(alpha * uAlpha, 0.0, 1.0);
       if (finalA < 0.01) discard;
-      // Note: MAT_FURNACE writes > 1.0 into float/clamped bright-pass; keep solid jade <= 0.95 so bloom stays selective!
-      gl_FragColor = vec4(min(color, vec3(0.96)) * finalA, finalA);
+      gl_FragColor = vec4(min(color, vec3(0.94)) * finalA, finalA);
     }
   `;
 
@@ -1011,13 +1146,13 @@
     const upperGpu = uploadStaticMesh(headData.upper);
     const lowerGpu = uploadStaticMesh(headData.lower);
 
-    const BODY_RINGS = 76;
-    const BODY_SEGS = 22;
-    const FIN_COUNT = 52; // closely packed continuous sawtooth dorsal crest!
-    const WHISK_RINGS = 18;
+    const BODY_RINGS = 96;
+    const BODY_SEGS = 28;
+    const FIN_COUNT = 34; // bold, sculptural, clearly spaced swept dorsal blades (Ref 2!)
+    const WHISK_RINGS = 26;
     const WHISK_SEGS = 8;
-    const RIBBON_COUNT = 10;
-    const RIBBON_RINGS = 18;
+    const RIBBON_COUNT = 16;
+    const RIBBON_RINGS = 20;
 
     const dynIndices = [];
     let vCursor = 0;
@@ -1036,15 +1171,21 @@
       }
     }
 
-    // B) Continuous sawtooth dorsal spine crest fins (5 verts per fin)
+    // B) Continuous curved swept flame-blade dorsal crest fins (7 verts per fin: 4 base + mid-lead + mid-trail + swept tip)
     const finBaseV = vCursor;
     for (let f = 0; f < FIN_COUNT; f++) {
       const b = vCursor;
-      vCursor += 5;
-      dynIndices.push(b + 0, b + 1, b + 4);
-      dynIndices.push(b + 3, b + 2, b + 4);
-      dynIndices.push(b + 1, b + 3, b + 4);
-      dynIndices.push(b + 2, b + 0, b + 4);
+      vCursor += 7;
+      // Left side (-rx)
+      dynIndices.push(b + 0, b + 4, b + 5);
+      dynIndices.push(b + 0, b + 5, b + 1);
+      dynIndices.push(b + 4, b + 6, b + 5);
+      // Right side (+rx)
+      dynIndices.push(b + 2, b + 5, b + 4);
+      dynIndices.push(b + 2, b + 3, b + 5);
+      dynIndices.push(b + 4, b + 5, b + 6);
+      // Thin leading ridge cap
+      dynIndices.push(b + 0, b + 2, b + 4);
     }
 
     // C) 2 Calligraphic Flowing Snout Whiskers
@@ -1144,31 +1285,23 @@
       return (px / W - 0.5) * 2 * HALF_H_AT_Z0 * aspect;
     }
 
-    // ---- Orbit: a loop round the emblem (KPR and its diamond), never across it ----
-    // KPR and the diamond are one subject; the dragon is another, circling it. On screen the
-    // head flies an ellipse just outside the diamond's tips, and a keep-out circle round the
-    // diamond (its tips plus the dragon's own thickness) stops it ever cutting across. Depth
-    // is separate from the on-screen path: one side of the loop comes toward the viewer
-    // (bigger, drawn in front) and the other goes away (smaller, behind), so it still reads as
-    // circling in 3D, without ever passing over the emblem.
-    // Every lap or so the loop re-tilts and the dragon may turn back the other way, at the
-    // left or right of the loop where there's room, swinging out wide so it never flies back
-    // through its own body; the body simply follows the trail the head actually flew.
-    const CAM_Z = 9.2;
+    // ---- Orbit: a tilted 3D ring weaving freely through and around the diamond ----
+    // The head flies a true 3D tilted ring centered on the diamond, with zero solid barrier or
+    // keep-out collision, so it glides smoothly behind (back canvas, behind diamond and KPR) and
+    // in front of the diamond (mid canvas, in front of the diamond while KPR stays crisp on top).
+    // Every lap or so the ring smoothly re-tilts and may execute a wide sweeping 3D U-turn off
+    // the ring's plane; the body follows the trail the head actually flew with a gentle wave.
     const rand = (a, b) => a + Math.random() * (b - a);
-    // a, b: the loop's on-screen half-width and half-height at z = 0; keep: the keep-out
-    // radius; alpha: depth (sign = which side comes near); tau: turn in the screen plane.
-    const ring = { cx: 0, cy: 0, a: 2.4, b: 2.2, r: 2.3, keep: 2.0, alpha: 0.8, tau: -0.12, alphaT: 0.8, tauT: -0.12, dir: 1 };
+    const ring = { cx: 0, cy: 0, r: 2.4, alpha: 0.34, tau: -0.18, alphaT: 0.34, tauT: -0.18, dir: 1, side: 1 };
     let ringPx = null;          // the diamond on screen: { cx, cy, half } in CSS px (script.js)
     const head = { p: null, h: null, w: null }; // position, heading, angular velocity
     const trail = [];           // head positions, newest first
     let lapProgress = 0, lapGoal = TAU * 1.1, lastTheta = null;
     let uturnLeft = 0;          // seconds left of the outward push at the start of a U-turn
-    let reversePending = false; // a U-turn waiting for the head to reach the left or right
     const tmpP = { x: 0, y: 0, z: 0 };
 
-    // Centre and size from the diamond. keep = its tip radius plus room for the dragon's body
-    // (and spines); the loop runs a little outside that, wider than tall.
+    // Centre and radius from the diamond: slightly wider than its tips so the sides sweep
+    // gracefully outside while the near and far passes weave freely through the diamond.
     function updateRingFrame() {
       const aspect = W / H;
       const worldPerPx = (2 * HALF_H_AT_Z0) / H;
@@ -1180,75 +1313,33 @@
       }
       ring.cx = cx;
       ring.cy = cy;
-      // the body's half-thickness with its spines, as big as it gets on the near side
-      const bodyPx = 46 * clamp(Math.min(W, H) / 860, 0.68, 1.15) * (0.72 + 0.28 * fitScale);
-      ring.keep = (half + bodyPx + 6) * worldPerPx;
-      const roomX = HALF_H_AT_Z0 * aspect * 0.94;
-      const s = 1 + 0.08 * squeeze; // the charge draws the loop in, never past the keep-out
-      ring.b = ring.keep * s;
-      ring.a = Math.max(ring.keep * s, Math.min(ring.keep * 1.24 * squeeze, roomX));
-      ring.r = (ring.a + ring.b) / 2;
+      ring.r = Math.min(HALF_H_AT_Z0 * aspect * 0.86, Math.max(1.0, half * worldPerPx * 1.18)) * squeeze;
     }
-    function depthAmp() { return ring.alpha * 1.5; }
-    // On-screen ellipse point (turned by tau) at depth z, placed in 3D so that it projects
-    // exactly onto that ellipse whatever its depth.
+    // The ring starts in the XZ plane, tilts toward the viewer by alpha (so the near and far
+    // halves sweep gracefully above/below and across the diamond), and rolls in the screen plane by tau.
     function ringPoint(theta, out) {
-      const X = Math.cos(theta) * ring.a, Y = -Math.sin(theta) * ring.b;
+      const R = ring.r;
+      const x0 = Math.cos(theta) * R, zr = Math.sin(theta) * R;
+      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
+      const y1 = -zr * sa, z1 = zr * ca;
       const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      const z = Math.sin(theta) * depthAmp();
-      const k = (CAM_Z - z) / CAM_Z;
-      out.x = (ring.cx + X * ct - Y * st) * k;
-      out.y = (ring.cy + X * st + Y * ct) * k;
-      out.z = z;
+      out.x = ring.cx + x0 * ct - y1 * st;
+      out.y = ring.cy + x0 * st + y1 * ct;
+      out.z = z1;
       return out;
     }
-    // Where p lands on the z = 0 plane, relative to the loop's centre.
-    function screenRel(p, out) {
-      const k = CAM_Z / Math.max(0.5, CAM_Z - p.z);
-      out.x = p.x * k - ring.cx;
-      out.y = p.y * k - ring.cy;
-      return out;
-    }
-    const tmpS = { x: 0, y: 0 };
     function ringAngleOf(p) {
-      screenRel(p, tmpS);
+      const dx = p.x - ring.cx, dy = p.y - ring.cy;
       const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      const X = tmpS.x * ct + tmpS.y * st;
-      const Y = -tmpS.x * st + tmpS.y * ct;
-      return Math.atan2(-Y / ring.b, X / ring.a);
-    }
-    // How far out p is, in loop radii (1 = on the loop).
-    function ringRho(p) {
-      screenRel(p, tmpS);
-      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      const X = tmpS.x * ct + tmpS.y * st;
-      const Y = -tmpS.x * st + tmpS.y * ct;
-      return Math.hypot(X / ring.a, Y / ring.b);
+      const x0 = dx * ct + dy * st;
+      const y1 = -dx * st + dy * ct;
+      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
+      return Math.atan2(-y1 * sa + p.z * ca, x0);
     }
     function ringNormal() {
+      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
       const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      const d = depthAmp(), b = ring.b;
-      const l = Math.hypot(d, b) || 1;
-      return { x: (-st * d) / l, y: (ct * d) / l, z: b / l };
-    }
-    // Never inside the keep-out: put the point back on its edge (on screen, at the same depth)
-    // and take the inward part out of the heading.
-    function keepOut(p, h) {
-      screenRel(p, tmpS);
-      const d = Math.hypot(tmpS.x, tmpS.y);
-      if (d >= ring.keep || d < 1e-6) return;
-      const ux = tmpS.x / d, uy = tmpS.y / d;
-      const k = (CAM_Z - p.z) / CAM_Z;
-      p.x = (ring.cx + ux * ring.keep) * k;
-      p.y = (ring.cy + uy * ring.keep) * k;
-      if (h) {
-        const inward = h.x * ux + h.y * uy;
-        if (inward < 0) {
-          h.x -= ux * inward; h.y -= uy * inward;
-          const hl = Math.hypot(h.x, h.y, h.z) || 1;
-          h.x /= hl; h.y /= hl; h.z /= hl;
-        }
-      }
+      return { x: -st * ca, y: ct * ca, z: sa };
     }
     function bodyLength() { return TAU * ring.r * 0.62; }
 
@@ -1278,20 +1369,18 @@
       lapProgress = 0;
     }
 
-    // A new lap: re-tilt the ring at random and, about half the time, turn back the other way.
+    // A new lap: smoothly re-tilt the 3D ring and, about half the time, swing into a wide U-turn.
     function newLap() {
-      ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.65, 1.0);
-      ring.tauT = rand(-0.22, 0.22);
-      if (Math.random() < 0.55) reversePending = true;
+      ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.22, 0.52);
+      ring.tauT = rand(-0.36, 0.36);
+      if (Math.random() < 0.55) {
+        ring.dir *= -1;
+        // Bias the U-turn arc toward whichever vertical side has more room so it stays framed.
+        ring.side = head.p && head.p.y < ring.cy - 0.25 ? 1 : (head.p && head.p.y > ring.cy + 0.25 ? -1 : (Math.random() < 0.5 ? -1 : 1));
+        uturnLeft = 1.4;
+      }
       lapProgress = 0;
       lapGoal = TAU * rand(0.75, 1.25);
-    }
-    // Turn back only at the left or right of the loop, where there's room to swing out.
-    function maybeReverse(theta) {
-      if (!reversePending || Math.abs(Math.cos(theta)) < 0.8) return;
-      reversePending = false;
-      ring.dir *= -1;
-      uturnLeft = 1.4;
     }
 
     // Steering with momentum. Rather than pivoting at a fixed rate (which read as a robot
@@ -1299,28 +1388,29 @@
     // turn needs, so every curve builds up and lets go gradually, like a dragon leaning into a
     // glide. Turns are never tighter than ~40% of the ring's radius, and the dragon slows a
     // little through its tightest curves, then picks back up coming out of them.
-    // When the target is behind it (just reversed), the turn is pushed outward and off the
-    // ring's plane, so the U-turn is a wide sweeping arc clear of the logo and its own body.
+    // When the target is behind it (just reversed), the turn sweeps up-and-over off the ring's
+    // plane so the U-turn is a wide fluid arc clear of its own body.
     function steer(dt, baseSpeed) {
       const p = head.p, h = head.h, w = head.w;
       const theta = ringAngleOf(p);
       // Far off the ring (e.g. coming out of a wide U-turn): aim back at the nearest ring point
       // instead of one ahead, so it always curves home rather than wandering off.
-      const far = ringRho(p) > 1.4 || Math.abs(p.z) > Math.abs(depthAmp()) + 1.2;
+      const far = Math.hypot(p.x - ring.cx, p.y - ring.cy, p.z) > ring.r * 1.45;
       ringPoint(theta + (far ? 0 : ring.dir * 0.7), tmpP);
       let dx = tmpP.x - p.x, dy = tmpP.y - p.y, dz = tmpP.z - p.z;
       let dl = Math.hypot(dx, dy, dz) || 1;
       dx /= dl; dy /= dl; dz /= dl;
-      // The outward push is only for the start of a U-turn, never for finding the way back.
+      // The sweeping push is only for the start of a U-turn, never for finding the way back.
       if (uturnLeft > 0 && !far && h.x * dx + h.y * dy + h.z * dz < -0.2) {
-        screenRel(p, tmpS);
-        const ol = Math.hypot(tmpS.x, tmpS.y) || 1;
+        ringPoint(theta, tmpP);
+        const ox = tmpP.x - ring.cx, oy = tmpP.y - ring.cy, oz = tmpP.z;
+        const ol = Math.hypot(ox, oy, oz) || 1;
         const n = ringNormal();
-        // Outward (away from the emblem) and a little toward the viewer: a wide sweeping arc
-        // round the outside, never in over the logo.
-        dx += (tmpS.x / ol) * 1.3 + n.x * 0.5;
-        dy += (tmpS.y / ol) * 1.3 + n.y * 0.5;
-        dz += n.z * 0.5;
+        // Mostly up-and-over (off the ring's plane), a little outward: a sweeping arc that
+        // stays nicely framed on screen.
+        dx += (ox / ol) * 0.85 + n.x * 1.15 * ring.side;
+        dy += (oy / ol) * 0.85 + n.y * 1.15 * ring.side;
+        dz += (oz / ol) * 0.85 + n.z * 1.15 * ring.side;
         dl = Math.hypot(dx, dy, dz) || 1;
         dx /= dl; dy /= dl; dz /= dl;
       }
@@ -1368,7 +1458,6 @@
       p.x += h.x * linSpeed * dt;
       p.y += h.y * linSpeed * dt;
       p.z += h.z * linSpeed * dt;
-      keepOut(p, h);
       return theta;
     }
 
@@ -1432,10 +1521,7 @@
         lapProgress += d * ring.dir;
         lastTheta = theta;
         // No turning back once the strikes have started: it just speeds round.
-        if (phase !== 'charge' && phase !== 'strike') {
-          if (lapProgress > lapGoal) newLap();
-          maybeReverse(theta);
-        }
+        if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
 
         trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
         const keep = bodyLength() * 1.2;
@@ -1468,9 +1554,6 @@
         const rise = Math.cos(u * 9.0 - tSec * 2.7) * amp * 0.45 * env;
         hist.push({ x: sp.x + sx * side + n.x * rise, y: sp.y + sy * side + n.y * rise, z: sp.z + sz * side + n.z * rise });
       }
-      // The body too stays outside the emblem, even where the trail was laid before the loop
-      // moved (the emblem gliding back to centre after the sound choice) or the wave swings in.
-      for (let i = 0; i < hist.length; i++) keepOut(hist[i], null);
     }
 
     function resampleSpine(pts, targetLen, count) {
@@ -1602,7 +1685,8 @@
       }
 
       const f0 = spineFrames[0];
-      const neckOffset = headScale * 0.34;
+      // Seat the skull cleanly over the neck origin so the sweeping cheek-mane & collar ruff fuse seamlessly!
+      const neckOffset = headScale * 0.24;
       const hx = f0.p.x + f0.fx * neckOffset;
       const hy = f0.p.y + f0.fy * neckOffset;
       const hz = f0.p.z + f0.fz * neckOffset;
@@ -1612,9 +1696,10 @@
       matHead[8] = f0.fx * headScale; matHead[9] = f0.fy * headScale; matHead[10] = f0.fz * headScale; matHead[11] = 0;
       matHead[12] = hx; matHead[13] = hy; matHead[14] = hz; matHead[15] = 1;
 
+      // Calm, dignified poised jaw while peacefully gliding; roars wide open as it charges and strikes!
       const baseJaw = debugOverride && debugOverride.jawRad !== undefined
         ? debugOverride.jawRad
-        : (0.66 + Math.sin(tSec * 3.2) * 0.055 + power * 0.18);
+        : (0.44 + Math.sin(tSec * 2.4) * 0.045 + power * 0.34);
       const cj = Math.cos(baseJaw), sj = Math.sin(baseJaw);
       const localJaw = new Float32Array([
         1, 0, 0, 0,
@@ -1624,16 +1709,17 @@
       ]);
       mat4Mul(matJaw, matHead, localJaw);
 
-      mouthWorldPos[0] = hx + (f0.ux * -0.04 + f0.fx * 0.42) * headScale;
-      mouthWorldPos[1] = hy + (f0.uy * -0.04 + f0.fy * 0.42) * headScale;
-      mouthWorldPos[2] = hz + (f0.uz * -0.04 + f0.fz * 0.42) * headScale;
+      mouthWorldPos[0] = hx + (f0.ux * -0.03 + f0.fx * 0.44) * headScale;
+      mouthWorldPos[1] = hy + (f0.uy * -0.03 + f0.fy * 0.44) * headScale;
+      mouthWorldPos[2] = hz + (f0.uz * -0.03 + f0.fz * 0.44) * headScale;
 
-      // --- A) Serpentine Body (commanding head -> athletic muscular neck -> graceful monotonic tail taper) ---
-      const neckRadius = headScale * 0.33;
+      // --- A) Serpentine Body (smooth collar tuck -> muscular Eastern dragon neck & torso -> graceful whip tail) ---
+      const neckRadius = headScale * 0.34;
       for (let r = 0; r < BODY_RINGS; r++) {
         const u = r / (BODY_RINGS - 1);
         const fr = spineFrames[r];
-        const taper = Math.pow(Math.max(0.03, 1 - u * 0.96), 0.72);
+        const neckBlend = lerp(0.86, 1.0, smoothstep(0.0, 0.08, u));
+        const taper = Math.pow(Math.max(0.025, 1 - u * 0.97), 0.74) * neckBlend;
         const radW = neckRadius * taper;
         const radH = neckRadius * taper * 1.06;
 
@@ -1641,7 +1727,7 @@
           const v = s / BODY_SEGS;
           const ang = v * TAU;
           const ca = Math.cos(ang), sa = Math.sin(ang);
-          const bellyFlat = ca < 0 ? 1 - (-ca) * 0.12 : 1 + Math.pow(ca, 3) * 0.08;
+          const bellyFlat = ca < 0 ? 1 - (-ca) * 0.14 : 1 + Math.pow(ca, 3) * 0.08;
           const lx = sa * radW;
           const ly = ca * radH * bellyFlat;
 
@@ -1653,59 +1739,68 @@
           let ny = fr.ry * sa + fr.uy * ca;
           let nz = fr.rz * sa + fr.uz * ca;
           const nl = Math.hypot(nx, ny, nz) || 1;
-          writeVert(bodyBaseV + r * bodyRingStride + s, px, py, pz, nx / nl, ny / nl, nz / nl, u, v, MAT_BODY, 0.52);
+          writeVert(bodyBaseV + r * bodyRingStride + s, px, py, pz, nx / nl, ny / nl, nz / nl, u, v, MAT_BODY, 0.54);
         }
       }
 
-      // --- B) Continuous Overlapping Sawtooth Dorsal Spine Crest ---
+      // --- B) Bold Sculpted Curved Swept Dorsal Blade-Fins (Ref 2!) ---
       for (let f = 0; f < FIN_COUNT; f++) {
-        const u = 0.015 + (f / (FIN_COUNT - 1)) * 0.91;
+        const u = 0.055 + (f / (FIN_COUNT - 1)) * 0.86;
         const posRing = u * (BODY_RINGS - 1);
-        const rIdx = Math.min(BODY_RINGS - 2, Math.max(1, Math.round(posRing)));
+        const rIdx = Math.min(BODY_RINGS - 3, Math.max(2, Math.round(posRing)));
         const fr = spineFrames[rIdx];
-        const frPrev = spineFrames[Math.max(0, rIdx - 1)];
+        const frPrev = spineFrames[Math.max(0, rIdx - 2)];
         const frNext = spineFrames[Math.min(BODY_RINGS - 1, rIdx + 2)];
 
-        const taper = u < 0.14 ? 1.0 : Math.pow(Math.max(0.08, 1 - (u - 0.14) / 0.86), 0.72);
-        const bodyR = neckRadius * taper * 0.95;
-        const finH = headScale * 0.34 * taper * (0.92 + 0.12 * Math.sin(f * 1.5));
-        const halfThick = neckRadius * taper * 0.16;
+        const entryRamp = smoothstep(0.04, 0.12, u);
+        const taper = (u < 0.16 ? 1.0 : Math.pow(Math.max(0.08, 1 - (u - 0.16) / 0.84), 0.74)) * (0.76 + 0.24 * entryRamp);
+        const bodyR = neckRadius * taper * 0.92;
+        const finH = headScale * 0.34 * taper * (0.94 + 0.10 * Math.sin(f * 1.2));
+        const halfThick = neckRadius * taper * 0.13;
 
-        // Wide connected sawtooth base (front meets previous fin, back overlaps next fin!)
-        const pFrontX = lerp(fr.p.x, frPrev.p.x, 0.82) + fr.ux * bodyR;
-        const pFrontY = lerp(fr.p.y, frPrev.p.y, 0.82) + fr.uy * bodyR;
-        const pFrontZ = lerp(fr.p.z, frPrev.p.z, 0.82) + fr.uz * bodyR;
+        const pFrontX = lerp(fr.p.x, frPrev.p.x, 0.65) + fr.ux * bodyR;
+        const pFrontY = lerp(fr.p.y, frPrev.p.y, 0.65) + fr.uy * bodyR;
+        const pFrontZ = lerp(fr.p.z, frPrev.p.z, 0.65) + fr.uz * bodyR;
 
-        const pBackX = lerp(fr.p.x, frNext.p.x, 0.68) + fr.ux * bodyR;
-        const pBackY = lerp(fr.p.y, frNext.p.y, 0.68) + fr.uy * bodyR;
-        const pBackZ = lerp(fr.p.z, frNext.p.z, 0.68) + fr.uz * bodyR;
+        const pBackX = lerp(fr.p.x, frNext.p.x, 0.55) + fr.ux * bodyR;
+        const pBackY = lerp(fr.p.y, frNext.p.y, 0.55) + fr.uy * bodyR;
+        const pBackZ = lerp(fr.p.z, frNext.p.z, 0.55) + fr.uz * bodyR;
 
-        // Swept-back shark-fin apex
-        const sway = Math.sin(tSec * 6.0 - f * 0.45) * halfThick * 0.4;
-        const apexX = fr.p.x + fr.ux * (bodyR + finH) - fr.fx * (finH * 0.88) + fr.rx * sway;
-        const apexY = fr.p.y + fr.uy * (bodyR + finH) - fr.fy * (finH * 0.88) + fr.ry * sway;
-        const apexZ = fr.p.z + fr.uz * (bodyR + finH) - fr.fz * (finH * 0.88) + fr.rz * sway;
+        const sway = Math.sin(tSec * 4.4 - f * 0.45) * halfThick * 0.4;
+        const midLeadX = fr.p.x + fr.ux * (bodyR + finH * 0.56) - fr.fx * (finH * 0.18) + fr.rx * (sway * 0.4);
+        const midLeadY = fr.p.y + fr.uy * (bodyR + finH * 0.56) - fr.fy * (finH * 0.18) + fr.ry * (sway * 0.4);
+        const midLeadZ = fr.p.z + fr.uz * (bodyR + finH * 0.56) - fr.fz * (finH * 0.18) + fr.rz * (sway * 0.4);
 
-        const b = finBaseV + f * 5;
-        writeVert(b + 0, pFrontX - fr.rx * halfThick, pFrontY - fr.ry * halfThick, pFrontZ - fr.rz * halfThick, -fr.rx, -fr.ry, -fr.rz, 0.08, 0, MAT_CREST, 0.32);
-        writeVert(b + 1, pBackX - fr.rx * halfThick, pBackY - fr.ry * halfThick, pBackZ - fr.rz * halfThick, -fr.rx, -fr.ry, -fr.rz, 0.15, 1, MAT_CREST, 0.25);
-        writeVert(b + 2, pFrontX + fr.rx * halfThick, pFrontY + fr.ry * halfThick, pFrontZ + fr.rz * halfThick, fr.rx, fr.ry, fr.rz, 0.08, 0, MAT_CREST, 0.32);
-        writeVert(b + 3, pBackX + fr.rx * halfThick, pBackY + fr.ry * halfThick, pBackZ + fr.rz * halfThick, fr.rx, fr.ry, fr.rz, 0.15, 1, MAT_CREST, 0.25);
-        writeVert(b + 4, apexX, apexY, apexZ, fr.ux, fr.uy, fr.uz, 1.0, 0.5, MAT_CREST, 0.94);
+        const midTrailX = fr.p.x + fr.ux * (bodyR + finH * 0.30) - fr.fx * (finH * 0.58) + fr.rx * (sway * 0.5);
+        const midTrailY = fr.p.y + fr.uy * (bodyR + finH * 0.30) - fr.fy * (finH * 0.58) + fr.ry * (sway * 0.5);
+        const midTrailZ = fr.p.z + fr.uz * (bodyR + finH * 0.30) - fr.fz * (finH * 0.58) + fr.rz * (sway * 0.5);
+
+        const apexX = fr.p.x + fr.ux * (bodyR + finH) - fr.fx * (finH * 1.08) + fr.rx * sway;
+        const apexY = fr.p.y + fr.uy * (bodyR + finH) - fr.fy * (finH * 1.08) + fr.ry * sway;
+        const apexZ = fr.p.z + fr.uz * (bodyR + finH) - fr.fz * (finH * 1.08) + fr.rz * sway;
+
+        const b = finBaseV + f * 7;
+        writeVert(b + 0, pFrontX - fr.rx * halfThick, pFrontY - fr.ry * halfThick, pFrontZ - fr.rz * halfThick, -fr.rx, -fr.ry, -fr.rz, 0.06, 0, MAT_CREST, 0.30);
+        writeVert(b + 1, pBackX - fr.rx * halfThick, pBackY - fr.ry * halfThick, pBackZ - fr.rz * halfThick, -fr.rx, -fr.ry, -fr.rz, 0.14, 1, MAT_CREST, 0.24);
+        writeVert(b + 2, pFrontX + fr.rx * halfThick, pFrontY + fr.ry * halfThick, pFrontZ + fr.rz * halfThick, fr.rx, fr.ry, fr.rz, 0.06, 0, MAT_CREST, 0.30);
+        writeVert(b + 3, pBackX + fr.rx * halfThick, pBackY + fr.ry * halfThick, pBackZ + fr.rz * halfThick, fr.rx, fr.ry, fr.rz, 0.14, 1, MAT_CREST, 0.24);
+        writeVert(b + 4, midLeadX, midLeadY, midLeadZ, fr.ux * 0.8 + fr.fx * 0.6, fr.uy * 0.8 + fr.fy * 0.6, fr.uz * 0.8 + fr.fz * 0.6, 0.55, 0.3, MAT_CREST, 0.66);
+        writeVert(b + 5, midTrailX, midTrailY, midTrailZ, fr.ux * 0.7 - fr.fx * 0.7, fr.uy * 0.7 - fr.fy * 0.7, fr.uz * 0.7 - fr.fz * 0.7, 0.48, 0.8, MAT_CREST, 0.44);
+        writeVert(b + 6, apexX, apexY, apexZ, fr.ux, fr.uy, fr.uz, 1.0, 0.5, MAT_CREST, 0.88);
       }
 
-      // --- C) 2 Bold Calligraphic S-Curve Snout Whiskers ---
+      // --- C) 2 Iconic Long Calligraphic Ribbon Snout Whiskers (anchored cleanly at the sleek Ruyi nose pad - Ref 1, 3, 4!) ---
       for (let w = 0; w < 2; w++) {
         const sd = w === 0 ? 1 : -1;
         const wPts = [];
         for (let r = 0; r < WHISK_RINGS; r++) {
           const t = r / (WHISK_RINGS - 1);
-          const wave1 = Math.sin(t * 4.2 - tSec * 4.8 + w * 0.7) * 0.14 * t;
-          const wave2 = Math.cos(t * 3.0 - tSec * 3.8) * 0.11 * t;
-          // Sweeps boldly outward horizontally, dips slightly, then flicks up & down at the calligraphic tip
-          const lx = sd * (0.36 + Math.pow(t, 0.76) * 1.58);
-          const ly = 0.22 - Math.sin(t * Math.PI * 1.1) * 0.10 + Math.sin(Math.max(0, t - 0.55) * 6.0) * 0.26 + wave1;
-          const lz = 1.08 - Math.pow(t, 1.2) * 1.15 + wave2;
+          const wave1 = Math.sin(t * 4.2 - tSec * 3.6 + w * 0.75) * 0.14 * t;
+          const wave2 = Math.cos(t * 3.0 - tSec * 2.9) * 0.11 * t;
+          // Smooth C2-continuous calligraphic S-wave sweeping wide from the Ruyi nose and rising gracefully at the brush-tip!
+          const lx = sd * (0.27 + Math.pow(t, 0.82) * 1.92);
+          const ly = 0.19 - Math.sin(t * Math.PI * 1.15) * 0.14 + Math.pow(t, 2.35) * 0.52 + wave1;
+          const lz = 1.14 - Math.pow(t, 1.18) * 1.16 + wave2;
           wPts.push({
             x: hx + (f0.rx * lx + f0.ux * ly + f0.fx * lz) * headScale,
             y: hy + (f0.ry * lx + f0.uy * ly + f0.fy * lz) * headScale,
@@ -1724,44 +1819,44 @@
           const nl = Math.hypot(nx, ny, nz) || 1;
           nx /= nl; ny /= nl; nz /= nl;
           const bx = ty * nz - tz * ny, by = tz * nx - tx * nz, bz = tx * ny - ty * nx;
-          const rad = headScale * lerp(0.050, 0.006, Math.pow(t, 0.75));
+          // Slightly ribbon-flattened oval cross-section for sleek calligraphic elegance
+          const radW = headScale * lerp(0.058, 0.005, Math.pow(t, 0.78));
+          const radH = radW * 0.68;
           for (let s = 0; s < WHISK_SEGS; s++) {
             const a = (s / WHISK_SEGS) * TAU;
             const ca = Math.cos(a), sa = Math.sin(a);
             const rnx = nx * ca + bx * sa, rny = ny * ca + by * sa, rnz = nz * ca + bz * sa;
+            const px = wPts[r].x + (nx * ca * radW + bx * sa * radH);
+            const py = wPts[r].y + (ny * ca * radW + by * sa * radH);
+            const pz = wPts[r].z + (nz * ca * radW + bz * sa * radH);
             writeVert(
               whiskBaseV[w] + r * WHISK_SEGS + s,
-              wPts[r].x + rnx * rad, wPts[r].y + rny * rad, wPts[r].z + rnz * rad,
-              rnx, rny, rnz,
-              t, s / WHISK_SEGS, MAT_CREST, lerp(0.45, 0.96, t)
+              px, py, pz, rnx, rny, rnz,
+              t, s / WHISK_SEGS, MAT_CREST, lerp(0.46, 0.97, t)
             );
           }
         }
       }
 
-      // --- D) Spirit-flame wisps ---
-      // Each wisp is a flame with a life: it peels off the body, streams back along it while it
-      // curls and grows, then fades and re-forms further up. The mane wisps (0-4) cycle near the
-      // neck; the rest drift down the body. Nothing stays put, so none of the aura reads as a
-      // fixed fin. The fade (0..1) rides in the cavity slot, which the spirit shader uses as alpha.
+      // --- D) Ethereal Spirit-Flame Wisps streaming from the cheek-mane, crown & serpentine coils (Ref 4!) ---
       for (let rb = 0; rb < RIBBON_COUNT; rb++) {
-        const mane = rb < 5;
+        const mane = rb < 8;
         const side = rb % 2 === 0 ? 1 : -1;
         const baseV = ribbonBaseV + rb * RIBBON_RINGS * 2;
-        const rate = mane ? 0.55 : 0.32;                           // lives per second
-        const life = ((tSec * rate + rb * 0.618) % 1 + 1) % 1;      // 0..1, staggered per wisp
-        const env = Math.sin(life * Math.PI);                       // fade in, then out
-        const startRing = mane ? 2 + rb * 1.6 + life * 6 : 12 + ((rb - 5) / 5) * 44 + life * 16;
-        const span = (mane ? 12 : 16) * (0.6 + 0.4 * env);
-        const maxRibbonW = headScale * (mane ? 0.30 : 0.22) * (0.5 + 0.5 * env);
+        const rate = mane ? 0.48 : 0.30;
+        const life = ((tSec * rate + rb * 0.618) % 1 + 1) % 1;
+        const env = Math.sin(life * Math.PI);
+        const startRing = mane ? 1 + rb * 1.4 + life * 6 : 14 + ((rb - 8) / 8) * 58 + life * 18;
+        const span = (mane ? 15 : 20) * (0.62 + 0.38 * env);
+        const maxRibbonW = headScale * (mane ? 0.34 : 0.24) * (0.52 + 0.48 * env);
 
         for (let r = 0; r < RIBBON_RINGS; r++) {
           const t = r / (RIBBON_RINGS - 1);
           const spIdx = Math.max(0, Math.min(BODY_RINGS - 1, Math.round(startRing + t * span)));
           const fr = spineFrames[spIdx];
-          const curl = Math.sin(tSec * 6.0 - t * 7.0 + rb * 2.3) * headScale * 0.28 * t;
-          const liftOut = headScale * (0.30 + t * (0.5 + 0.4 * env)) + curl;
-          const rise = headScale * (0.20 + t * 0.55 * env) + Math.cos(tSec * 4.3 - t * 5.0 + rb) * headScale * 0.12 * t;
+          const curl = Math.sin(tSec * 5.2 - t * 6.4 + rb * 2.3) * headScale * 0.28 * t;
+          const liftOut = headScale * (0.28 + t * (0.52 + 0.42 * env)) + curl;
+          const rise = headScale * (0.18 + t * 0.52 * env) + Math.cos(tSec * 3.9 - t * 4.8 + rb) * headScale * 0.14 * t;
           const cx = fr.p.x + fr.rx * side * liftOut + fr.ux * rise;
           const cy = fr.p.y + fr.ry * side * liftOut + fr.uy * rise;
           const cz = fr.p.z + fr.rz * side * liftOut + fr.uz * rise;
@@ -1799,7 +1894,7 @@
       gl.disableVertexAttribArray(aLoc);
     }
 
-    function renderPassToTarget(targetCtx, clipSide, nowMs) {
+    function renderPassToTarget(targetCtx, clipSide, nowMs, useLogoMask) {
       if (!targetCtx || !sceneFbo) return;
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFbo.fbo);
@@ -1822,8 +1917,8 @@
       gl.uniform1f(uDragon.uPower, power);
       gl.uniform1f(uDragon.uClipSide, clipSide);
       gl.uniform1f(uDragon.uHasDeriv, hasDeriv ? 1.0 : 0.0);
-      // Logo mask: only in the front pass (the back pass is already under the logo).
-      const maskOn = clipSide > 0.5 && logoTex && logoRectPx;
+      // Fallback exact-letter logo mask only when no dedicated mid canvas sits under .intro-mark--logo.
+      const maskOn = !!useLogoMask && clipSide > 0.5 && logoTex && logoRectPx;
       gl.uniform1f(uDragon.uLogoOn, maskOn ? 1.0 : 0.0);
       if (maskOn) {
         gl.activeTexture(gl.TEXTURE1);
@@ -1922,7 +2017,7 @@
       targetCtx.globalCompositeOperation = prevComp;
     }
 
-    function render(frontCtx, backCtx, nowMs) {
+    function render(frontCtx, backCtx, nowMs, midCtx) {
       if (alpha < 0.01 && !debugOverride) return;
 
       const aspect = W / H;
@@ -1941,10 +2036,12 @@
       buildDynamicGeometry(nowMs);
 
       if (lunge || !backCtx || debugOverride) {
-        renderPassToTarget(frontCtx, 0.0, nowMs);
+        renderPassToTarget(frontCtx, 0.0, nowMs, false);
       } else {
-        renderPassToTarget(backCtx, -1.0, nowMs);
-        renderPassToTarget(frontCtx, 1.0, nowMs);
+        // Far side (z <= 0) behind diamond and KPR; near side (z >= 0) on mid canvas in front of
+        // diamond and strictly behind the KPR logo DOM layer.
+        renderPassToTarget(backCtx, -1.0, nowMs, false);
+        renderPassToTarget(midCtx || frontCtx, 1.0, nowMs, !midCtx);
       }
     }
 
@@ -1983,15 +2080,17 @@
       },
       // Read-only snapshot for checking the orbit in the browser console.
       debugState() {
-        // clearPx: how far the body's centreline stays outside the diamond's tips, in CSS px.
         const pxPerWorld = H / (2 * HALF_H_AT_Z0);
-        let clear = Infinity;
+        let minDistPx = Infinity, minZ = Infinity, maxZ = -Infinity;
         for (const p of hist) {
-          screenRel(p, tmpS);
-          clear = Math.min(clear, Math.hypot(tmpS.x, tmpS.y) * pxPerWorld - (ringPx ? ringPx.half : 0));
+          const k = 9.2 / Math.max(0.5, 9.2 - p.z);
+          const sx = p.x * k - ring.cx, sy = p.y * k - ring.cy;
+          minDistPx = Math.min(minDistPx, Math.hypot(sx, sy) * pxPerWorld - (ringPx ? ringPx.half : 0));
+          minZ = Math.min(minZ, p.z);
+          maxZ = Math.max(maxZ, p.z);
         }
-        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r, a: ring.a, b: ring.b, keep: ring.keep,
-          clearPx: clear, lunge: !!lunge, head: head.p && { ...head.p },
+        return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r,
+          clearPx: minDistPx, minZ, maxZ, lunge: !!lunge, head: head.p && { ...head.p },
           heading: head.h && { ...head.h }, turnRate: head.w ? Math.hypot(head.w.x, head.w.y, head.w.z) : 0, theta: lastTheta };
       },
       reset() {
@@ -1999,7 +2098,6 @@
         trail.length = 0;
         head.p = null;
         ring.dir = 1;
-        reversePending = false;
         uturnLeft = 0;
         orbitAngle = 0.85;
         speed = 0.88;

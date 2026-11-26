@@ -492,11 +492,13 @@ const siteAudio = (function () {
 window.kprIntro = (function () {
   const splash = document.querySelector('[data-intro-splash]');
   const canvas = document.querySelector('[data-intro-canvas]');
+  const midCanvas = document.querySelector('[data-intro-canvas-mid]');
   const backCanvas = document.querySelector('[data-intro-canvas-back]');
   const flashEl = document.querySelector('[data-intro-flash]');
   const skipBtn = document.querySelector('[data-intro-skip]');
   const gate = splash ? splash.querySelector('[data-intro-gate]') : null;
   const ctx2d = canvas ? canvas.getContext('2d') : null;
+  const mctx = midCanvas ? midCanvas.getContext('2d') : null;
   const bctx = backCanvas ? backCanvas.getContext('2d') : null;
   const reducedMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -570,7 +572,7 @@ window.kprIntro = (function () {
 
     function size() {
       W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
-      [[canvas, ctx2d], [backCanvas, bctx]].forEach(([c, x]) => {
+      [[canvas, ctx2d], [midCanvas, mctx], [backCanvas, bctx]].forEach(([c, x]) => {
         if (!c || !x) return;
         c.width = Math.max(1, Math.round(W * dpr));
         c.height = Math.max(1, Math.round(H * dpr));
@@ -703,7 +705,7 @@ window.kprIntro = (function () {
     }
     function drawDragon(now) {
       if (dragon3d) {
-        dragon3d.render(ctx2d, bctx, now);
+        dragon3d.render(ctx2d, bctx, now, mctx);
         return;
       }
       const d = dragon;
@@ -723,8 +725,8 @@ window.kprIntro = (function () {
         wid.push(Math.max(0.6, maxW * prof));
       }
       const A = d.alpha;
-      const pick = (z) => (z < -0.04 && bctx && !d.lunge) ? bctx : ctx2d;
-      [ctx2d, bctx].forEach((c) => { if (c) { c.lineCap = 'butt'; c.lineJoin = 'round'; } });
+      const pick = (z) => d.lunge ? ctx2d : (z < -0.04 && bctx ? bctx : (mctx || ctx2d));
+      [ctx2d, mctx, bctx].forEach((c) => { if (c) { c.lineCap = 'butt'; c.lineJoin = 'round'; } });
       // tail first, so the head lands on top
       for (let k = M - 2; k >= 0; k--) {
         const a = s[k], b = s[k + 1], na = nrm[k], nb = nrm[k + 1], wa = wid[k], wb = wid[k + 1];
@@ -984,6 +986,7 @@ window.kprIntro = (function () {
     }
     function render(now) {
       ctx2d.clearRect(0, 0, W, H);
+      if (mctx) mctx.clearRect(0, 0, W, H);
       if (bctx) bctx.clearRect(0, 0, W, H);
       const amb = bctx || ctx2d;
 
@@ -1042,7 +1045,7 @@ window.kprIntro = (function () {
       ctx2d.globalCompositeOperation = 'source-over';
 
       drawDragon(now);
-      [ctx2d, bctx].forEach((c) => { if (c) c.globalCompositeOperation = 'source-over'; });
+      [ctx2d, mctx, bctx].forEach((c) => { if (c) c.globalCompositeOperation = 'source-over'; });
 
       // blade crescents
       for (let i = slashes.length - 1; i >= 0; i--) {
@@ -1132,6 +1135,7 @@ window.kprIntro = (function () {
         clearTimeout(glitchTimer);
         window.removeEventListener('resize', size);
         ctx2d.clearRect(0, 0, W, H);
+        if (mctx) mctx.clearRect(0, 0, W, H);
         if (bctx) bctx.clearRect(0, 0, W, H);
         if (dragon3d) dragon3d.dispose();
         marks.forEach((m) => { m.style.transform = ''; });
@@ -1231,7 +1235,8 @@ window.kprIntro = (function () {
     // The buttons sit at the bottom; the whole emblem (mark, diamond and the dragon's coil) is
     // centred in the space above them and shrunk if needed, so nothing of it hides behind them.
     const whole = splash.querySelector('.intro-whole');
-    const mark = whole ? whole.querySelector('.intro-mark') : null;
+    const wholeMarks = whole ? Array.from(whole.querySelectorAll('.intro-mark')) : [];
+    const mark = wholeMarks[0] || null;
     const reticle = whole ? whole.querySelector('.intro-reticle--whole') : null;
     function layoutGate(instant) {
       if (!whole || !mark) return;
@@ -1247,9 +1252,9 @@ window.kprIntro = (function () {
       if (fx) fx.setLift(lift, instant, space / 2);
     }
     // place it before the first paint without gliding there
-    if (mark) mark.style.transition = 'none';
+    wholeMarks.forEach((m) => { m.style.transition = 'none'; });
     layoutGate(true);
-    requestAnimationFrame(() => requestAnimationFrame(() => { if (mark) mark.style.transition = ''; }));
+    requestAnimationFrame(() => requestAnimationFrame(() => { wholeMarks.forEach((m) => { m.style.transition = ''; }); }));
     const onGateResize = () => layoutGate(true);
     window.addEventListener('resize', onGateResize);
 

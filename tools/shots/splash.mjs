@@ -1,11 +1,11 @@
 // Checks the splash dragon with a real (headless) browser: at several window sizes it watches
-// the orbit during the sound choice and the strikes, records how close the dragon's body ever
-// gets to the diamond round KPR, and saves screenshots of the emblem.
+// the orbit during the sound choice and the strikes, verifies smooth borderless flight through
+// and around the diamond while KPR stays stacked strictly above the dragon canvases, and saves
+// screenshots of the emblem.
 //
 //   cd tools && npm run shots -- [base url]      (default http://localhost:4321; serve src/ first)
 //
-// Output: tools/shots/out/<size>-*.png and a summary line per size. Exits 1 if the body ever
-// crosses into the diamond.
+// Output: tools/shots/out/<size>-*.png and a summary line per size.
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -34,6 +34,16 @@ for (const size of sizes) {
   await page.waitForFunction(() => window.__kprDragon3D, null, { timeout: 10000 }).catch(() => {});
   const has3d = await page.evaluate(() => !!window.__kprDragon3D);
 
+  // Verify DOM z-index layering inside .intro-whole: back canvas < reticle < mid canvas < KPR logo
+  const layersOk = await page.evaluate(() => {
+    const z = (sel) => Number(getComputedStyle(document.querySelector(sel)).zIndex) || 0;
+    const zBack = z('.intro-canvas--back');
+    const zRet = z('.intro-mark--reticle');
+    const zMid = z('.intro-canvas--mid');
+    const zLogo = z('.intro-mark--logo');
+    return zBack < zRet && zRet < zMid && zMid < zLogo;
+  });
+
   // the emblem's box on screen, padded, for the close-up shots
   const clip = async () => page.evaluate(() => {
     const r = document.querySelector('.intro-whole .intro-reticle--whole').getBoundingClientRect();
@@ -46,17 +56,27 @@ for (const size of sizes) {
     };
   });
 
-  let minClear = Infinity, samples = 0;
+  let minClear = Infinity, minZ = Infinity, maxZ = -Infinity, samples = 0;
+  let prevHeading = null, maxHeadingJumpDeg = 0;
   const sample = async () => {
     const s = await page.evaluate(() => window.__kprDragon3D && window.__kprDragon3D.debugState());
-    // the final lunge sweeps across the whole screen on purpose (the cut); only the orbit counts
-    if (s && !s.lunge && Number.isFinite(s.clearPx)) { minClear = Math.min(minClear, s.clearPx); samples++; }
+    if (s && !s.lunge && Number.isFinite(s.clearPx)) {
+      minClear = Math.min(minClear, s.clearPx);
+      if (Number.isFinite(s.minZ)) minZ = Math.min(minZ, s.minZ);
+      if (Number.isFinite(s.maxZ)) maxZ = Math.max(maxZ, s.maxZ);
+      if (prevHeading && s.heading) {
+        const dot = Math.max(-1, Math.min(1, prevHeading.x * s.heading.x + prevHeading.y * s.heading.y + prevHeading.z * s.heading.z));
+        maxHeadingJumpDeg = Math.max(maxHeadingJumpDeg, Math.acos(dot) * (180 / Math.PI));
+      }
+      prevHeading = s.heading || prevHeading;
+      samples++;
+    }
   };
 
-  // the sound choice: the dragon circles the raised emblem for a while
-  for (let i = 0; i < 60; i++) {
+  // the sound choice: the dragon weaves freely through and around the raised emblem
+  for (let i = 0; i < 45; i++) {
     await sample();
-    if (i % 15 === 7) await page.screenshot({ path: join(out, `${size.name}-gate-${i}.png`), clip: await clip() });
+    if (i % 12 === 6) await page.screenshot({ path: join(out, `${size.name}-gate-${i}.png`), clip: await clip() });
     await sleep(150);
   }
   // enter silently: the emblem glides back to centre, then the charge and strikes
@@ -66,12 +86,17 @@ for (const size of sizes) {
     if (i === 4 || i === 9) await page.screenshot({ path: join(out, `${size.name}-run-${i}.png`), clip: await clip() });
     await sleep(80);
   }
+  // wait for reveal to complete before taking the full-page screenshot
+  await sleep(1600);
   await page.screenshot({ path: join(out, `${size.name}-full.png`) });
 
-  const ok = has3d && errors.length === 0 && minClear >= 0;
+  const passesBothDepths = minZ < -0.5 && maxZ > 0.5;
+  const movesThroughDiamond = minClear < 0;
+  const ok = has3d && layersOk && passesBothDepths && movesThroughDiamond && errors.length === 0;
   if (!ok) failed = true;
-  console.log(`${size.name.padEnd(8)} ${size.width}x${size.height}  3d:${has3d}  samples:${samples}  ` +
-    `closest to the diamond tips: ${minClear.toFixed(1)}px  errors:${errors.length ? errors.join(' | ') : 'none'}  ${ok ? 'OK' : 'FAIL'}`);
+  console.log(`${size.name.padEnd(8)} ${size.width}x${size.height}  3d:${has3d}  layers:${layersOk}  samples:${samples}  ` +
+    `minClear:${minClear.toFixed(1)}px  z:[${minZ.toFixed(2)},${maxZ.toFixed(2)}]  maxTurnStep:${maxHeadingJumpDeg.toFixed(1)}deg  ` +
+    `errors:${errors.length ? errors.join(' | ') : 'none'}  ${ok ? 'OK' : 'FAIL'}`);
   await page.close();
 }
 

@@ -1266,8 +1266,11 @@ html.intro-pending .intro-splash,
   width: clamp(150px, min(24vw, 32vh), 290px);
   aspect-ratio: 402 / 130;
   display: grid; place-items: center;
+  pointer-events: none;
   transition: top .55s cubic-bezier(.16, 1, .3, 1), scale .55s cubic-bezier(.16, 1, .3, 1);
 }
+.intro-mark--reticle { z-index: 1; }
+.intro-mark--logo { z-index: 3; }
 .intro-reticle {
   position: absolute;
   width: clamp(200px, min(34vw, 46vh), 410px);
@@ -1302,7 +1305,7 @@ html.intro-pending .intro-splash,
   background: linear-gradient(135deg, #d8ffcf 0%, #44d62c 45%, #28f0b4 100%);
   -webkit-mask: url("kpr-logo.png") center / contain no-repeat;
   mask: url("kpr-logo.png") center / contain no-repeat;
-  filter: drop-shadow(0 0 18px rgba(68, 214, 44, .5));
+  filter: drop-shadow(0 0 4px rgba(4, 6, 4, .88)) drop-shadow(0 0 11px rgba(4, 6, 4, .85)) drop-shadow(0 0 18px rgba(68, 214, 44, .5));
 }
 .intro-logo--whole {
   opacity: 0;
@@ -1350,8 +1353,10 @@ html.intro-pending .intro-splash,
    It drops at the cleave, when the halves part to reveal the site. */
 .intro-splash.is-active:not(.is-cleaved) { background: #040604; }
 
-/* Behind the mark: embers and the far side of the dragon's coil. */
-.intro-canvas--back { z-index: 0; }
+/* Behind the diamond: embers and the far side of the dragon's coil. */
+.intro-canvas.intro-canvas--back { z-index: 0; }
+/* Between diamond and KPR: near side of the dragon weaves freely across the diamond while staying behind KPR. */
+.intro-canvas.intro-canvas--mid { z-index: 2; }
 
 /* Strike flash: a short bright bloom over the stage, timed and sized per strike in script.js. */
 .intro-flash {

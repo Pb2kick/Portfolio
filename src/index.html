@@ -61,8 +61,8 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" defer></script>
-    <script src="dragon3d.js?v=6" defer></script>
-    <script src="script.js?v=3" defer></script>
+    <script src="dragon3d.js?v=8" defer></script>
+    <script src="script.js?v=4" defer></script>
     <script src="motion.js" defer></script>
   </head>
   <body id="top">
@@ -101,12 +101,16 @@
       <!-- Intact unclipped stage: zero polygon seam before blades strike -->
       <div class="intro-whole" aria-hidden="true">
         <div class="intro-grid"></div>
-        <!-- Behind the mark: ambient embers and the far side of the dragon's coil -->
+        <!-- Behind the diamond: ambient embers and the far side of the dragon's coil -->
         <canvas class="intro-canvas intro-canvas--back" data-intro-canvas-back></canvas>
-        <div class="intro-mark">
+        <div class="intro-mark intro-mark--reticle">
           <div class="intro-reticle intro-reticle--whole"></div>
           <div class="intro-reticle intro-reticle--shard-a"></div>
           <div class="intro-reticle intro-reticle--shard-b"></div>
+        </div>
+        <!-- Between diamond and KPR: near side of the dragon weaves freely across the diamond while KPR stays crisp in front -->
+        <canvas class="intro-canvas intro-canvas--mid" data-intro-canvas-mid></canvas>
+        <div class="intro-mark intro-mark--logo">
           <span class="intro-logo intro-logo--whole"></span>
           <span class="intro-logo intro-logo--shard-top"></span>
           <span class="intro-logo intro-logo--shard-bot"></span>
