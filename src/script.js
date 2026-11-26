@@ -277,57 +277,106 @@ const siteAudio = (function () {
     playHoverTick(bodyFreq, clickFreq, vol);
   });
 
-  // ---- Background music: an original loop, composed live in Web Audio (no audio file) ----
-  // A low drone under a slowly moving filter, soft koto-like plucks on a Japanese in-scale
-  // (D Eb G A Bb), an occasional deep drum and a breath of wind. A new short phrase is picked
-  // every bar, so it never repeats exactly. Very quiet, fades in, and only plays once the
-  // visitor has chosen "Enter with sound"; it pauses while the tab is hidden.
+  // ---- Background music: an original chilled synthwave loop, composed live in Web Audio ----
+  // No audio file. Warm pads on a hopeful IV-V-iii-vi progression in C (Fmaj7, G6, Em7, Am7),
+  // a soft plucked arpeggio with an echo, a round bass, a gentle kick and quiet hats at 84 bpm,
+  // and now and then a few notes of melody from the C major pentatonic. The arpeggio and
+  // melody are re-picked every bar, so it never loops exactly. Quiet, fades in, plays only
+  // after "Enter with sound", and pauses while the tab is hidden.
   const music = (function () {
-    const BAR = (60 / 64) * 4;                  // 64 bpm, 4 beats
-    const BASE = 146.83;                        // D3
-    const STEPS = [0, 1, 5, 7, 8, 12, 13, 17, 19, 20];
-    const freq = (s) => BASE * Math.pow(2, s / 12);
-    let out = null, timer = 0, playing = false, nextBar = 0, bar = 0, last = 4;
-    let sources = [];
+    const BPM = 84, BEAT = 60 / BPM, BAR = BEAT * 4;
+    const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const CHORDS = [
+      { bass: 41, notes: [53, 57, 60, 64] }, // Fmaj7
+      { bass: 43, notes: [55, 59, 62, 64] }, // G6
+      { bass: 40, notes: [52, 55, 59, 62] }, // Em7
+      { bass: 45, notes: [57, 60, 64, 67] }, // Am7
+    ];
+    const PENTA = [72, 74, 76, 79, 81, 84]; // C D E G A C, for the occasional melody
+    let out = null, bus = null, echo = null, noise = null;
+    let timer = 0, playing = false, nextBar = 0, bar = 0;
+    let held = [];
 
-    function pluck(t, f, vel) {
-      const o = ctx.createOscillator(), o2 = ctx.createOscillator();
-      const lp = ctx.createBiquadFilter(), g = ctx.createGain(), g2 = ctx.createGain();
-      o.type = 'triangle'; o2.type = 'sine';
-      o.frequency.setValueAtTime(f * 1.008, t);                 // a tiny bend, like a plucked string
-      o.frequency.exponentialRampToValueAtTime(f, t + 0.09);
-      o2.frequency.setValueAtTime(f * 2, t);
-      g2.gain.value = 0.22;
-      lp.type = 'lowpass';
-      lp.frequency.setValueAtTime(3400, t);
-      lp.frequency.exponentialRampToValueAtTime(650, t + 1.3);
+    function voice(t, f, type, dur, peak, attack, cutoff, dest) {
+      const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+      o.type = type; o.frequency.setValueAtTime(f, t);
+      lp.type = 'lowpass'; lp.frequency.setValueAtTime(cutoff, t);
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(vel, t + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
-      o.connect(lp); o2.connect(g2).connect(lp); lp.connect(g).connect(out);
-      o.start(t); o2.start(t); o.stop(t + 2.7); o2.stop(t + 2.7);
+      g.gain.exponentialRampToValueAtTime(peak, t + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(lp).connect(g).connect(dest);
+      o.start(t); o.stop(t + dur + 0.05);
     }
-    function drum(t, vel) {
+    function pad(t, chord) {
+      chord.notes.forEach((m) => {
+        const f = mtof(m);
+        voice(t, f * 0.998, 'triangle', BAR * 1.15, 0.05, 0.7, 1300, bus);
+        voice(t, f * 1.002, 'sine', BAR * 1.15, 0.05, 0.9, 1300, bus);
+      });
+    }
+    function pluck(t, m, vel) {
+      const o = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+      const f = mtof(m);
+      o.type = 'triangle'; o2.type = 'sine';
+      o.frequency.setValueAtTime(f, t); o2.frequency.setValueAtTime(f * 2, t);
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(4200, t);
+      lp.frequency.exponentialRampToValueAtTime(900, t + 0.35);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vel, t + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+      const g2 = ctx.createGain(); g2.gain.value = 0.18;
+      o.connect(lp); o2.connect(g2).connect(lp);
+      lp.connect(g);
+      g.connect(bus); g.connect(echo);
+      o.start(t); o2.start(t); o.stop(t + 0.6); o2.stop(t + 0.6);
+    }
+    function bass(t, m, dur) { voice(t, mtof(m), 'sine', dur, 0.22, 0.02, 600, bus); }
+    function kick(t) {
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = 'sine';
-      o.frequency.setValueAtTime(96, t);
-      o.frequency.exponentialRampToValueAtTime(40, t + 0.4);
+      o.frequency.setValueAtTime(120, t);
+      o.frequency.exponentialRampToValueAtTime(48, t + 0.18);
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(vel, t + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
-      o.connect(g).connect(out);
-      o.start(t); o.stop(t + 1.1);
+      g.gain.exponentialRampToValueAtTime(0.32, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.connect(g).connect(bus);
+      o.start(t); o.stop(t + 0.4);
     }
+    function hat(t, vel) {
+      const s = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noise;
+      hp.type = 'highpass'; hp.frequency.value = 7000;
+      g.gain.setValueAtTime(vel, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+      s.connect(hp).connect(g).connect(bus);
+      s.start(t, Math.random() * 0.5, 0.06);
+    }
+
     function scheduleBar(t) {
-      const beat = BAR / 4;
-      const count = 2 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < count; i++) {
-        last = Math.max(0, Math.min(STEPS.length - 1, last + Math.floor(Math.random() * 5) - 2));
-        const at = t + (Math.floor(Math.random() * 8) / 2) * beat;  // loose eighth-note grid
-        pluck(at, freq(STEPS[last]), 0.16 + Math.random() * 0.1);
+      const chord = CHORDS[bar % CHORDS.length];
+      pad(t, chord);
+      bass(t, chord.bass, BEAT * 2.4);
+      bass(t + BEAT * 2.5, chord.bass, BEAT * 1.4);
+      kick(t); kick(t + BEAT * 2);
+      for (let i = 0; i < 4; i++) hat(t + BEAT * (i + 0.5), 0.035 + Math.random() * 0.015);
+      // Arpeggio: chord tones an octave up on eighths, in a pattern re-picked each bar.
+      const tones = chord.notes.map((m) => m + 12);
+      const pattern = Math.random() < 0.5 ? [0, 1, 2, 3, 2, 1, 2, 3] : [0, 2, 1, 3, 0, 2, 3, 1];
+      for (let i = 0; i < 8; i++) {
+        if (Math.random() < 0.12) continue; // the odd rest keeps it breathing
+        pluck(t + i * (BEAT / 2), tones[pattern[i]], i % 2 === 0 ? 0.09 : 0.06);
       }
-      if (bar % 2 === 0) drum(t, 0.42);
-      if (bar % 4 === 3) drum(t + beat * 2.5, 0.28);
+      // Every other bar, a short melody phrase over the top.
+      if (bar % 2 === 1 && Math.random() < 0.8) {
+        let idx = Math.floor(Math.random() * PENTA.length);
+        const n = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < n; i++) {
+          idx = Math.max(0, Math.min(PENTA.length - 1, idx + (Math.random() < 0.5 ? -1 : 1)));
+          voice(t + BEAT * (1 + i * 0.75), mtof(PENTA[idx]), 'sine', BEAT * 1.6, 0.07, 0.03, 2400, echo);
+          voice(t + BEAT * (1 + i * 0.75), mtof(PENTA[idx]), 'triangle', BEAT * 1.6, 0.04, 0.03, 2400, bus);
+        }
+      }
       bar++;
     }
     function tick() {
@@ -339,37 +388,25 @@ const siteAudio = (function () {
       const t = ctx.currentTime;
       out = ctx.createGain();
       out.gain.setValueAtTime(0.0001, t);
-      out.gain.exponentialRampToValueAtTime(0.1, t + 4);        // slow fade in
-      out.connect(ctx.destination);
-
-      // Drone: a low D and its fifth, slightly detuned, under a slowly breathing lowpass.
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 0.6;
-      const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-      lfo.frequency.value = 0.045; lfoGain.gain.value = 150;
-      lfo.connect(lfoGain).connect(lp.frequency);
-      const droneGain = ctx.createGain(); droneGain.gain.value = 0.2;
-      [BASE / 2, (BASE / 2) * 0.996, (BASE / 2) * 1.5 * 1.003].forEach((f) => {
-        const o = ctx.createOscillator();
-        o.type = 'sawtooth'; o.frequency.value = f;
-        o.connect(lp); o.start(t); sources.push(o);
-      });
-      lp.connect(droneGain).connect(out);
-      lfo.start(t); sources.push(lfo);
-
-      // Wind: soft band-passed noise that drifts.
-      const len = Math.floor(ctx.sampleRate * 2);
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const data = buf.getChannelData(0);
+      out.gain.exponentialRampToValueAtTime(0.5, t + 4); // slow fade in (levels are set per voice)
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -18; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.3;
+      out.connect(comp).connect(ctx.destination);
+      bus = ctx.createGain(); bus.gain.value = 0.55;
+      bus.connect(out);
+      // Echo: a dotted-eighth delay with gentle feedback, darkened so repeats sit back.
+      const delay = ctx.createDelay(1.5), fb = ctx.createGain(), wet = ctx.createGain(), dark = ctx.createBiquadFilter();
+      delay.delayTime.value = BEAT * 0.75;
+      fb.gain.value = 0.34; wet.gain.value = 0.3;
+      dark.type = 'lowpass'; dark.frequency.value = 2200;
+      echo = ctx.createGain(); echo.gain.value = 1;
+      echo.connect(delay); delay.connect(dark).connect(fb).connect(delay);
+      dark.connect(wet).connect(bus);
+      held = [out, bus, echo, delay, fb, wet, dark, comp];
+      const len = Math.floor(ctx.sampleRate * 1);
+      noise = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = noise.getChannelData(0);
       for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-      const wind = ctx.createBufferSource(); wind.buffer = buf; wind.loop = true;
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.5;
-      const wlfo = ctx.createOscillator(), wlfoGain = ctx.createGain();
-      wlfo.frequency.value = 0.07; wlfoGain.gain.value = 420;
-      wlfo.connect(wlfoGain).connect(bp.frequency);
-      const windGain = ctx.createGain(); windGain.gain.value = 0.05;
-      wind.connect(bp).connect(windGain).connect(out);
-      wind.start(t); wlfo.start(t); sources.push(wind, wlfo);
 
       playing = true; bar = 0;
       nextBar = t + 0.4;
@@ -380,12 +417,12 @@ const siteAudio = (function () {
       if (!playing) return;
       playing = false;
       clearInterval(timer);
-      const t = ctx.currentTime, o = out, s = sources;
-      sources = [];
+      const t = ctx.currentTime, o = out, nodes = held;
+      held = [];
       o.gain.cancelScheduledValues(t);
       o.gain.setValueAtTime(Math.max(0.0001, o.gain.value), t);
       o.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
-      setTimeout(() => { s.forEach((n) => { try { n.stop(); } catch (e) {} }); try { o.disconnect(); } catch (e) {} }, 900);
+      setTimeout(() => { nodes.forEach((n) => { try { n.disconnect(); } catch (e) {} }); }, 1000);
     }
     document.addEventListener('visibilitychange', () => {
       if (!ctx || !playing) return;
