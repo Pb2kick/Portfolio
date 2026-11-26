@@ -1132,8 +1132,8 @@ html.has-dock .toast { bottom: 5.25rem; }
   position: absolute; left: 50%; bottom: 4.6rem;
   translate: -50% 0;
   padding: .35rem .7rem;
-  font-size: .72rem; white-space: nowrap;
-  color: rgba(234, 255, 234, .75);
+  font-size: .8125rem; white-space: nowrap;
+  color: rgba(234, 255, 234, .8);
   background: rgba(8, 12, 8, .7);
   pointer-events: none;
   transition: opacity .6s ease;
