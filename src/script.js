@@ -428,12 +428,18 @@ window.kprIntro = (function () {
     // choice, then gliding back to centre). It's a square turned 45deg, so its bounding box spans
     // tip to tip. The 3D dragon circles a ring just outside it.
     const reticleEl = splash.querySelector('.intro-whole .intro-reticle--whole');
+    // The KPR letters' box: the 3D dragon is never drawn over them, so it always passes behind.
+    const logoEl = splash.querySelector('.intro-whole .intro-logo--whole');
     function updateDragon(dt, now) {
       if (dragon3d) {
         dragon3d.setLift(lift, fit);
         if (reticleEl) {
           const r = reticleEl.getBoundingClientRect();
           if (r.width > 2) dragon3d.setRing(r.left + r.width / 2, r.top + r.height / 2, r.width / 2);
+        }
+        if (logoEl) {
+          const r = logoEl.getBoundingClientRect();
+          dragon3d.setLogo(r.left, r.top, r.right, r.bottom);
         }
         dragon3d.update(dt, now, phase, phaseAt);
         if (dt > 0 && (phase === 'charge' || phase === 'lunge')) {

@@ -623,6 +623,12 @@
     uniform float uPower;
     uniform float uClipSide;
     uniform float uHasDeriv;
+    // The KPR logo as a mask (its PNG's alpha) and where it sits in this framebuffer, in pixels
+    // from the bottom-left: x0, y0, x1, y1. Lets the front pass cut the dragon away wherever it
+    // would cover a letter, so KPR always reads as in front of it.
+    uniform sampler2D uLogoTex;
+    uniform vec4 uLogoRect;
+    uniform float uLogoOn;
 
     float hash21(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
@@ -699,6 +705,14 @@
     void main() {
       if (uClipSide < -0.5 && vWorldPos.z > 0.015) discard;
       if (uClipSide > 0.5 && vWorldPos.z < -0.015) discard;
+      // Front pass: never draw over a KPR letter, so the dragon always passes behind the logo
+      // (it can still pass in front of the diamond).
+      if (uLogoOn > 0.5) {
+        vec2 lp = (gl_FragCoord.xy - uLogoRect.xy) / max(uLogoRect.zw - uLogoRect.xy, vec2(1.0));
+        if (lp.x > 0.0 && lp.x < 1.0 && lp.y > 0.0 && lp.y < 1.0) {
+          if (texture2D(uLogoTex, vec2(lp.x, 1.0 - lp.y)).a > 0.3) discard;
+        }
+      }
 
       vec3 N = normalize(vNormal);
       // Blend in a little faceted crispness on the head and crest
@@ -717,7 +731,8 @@
         float flow = fbm(vec2(vUv.x * 5.0 - uTime * 2.6, vUv.y * 3.0));
         float edgeFade = sin(clamp(vUv.y, 0.0, 1.0) * 3.14159265);
         float lenFade = smoothstep(0.0, 0.14, vUv.x) * pow(1.0 - clamp(vUv.x, 0.0, 1.0), 1.4);
-        float wispA = edgeFade * lenFade * (0.30 + 0.65 * flow) * (0.60 + 0.35 * uPower) * uAlpha;
+        // vCavity carries each wisp's life fade, so they flicker in and out instead of sitting still
+        float wispA = edgeFade * lenFade * (0.30 + 0.65 * flow) * (0.60 + 0.35 * uPower) * uAlpha * vCavity;
         if (wispA < 0.01) discard;
         vec3 wispCol = mix(vec3(0.32, 0.80, 0.12), vec3(0.80, 0.98, 0.36), flow * 0.75 + uPower * 0.2);
         gl_FragColor = vec4(wispCol * wispA, clamp(wispA * 0.72, 0.0, 1.0));
@@ -960,7 +975,27 @@
       uPower: gl.getUniformLocation(progDragon, 'uPower'),
       uClipSide: gl.getUniformLocation(progDragon, 'uClipSide'),
       uHasDeriv: gl.getUniformLocation(progDragon, 'uHasDeriv'),
+      uLogoTex: gl.getUniformLocation(progDragon, 'uLogoTex'),
+      uLogoRect: gl.getUniformLocation(progDragon, 'uLogoRect'),
+      uLogoOn: gl.getUniformLocation(progDragon, 'uLogoOn'),
     };
+
+    // The KPR logo image, used as the mask that keeps the dragon behind the letters.
+    let logoTex = null;
+    let logoRectPx = null; // { l, t, r, b } in CSS px, from script.js each frame
+    const logoImg = new Image();
+    logoImg.onload = () => {
+      logoTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, logoTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, logoImg);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    };
+    logoImg.src = 'kpr-logo.png';
 
     const headData = buildDragonHeadMeshes();
     function uploadStaticMesh(m) {
@@ -1556,26 +1591,36 @@
         }
       }
 
-      // --- D) Spirit-Flame Mane & Coil Wisps ---
+      // --- D) Spirit-flame wisps ---
+      // Each wisp is a flame with a life: it peels off the body, streams back along it while it
+      // curls and grows, then fades and re-forms further up. The mane wisps (0-4) cycle near the
+      // neck; the rest drift down the body. Nothing stays put, so none of the aura reads as a
+      // fixed fin. The fade (0..1) rides in the cavity slot, which the spirit shader uses as alpha.
       for (let rb = 0; rb < RIBBON_COUNT; rb++) {
-        const startRing = rb < 5 ? 1 + rb * 2 : 10 + (rb - 5) * 10;
+        const mane = rb < 5;
         const side = rb % 2 === 0 ? 1 : -1;
         const baseV = ribbonBaseV + rb * RIBBON_RINGS * 2;
-        const maxRibbonW = headScale * (rb < 5 ? 0.34 : 0.25);
+        const rate = mane ? 0.55 : 0.32;                           // lives per second
+        const life = ((tSec * rate + rb * 0.618) % 1 + 1) % 1;      // 0..1, staggered per wisp
+        const env = Math.sin(life * Math.PI);                       // fade in, then out
+        const startRing = mane ? 2 + rb * 1.6 + life * 6 : 12 + ((rb - 5) / 5) * 44 + life * 16;
+        const span = (mane ? 12 : 16) * (0.6 + 0.4 * env);
+        const maxRibbonW = headScale * (mane ? 0.30 : 0.22) * (0.5 + 0.5 * env);
 
         for (let r = 0; r < RIBBON_RINGS; r++) {
           const t = r / (RIBBON_RINGS - 1);
-          const spIdx = Math.min(BODY_RINGS - 1, Math.round(startRing + t * (rb < 5 ? 14 : 18)));
+          const spIdx = Math.max(0, Math.min(BODY_RINGS - 1, Math.round(startRing + t * span)));
           const fr = spineFrames[spIdx];
-          const flutter = Math.sin(tSec * 7.2 - t * 5.5 + rb * 1.9) * headScale * 0.22 * t;
-          const liftOut = headScale * (0.34 + t * 0.56) + flutter;
-          const cx = fr.p.x + fr.rx * side * liftOut + fr.ux * (headScale * 0.24 * (1 + t));
-          const cy = fr.p.y + fr.ry * side * liftOut + fr.uy * (headScale * 0.24 * (1 + t));
-          const cz = fr.p.z + fr.rz * side * liftOut + fr.uz * (headScale * 0.24 * (1 + t));
+          const curl = Math.sin(tSec * 6.0 - t * 7.0 + rb * 2.3) * headScale * 0.28 * t;
+          const liftOut = headScale * (0.30 + t * (0.5 + 0.4 * env)) + curl;
+          const rise = headScale * (0.20 + t * 0.55 * env) + Math.cos(tSec * 4.3 - t * 5.0 + rb) * headScale * 0.12 * t;
+          const cx = fr.p.x + fr.rx * side * liftOut + fr.ux * rise;
+          const cy = fr.p.y + fr.ry * side * liftOut + fr.uy * rise;
+          const cz = fr.p.z + fr.rz * side * liftOut + fr.uz * rise;
           const rw = maxRibbonW * Math.sin(Math.max(0.05, t) * Math.PI);
 
-          writeVert(baseV + r * 2, cx - fr.ux * rw, cy - fr.uy * rw, cz - fr.uz * rw, fr.rx * side, fr.ry * side, fr.rz * side, t, 0, MAT_SPIRIT, 1);
-          writeVert(baseV + r * 2 + 1, cx + fr.ux * rw, cy + fr.uy * rw, cz + fr.uz * rw, fr.rx * side, fr.ry * side, fr.rz * side, t, 1, MAT_SPIRIT, 1);
+          writeVert(baseV + r * 2, cx - fr.ux * rw, cy - fr.uy * rw, cz - fr.uz * rw, fr.rx * side, fr.ry * side, fr.rz * side, t, 0, MAT_SPIRIT, env);
+          writeVert(baseV + r * 2 + 1, cx + fr.ux * rw, cy + fr.uy * rw, cz + fr.uz * rw, fr.rx * side, fr.ry * side, fr.rz * side, t, 1, MAT_SPIRIT, env);
         }
       }
 
@@ -1629,6 +1674,19 @@
       gl.uniform1f(uDragon.uPower, power);
       gl.uniform1f(uDragon.uClipSide, clipSide);
       gl.uniform1f(uDragon.uHasDeriv, hasDeriv ? 1.0 : 0.0);
+      // Logo mask: only in the front pass (the back pass is already under the logo).
+      const maskOn = clipSide > 0.5 && logoTex && logoRectPx;
+      gl.uniform1f(uDragon.uLogoOn, maskOn ? 1.0 : 0.0);
+      if (maskOn) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, logoTex);
+        gl.uniform1i(uDragon.uLogoTex, 1);
+        gl.activeTexture(gl.TEXTURE0);
+        const sx = fboW / W, sy = fboH / H;
+        gl.uniform4f(uDragon.uLogoRect,
+          logoRectPx.l * sx, (H - logoRectPx.b) * sy,
+          logoRectPx.r * sx, (H - logoRectPx.t) * sy);
+      }
 
       gl.uniformMatrix4fv(uDragon.uModel, false, matIdentity);
       bindDragonVbo(dynVbo);
@@ -1770,6 +1828,10 @@
       // The diamond round KPR on screen, in CSS px: centre and half its tip-to-tip width.
       setRing(cxPx, cyPx, halfPx) {
         if (halfPx > 4) ringPx = { cx: cxPx, cy: cyPx, half: halfPx };
+      },
+      // The KPR logo's box on screen in CSS px; the dragon is never drawn over its letters.
+      setLogo(l, t, r, b) {
+        if (r - l > 4 && b - t > 4) logoRectPx = { l, t, r, b };
       },
       // Read-only snapshot for checking the orbit in the browser console.
       debugState() {
