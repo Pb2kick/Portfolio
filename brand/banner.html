@@ -47,17 +47,9 @@
   /* Silkscreen: the white print on a circuit board, here in the board's muted green-grey */
   .silk { display: block; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--silk); }
 
-  /* ---------- LinkedIn: the board. I'm the processor; what I'm after feeds in on the left,
-     the ways to reach me come out on the right, and a QR component hangs off the bottom. ---------- */
+  /* ---------- LinkedIn: the board. I'm the processor; the ways to reach me come out on the
+     right, and a QR component hangs off the bottom. ---------- */
   .part { position: absolute; z-index: 2; }
-  /* Inputs: small labelled components, like resistors on the board */
-  .spec { padding: 8px 14px 10px; background: var(--surface); border: 1px solid var(--line); clip-path: var(--chamfer-sm); }
-  .spec .silk { margin-bottom: 3px; }
-  .spec-big { display: flex; align-items: baseline; gap: 8px; }
-  .spec-big b { font-size: 34px; font-weight: 300; line-height: 1; color: var(--lime); letter-spacing: -.01em; }
-  .spec-big span, .spec-text { font-size: 15px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--soft); }
-  #in1 { left: 220px; top: 46px; width: 270px; }
-  #in2 { left: 220px; top: 140px; width: 270px; }
 
   /* The processor: a package with pins round the edge, the die in the middle, pin-1 marked */
   .cpu { left: 548px; top: 58px; width: 470px; height: 262px; }
@@ -129,9 +121,6 @@
 
   <!-- LinkedIn: the board -->
   <div data-only="linkedin">
-    <div class="part spec" id="in1"><span class="silk">R1 / OJT</span><div class="spec-big"><b>500</b><span>hours required</span></div></div>
-    <div class="part spec" id="in2"><span class="silk">R2 / Setup</span><span class="spec-text">On-site / hybrid / remote</span></div>
-
     <div class="part cpu" id="cpu">
       <div class="cpu-die">
         <p class="cpu-silk">KPR-2026 / Final-year IT student</p>
@@ -237,10 +226,10 @@
     // A little faint fill in the empty top right and right edge.
     path('faint', [pt(1040, -10), pt(1040, 24), pt(1060, 44), pt(1078, 44)]); circle('via', pt(1078, 44), 4.5);
 
-    // Inputs: what I'm after, feeding into the left pins.
-    [['in1', 1], ['in2', 3]].forEach(([id, k]) => {
-      const s = rel(document.getElementById(id)), a = pt(s.r + 7, s.t + s.h / 2), b = use(pins.left[k]);
-      path('cu', jog(a, b, 16)); circle('pad', a, 5);
+    // The left pins run out to vias, faint like the rest of the board.
+    [1, 3].forEach((k, j) => {
+      const a = pins.left[k].tip, b = pt(a.x - 110 - j * 40, a.y - 30);
+      path('faint', jog(a, b, 18)); circle('via', b, 4.5);
     });
     // Outputs: the ways to reach me, out of the right pins to a pad on each header.
     ['out1', 'out2', 'out3', 'out4'].forEach((id, k) => {
