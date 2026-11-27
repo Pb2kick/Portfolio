@@ -1342,7 +1342,7 @@ window.kprLenis = null;
   // lighting change rather than movement, so it stays on with reduced motion too.
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
   if (finePointer) {
-    document.querySelectorAll('.spotlight, .feature-media, .live-card, .stack-group, .context')
+    document.querySelectorAll('.wx-inspector, .stack-group, .context')
       .forEach((el) => el.classList.add('glow'));
     document.addEventListener('pointermove', (e) => {
       const card = e.target.closest && e.target.closest('.glow');
@@ -1394,8 +1394,8 @@ window.kprLenis = null;
   }
   const finePointer = window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-  const ids = ['work', 'info', 'certifications'];
-  const names = { work: 'Work', info: 'Info', certifications: 'Certifications' };
+  const ids = ['work', 'certifications', 'info'];
+  const names = { work: 'Work', certifications: 'Certifications', info: 'Info' };
   const tabList = deck.querySelector('[data-deck-tabs]');
   const tabs = ids.map((id) => deck.querySelector('[data-deck-tab="' + id + '"]'));
   const panels = ids.map((id) => deck.querySelector('[data-deck-panel="' + id + '"]'));
@@ -1507,8 +1507,10 @@ window.kprLenis = null;
   function afterShow(panel, firstVisit) {
     if (window.kprMotion && window.kprMotion.armPanel) window.kprMotion.armPanel(panel);
     if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+    // Re-measure scrollable explorer rails (Work & Certifications) once their panel is visible.
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (!firstVisit && canAnimate()) {
-      const items = [...panel.querySelectorAll('.section-bar, [data-item]:not(.is-filtered-out), .context, .process-step, .stack-group, .trace, .cert')]
+      const items = [...panel.querySelectorAll('.section-bar, .wx-bar, .wx-shell, [data-item]:not(.is-filtered-out), .context, .process-step, .stack-group, .trace')]
         .filter((el) => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; })
         .slice(0, 10);
       G().fromTo(items, { y: 22, autoAlpha: 0 }, {
@@ -1628,6 +1630,9 @@ window.kprLenis = null;
       return target.getBoundingClientRect().top + scrollY - margin;
     };
     const reveal = () => {
+      if (hash.startsWith('project-') && window.kprWorkSelect) {
+        window.kprWorkSelect(hash.slice('project-'.length));
+      }
       if (!instantScroll) {
         if (window.kprGlideTo) window.kprGlideTo(targetY()); else window.scrollTo(0, targetY());
         return;
@@ -1665,59 +1670,146 @@ window.kprLenis = null;
   show(panels[current]);
   placeGliders(true);
 
-  // ---- filters (Work by platform, Certifications by field), animated with Flip ----
-  deck.querySelectorAll('[data-filter-group]').forEach((group) => {
-    const panel = group.closest('[data-deck-panel]');
-    const pills = [...group.querySelectorAll('[data-filter]')];
-    const items = [...panel.querySelectorAll('[data-item]')];
-    const blocks = [...panel.querySelectorAll('[data-filter-block]')];
-    const labels = [...panel.querySelectorAll('[data-filter-label]')];
-    const count = panel.querySelector('[data-filter-count="' + group.dataset.filterGroup + '"]');
+  // ---- Split-Pane Explorers (Work & Certifications: scrollable logo rail + live inspector) ----
+  deck.querySelectorAll('[data-wx-shell]').forEach((shell) => {
+    const rail = shell.querySelector('[data-wx-rail]');
+    const listWrap = shell.querySelector('[data-wx-list-wrap]');
+    const list = shell.querySelector('[data-wx-list]');
+    const items = [...shell.querySelectorAll('[data-wx-select]')];
+    const panes = [...shell.querySelectorAll('[data-wx-pane]')];
+    const order = items.map((b) => b.dataset.wxSelect);
+    const video = shell.querySelector('[data-lazy-video]');
+    const isWork = shell.closest('#work') !== null;
 
-    function apply(filter) {
-      pills.forEach((p) => p.setAttribute('aria-pressed', String(p.dataset.filter === filter)));
-      const flip = canAnimate() && window.Flip;
-      const state = flip ? window.Flip.getState(items) : null;
-      let shown = 0;
-      items.forEach((it) => {
-        const on = filter === 'all' || it.dataset.tags.split(' ').includes(filter);
-        it.classList.toggle('is-filtered-out', !on);
-        // Shown by a filter counts as revealed, so a pending scroll entrance can't hide it again.
-        if (on) { shown++; it.classList.add('is-visible'); }
+    let activeIdx = 0;
+
+    function updateFades() {
+      if (!list || !listWrap) return;
+      const top = list.scrollTop > 4;
+      const bottom = list.scrollTop + list.clientHeight < list.scrollHeight - 4;
+      listWrap.classList.toggle('has-top-fade', top);
+      listWrap.classList.toggle('has-bottom-fade', bottom);
+    }
+
+    function scrollItemIntoView(btn) {
+      if (!list || !btn) return;
+      if (window.matchMedia('(max-width: 860px)').matches) {
+        btn.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'center' });
+        return;
+      }
+      const targetTop = btn.offsetTop - (list.clientHeight - btn.offsetHeight) / 2;
+      const clamped = Math.max(0, Math.min(list.scrollHeight - list.clientHeight, targetTop));
+      list.scrollTo({ top: clamped, behavior: reduceMotion ? 'auto' : 'smooth' });
+    }
+
+    function selectEntry(key, opts) {
+      opts = opts || {};
+      const idx = order.indexOf(key);
+      if (idx < 0) return;
+      activeIdx = idx;
+
+      items.forEach((btn, k) => {
+        const on = k === idx;
+        btn.setAttribute('aria-selected', String(on));
+        btn.tabIndex = on ? 0 : -1;
+        if (on && opts.focus) btn.focus({ preventScroll: true });
+        if (on && opts.scrollList !== false) scrollItemIntoView(btn);
       });
-      blocks.forEach((b) => {
-        const visible = [...b.querySelectorAll('[data-item]:not(.is-filtered-out)')];
-        b.classList.toggle('is-empty', visible.length === 0);
-        // A lone wide card (AMBOT) takes the whole row instead of the narrow phone column.
-        b.classList.toggle('is-solo-wide', visible.length === 1 && visible[0].classList.contains('live-card--wide'));
+      panes.forEach((p) => {
+        const on = p.dataset.wxPane === key;
+        p.classList.toggle('is-active', on);
+        p.hidden = !on;
       });
-      labels.forEach((l) => {
-        const block = panel.querySelector('[data-filter-block="' + l.dataset.filterLabel + '"]');
-        l.classList.toggle('is-empty', !!block && block.classList.contains('is-empty'));
-      });
-      if (count) count.textContent = shown + ' of ' + items.length;
-      if (!flip) { if (window.ScrollTrigger) window.ScrollTrigger.refresh(); return; }
-      window.Flip.from(state, {
-        duration: 0.65,
-        ease: 'power3.inOut',
-        absoluteOnLeave: true,
-        onEnter: (els) => G().fromTo(els, { autoAlpha: 0, y: 34, scale: 0.97 },
-          { autoAlpha: 1, y: 0, scale: 1, duration: 0.6, delay: 0.12, stagger: 0.06, ease: 'power3.out' }),
-        onLeave: (els) => G().to(els, { autoAlpha: 0, y: -18, scale: 0.97, duration: 0.28, ease: 'power2.in' }),
-        onComplete: () => {
-          G().set(items, { clearProps: 'transform,opacity,visibility,width,height' });
-          if (window.ScrollTrigger) window.ScrollTrigger.refresh();
-        },
+      if (video) {
+        if (key === 'gallus') {
+          if (video.preload === 'none') { video.preload = 'metadata'; video.load(); }
+        } else if (!video.paused) {
+          video.pause();
+        }
+      }
+      if (isWork) window.dispatchEvent(new Event('resize'));
+      requestAnimationFrame(updateFades);
+    }
+
+    items.forEach((btn) => {
+      btn.addEventListener('click', () => selectEntry(btn.dataset.wxSelect, { scrollList: true }));
+    });
+
+    if (list) {
+      list.addEventListener('scroll', updateFades, { passive: true });
+      list.addEventListener('keydown', (e) => {
+        const keys = { ArrowDown: 1, ArrowUp: -1, ArrowRight: 1, ArrowLeft: -1, Home: 'first', End: 'last' };
+        if (!(e.key in keys)) return;
+        e.preventDefault();
+        const step = keys[e.key];
+        const nextIdx = step === 'first' ? 0 : step === 'last' ? items.length - 1 : (activeIdx + step + items.length) % items.length;
+        selectEntry(order[nextIdx], { focus: true, scrollList: true });
       });
     }
-    pills.forEach((p) => p.addEventListener('click', () => apply(p.dataset.filter)));
-    group.kprApply = apply; // the tech trace resets a filter that would hide its target
+
+    // Mouse-wheel / trackpad scrolling over the side panel steps through entries smoothly.
+    // Once at the very top (scrolling up) or very bottom (scrolling down), let the wheel event
+    // bubble straight through so the site's universal Lenis / page scroll takes over seamlessly.
+    if (rail) {
+      let wheelAcc = 0;
+      let lastStepAt = 0;
+      rail.addEventListener('wheel', (e) => {
+        if (window.matchMedia('(max-width: 860px)').matches) return;
+        if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+        const dir = e.deltaY > 0 ? 1 : -1;
+        const now = performance.now();
+        const atTop = !list || list.scrollTop <= 2;
+        const atBottom = !list || (list.scrollTop + list.clientHeight >= list.scrollHeight - 2);
+        const canPassUp = dir < 0 && activeIdx === 0 && atTop;
+        const canPassDown = dir > 0 && activeIdx === order.length - 1 && atBottom;
+
+        if (canPassUp || canPassDown) {
+          // Absorb only a brief trailing tick right after arriving at the boundary;
+          // otherwise hand straight back to the universal page scroll.
+          if (now - lastStepAt < 200) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          wheelAcc = 0;
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // If the user dragged the scrollbar away from the edge on the first/last item,
+        // let wheel smoothly return the list to the edge first.
+        if (dir < 0 && activeIdx === 0 && !atTop && list) {
+          list.scrollTop = Math.max(0, list.scrollTop + e.deltaY);
+          return;
+        }
+        if (dir > 0 && activeIdx === order.length - 1 && !atBottom && list) {
+          list.scrollTop = Math.min(list.scrollHeight - list.clientHeight, list.scrollTop + e.deltaY);
+          return;
+        }
+
+        if (now - lastStepAt < 135) return;
+        wheelAcc += e.deltaY;
+        if (Math.abs(wheelAcc) >= 28) {
+          const stepDir = wheelAcc > 0 ? 1 : -1;
+          wheelAcc = 0;
+          lastStepAt = now;
+          const next = Math.max(0, Math.min(order.length - 1, activeIdx + stepDir));
+          if (next !== activeIdx) selectEntry(order[next], { scrollList: true });
+        }
+      }, { passive: false });
+    }
+
+    window.addEventListener('resize', updateFades);
+    selectEntry(order[0], { scrollList: false });
+    requestAnimationFrame(updateFades);
+    if (isWork) window.kprWorkSelect = (key) => selectEntry(key, { scrollList: true });
   });
 
   // ---- tech trace: pick a technology, see (and jump to) the projects that ship with it ----
   const PROJECTS = {
-    gallus: '01 / Gallus', teamflow: '02 / TeamFlow', newshub: '03 / NewsHub',
-    fitcampus: '04 / FitCampus', ambot: '05 / AMBOT',
+    gallus: 'Gallus', teamflow: 'TeamFlow', newshub: 'NewsHub',
+    fitcampus: 'FitCampus', ambot: 'AMBOT',
   };
   const USED_IN = {
     Java: ['newshub', 'ambot'], Kotlin: ['fitcampus'], Python: ['teamflow'], TypeScript: ['gallus'],
@@ -1743,22 +1835,19 @@ window.kprLenis = null;
   const everywhere = (tech) => (USED_IN[tech] || []).length === Object.keys(PROJECTS).length;
 
   function jumpTo(key) {
+    const inspector = deck.querySelector('[data-wx-inspector]');
     const target = document.getElementById('project-' + key);
     if (!target) return;
-    const workFilter = deck.querySelector('[data-filter-group="work"]');
     activate(0, {
+      scroll: true,
       then: () => {
-        if (target.classList.contains('is-filtered-out') && workFilter && workFilter.kprApply) workFilter.kprApply('all');
+        if (window.kprWorkSelect) window.kprWorkSelect(key);
+        const flashEl = inspector || target;
         requestAnimationFrame(() => {
-          const header = document.querySelector('.site-header');
-          const y = target.getBoundingClientRect().top + scrollY - (header ? header.offsetHeight : 72) - 28;
-          const flash = () => {
-            target.classList.remove('is-traced');
-            void target.offsetWidth;
-            target.classList.add('is-traced');
-            setTimeout(() => target.classList.remove('is-traced'), 2400);
-          };
-          if (window.kprGlideTo) window.kprGlideTo(y, flash); else { window.scrollTo(0, y); flash(); }
+          flashEl.classList.remove('is-traced');
+          void flashEl.offsetWidth;
+          flashEl.classList.add('is-traced');
+          setTimeout(() => flashEl.classList.remove('is-traced'), 2400);
         });
       },
     });

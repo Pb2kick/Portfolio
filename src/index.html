@@ -55,7 +55,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=7">
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js" defer></script>
@@ -63,8 +63,8 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js" defer></script>
     <script src="dragon3d.js?v=8" defer></script>
-    <script src="script.js?v=4" defer></script>
-    <script src="motion.js" defer></script>
+    <script src="script.js?v=7" defer></script>
+    <script src="motion.js?v=2" defer></script>
   </head>
   <body id="top">
     <!-- Tech logos (Simple Icons, plus two generic marks) as one inline sprite; each chip
@@ -165,8 +165,8 @@
       <nav class="site-nav" aria-label="Main" data-header-nav>
         <span class="nav-glider" data-nav-glider aria-hidden="true"></span>
         <a href="#work" class="is-active" data-deck-trigger="work"><span data-cipher-text>Work</span></a>
-        <a href="#info" data-deck-trigger="info"><span data-cipher-text>Info</span></a>
         <a href="#certifications" data-deck-trigger="certifications"><span data-cipher-text>Certifications</span></a>
+        <a href="#info" data-deck-trigger="info"><span data-cipher-text>Info</span></a>
       </nav>
       <div class="header-tools">
         <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light mode">
@@ -224,7 +224,7 @@
         </aside>
       </section>
 
-      <!-- Work / Info / Certifications: one console. The header links and the tabs switch
+      <!-- Work / Certifications / Info: one console. The header links and the tabs switch
            modules; without JavaScript all three simply stack as normal sections. -->
       <div id="deck" class="deck wrap" data-deck>
         <div class="deck-console">
@@ -235,20 +235,20 @@
               <span class="deck-tab-label" data-cipher-text>Work</span>
               <span class="deck-tab-count">5 projects</span>
             </button>
-            <button class="deck-tab" type="button" role="tab" id="tab-info" aria-selected="false" aria-controls="info" tabindex="-1" data-deck-tab="info">
-              <span class="deck-tab-key" aria-hidden="true">2</span>
-              <span class="deck-tab-label" data-cipher-text>Info</span>
-              <span class="deck-tab-count">27 tools</span>
-            </button>
             <button class="deck-tab" type="button" role="tab" id="tab-certifications" aria-selected="false" aria-controls="certifications" tabindex="-1" data-deck-tab="certifications">
-              <span class="deck-tab-key" aria-hidden="true">3</span>
+              <span class="deck-tab-key" aria-hidden="true">2</span>
               <span class="deck-tab-label" data-cipher-text>Certifications</span>
               <span class="deck-tab-count">7 verified</span>
+            </button>
+            <button class="deck-tab" type="button" role="tab" id="tab-info" aria-selected="false" aria-controls="info" tabindex="-1" data-deck-tab="info">
+              <span class="deck-tab-key" aria-hidden="true">3</span>
+              <span class="deck-tab-label" data-cipher-text>Info</span>
+              <span class="deck-tab-count">27 tools</span>
             </button>
           </div>
           <p class="deck-status">
             <span class="status-dot" aria-hidden="true"></span>
-            <span class="deck-status-text" data-deck-status aria-hidden="true">Five projects, two playable right here in the browser</span>
+            <span class="deck-status-text" data-deck-status aria-hidden="true">Five projects in one explorer — scroll the directory or click a project to inspect</span>
             <span class="visually-hidden" data-deck-status-live aria-live="polite"></span>
             <span class="deck-keys" aria-hidden="true">Press <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> to switch</span>
           </p>
@@ -259,167 +259,766 @@
 
           <!-- Work -->
           <section id="work" class="work deck-panel is-active" role="tabpanel" aria-labelledby="work-title" data-deck-panel="work"
-                   data-status="Five projects, two playable right here in the browser">
-            <div class="section-bar section-bar--tools">
+                   data-status="Five projects in one explorer — scroll the directory or click a project to inspect">
+            <div class="wx-bar">
               <h2 id="work-title" class="label">Selected / Built with intent</h2>
-              <div class="filter-pills" role="group" aria-label="Show projects for" data-filter-group="work">
-                <button class="filter-pill" type="button" aria-pressed="true" data-filter="all">All <span>5</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="web">Web <span>2</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="mobile">Mobile <span>2</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="desktop">Desktop &amp; Java <span>2</span></button>
-              </div>
-              <p class="label lime section-count" data-filter-count="work" aria-live="polite">5 of 5</p>
+              <p class="wx-bar-hint">Scroll the side panel, click, or press <kbd>↑</kbd><kbd>↓</kbd> to browse</p>
             </div>
 
-            <!-- 01 / Gallus: capstone spotlight -->
-            <article id="project-gallus" class="spotlight reveal" data-item data-tags="mobile desktop" aria-labelledby="gallus-title">
-              <div class="spotlight-media">
-                <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
-                <video class="spotlight-video" muted loop playsinline controls preload="none" poster="assets/projects/gallus-poster.webp" data-lazy-video
-                       aria-label="Gallus video pitch">
-                  <source src="assets/projects/gallus-pitch.mp4" type="video/mp4">
-                </video>
-              </div>
-              <div class="spotlight-body">
-                <h3 id="gallus-title" class="spotlight-title">01 / Gallus</h3>
-                <p class="label project-kind">Capstone project / Mobile + desktop</p>
-                <p class="spotlight-lede">Farm management for layer-hen farms that keeps working when the internet doesn’t.</p>
-                <p class="spotlight-text">Gallus (FeedSmart) helps small Philippine poultry farms track flocks, daily egg and mortality records, feed and inventory. Staff record on an Android app, and the owner’s Windows desktop app runs the farm’s local sync server, with Supabase for sign-in and cloud backup.</p>
-                <ul class="points">
-                  <li>Offline-first: local SQLite with queued sync that survives reconnects</li>
-                  <li>Role-based access for owners, attendants, warehouse staff and supervisors</li>
-                  <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
-                </ul>
-                <p class="spotlight-links">
-                  <a class="feature-link" href="https://gallus-desktop-demo.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Desktop web demo <span class="arrow" aria-hidden="true">↗</span></a>
-                  <a class="feature-link" href="https://github.com/Xeldia/FeedSmart" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                </p>
-                <p class="feature-tags">React · TypeScript · Capacitor · Tauri (Rust) · Supabase · SQLite</p>
-                <p class="project-meta">FeedSmart · 5-person team · AY 2025–2026</p>
-              </div>
-            </article>
+            <div class="wx-shell" data-wx-shell>
+              <aside class="wx-rail" data-wx-rail aria-label="Project directory">
+                <div class="wx-rail-inner">
+                  <div class="wx-rail-head">
+                    <span>Project Directory</span>
+                    <span class="wx-rail-cue">Scroll / Click</span>
+                  </div>
+                  <div class="wx-list-wrap" data-wx-list-wrap>
+                  <div class="wx-list" role="tablist" aria-orientation="vertical" aria-label="Projects" data-wx-list>
+                    <button class="wx-item" type="button" role="tab" id="wx-tab-gallus" aria-controls="project-gallus" aria-selected="true" tabindex="0" data-wx-select="gallus">
+                      <span class="wx-item-logo wx-item-logo--dark">
+                        <img src="assets/projects/gallus-logo.png" width="44" height="44" alt="" aria-hidden="true">
+                      </span>
+                      <span class="wx-item-copy">
+                        <span class="wx-item-top">
+                          <span class="wx-item-title">Gallus</span>
+                          <span class="wx-item-pill">Video</span>
+                        </span>
+                        <span class="wx-item-sub">Capstone · Mobile + Desktop</span>
+                        <span class="wx-item-hook">Offline-first poultry farm management with local sync</span>
+                      </span>
+                    </button>
 
-            <div class="featured" data-filter-block>
-              <!-- 02 / TeamFlow -->
-              <article id="project-teamflow" class="feature reveal" data-item data-tags="web" aria-labelledby="teamflow-title">
-                <a class="feature-media feature-media--tf" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" aria-label="Open the TeamFlow live site">
-                  <p class="label media-top">Web app / Team project</p>
-                  <figure class="shot">
-                    <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>teamflow-n88w.onrender.com</span></div>
-                    <img src="assets/projects/teamflow-screenshot.webp" width="1200" height="750" loading="lazy"
-                         alt="TeamFlow sign-in page: a login form beside the TeamFlow logo and the line Streamline your team's workflow">
-                  </figure>
-                  <p class="label media-bottom">Streamline your team’s workflow.</p>
-                </a>
-                <div class="feature-info">
-                  <h3 id="teamflow-title" class="feature-title">02 / TeamFlow
-                    <span class="feature-links">
-                      <a class="feature-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
-                      <a class="feature-link" href="https://github.com/jawee52004/teamflow-project" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                    </span>
-                  </h3>
-                  <p class="feature-desc">A work-management site that keeps a team’s workspaces, tasks and members in one place, with owner, developer and viewer roles.</p>
-                  <p class="feature-tags">Django · Django REST Framework · Supabase · PostgreSQL</p>
-                  <p class="project-meta">3-person team</p>
-                </div>
-              </article>
+                    <button class="wx-item" type="button" role="tab" id="wx-tab-teamflow" aria-controls="project-teamflow" aria-selected="false" tabindex="-1" data-wx-select="teamflow">
+                      <span class="wx-item-logo">
+                        <img src="assets/projects/teamflow-logo.svg" width="44" height="44" alt="" aria-hidden="true">
+                      </span>
+                      <span class="wx-item-copy">
+                        <span class="wx-item-top">
+                          <span class="wx-item-title">TeamFlow</span>
+                          <span class="wx-item-pill">Live</span>
+                        </span>
+                        <span class="wx-item-sub">Web app · Team project</span>
+                        <span class="wx-item-hook">Workspaces, tasks and role-based team collaboration</span>
+                      </span>
+                    </button>
 
-              <!-- 03 / NewsHub -->
-              <article id="project-newshub" class="feature reveal" data-item data-tags="web" aria-labelledby="newshub-title">
-                <a class="feature-media feature-media--news" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" aria-label="Open the NewsHub live site">
-                  <p class="label media-top">Full-stack web app</p>
-                  <figure class="shot">
-                    <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>newshub-s1dh.onrender.com</span></div>
-                    <img src="assets/projects/newshub-screenshot.webp" width="1200" height="750" loading="lazy"
-                         alt="NewsHub sign-in page with the headline Your voice in every election and its secure, location-aware features">
-                  </figure>
-                  <p class="label media-bottom">Your voice in every election.</p>
-                </a>
-                <div class="feature-info">
-                  <h3 id="newshub-title" class="feature-title">03 / NewsHub
-                    <span class="feature-links">
-                      <a class="feature-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">Live site <span class="arrow" aria-hidden="true">↗</span></a>
-                      <a class="feature-link" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                    </span>
-                  </h3>
-                  <p class="feature-desc">A civic news and election platform: location-aware news, candidate pages, a verified voting flow and an admin dashboard.</p>
-                  <p class="feature-tags">React 19 · Spring Boot · PostgreSQL · Supabase Auth · Tailwind CSS</p>
-                </div>
-              </article>
-            </div>
+                    <button class="wx-item" type="button" role="tab" id="wx-tab-newshub" aria-controls="project-newshub" aria-selected="false" tabindex="-1" data-wx-select="newshub">
+                      <span class="wx-item-logo">
+                        <img src="assets/projects/newshub-logo.png?v=2" width="44" height="44" alt="" aria-hidden="true">
+                      </span>
+                      <span class="wx-item-copy">
+                        <span class="wx-item-top">
+                          <span class="wx-item-title">NewsHub</span>
+                          <span class="wx-item-pill">Live</span>
+                        </span>
+                        <span class="wx-item-sub">Full-stack web app</span>
+                        <span class="wx-item-hook">Civic news, candidate pages and verified voting flow</span>
+                      </span>
+                    </button>
 
-            <!-- Live demos -->
-            <div class="live-bar" data-filter-label="live">
-              <p class="label lime">Try it live</p>
-              <p class="label">Both run right here in your browser. Nothing to install.</p>
-            </div>
+                    <button class="wx-item" type="button" role="tab" id="wx-tab-fitcampus" aria-controls="project-fitcampus" aria-selected="false" tabindex="-1" data-wx-select="fitcampus">
+                      <span class="wx-item-logo">
+                        <img src="assets/projects/fitcampus-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                      </span>
+                      <span class="wx-item-copy">
+                        <span class="wx-item-top">
+                          <span class="wx-item-title">FitCampus</span>
+                          <span class="wx-item-pill">Demo</span>
+                        </span>
+                        <span class="wx-item-sub">Android app · Kotlin</span>
+                        <span class="wx-item-hook">Offline workout planner sized to class-timetable gaps</span>
+                      </span>
+                    </button>
 
-            <div class="live" data-filter-block="live">
-              <!-- 04 / FitCampus -->
-              <article id="project-fitcampus" class="live-card reveal" data-item data-tags="mobile" aria-labelledby="fitcampus-title">
-                <div class="phone">
-                  <div class="phone-screen slides" data-slides aria-roledescription="carousel" aria-label="FitCampus screenshots">
-                    <img class="slide is-active" src="assets/projects/fitcampus/1-splash.webp" width="540" height="960" alt="FitCampus splash screen: the kettlebell logo on orange">
-                    <img class="slide" src="assets/projects/fitcampus/2-home.webp" width="540" height="960" loading="lazy" alt="FitCampus home screen greeting Ken, with today's plan and the free-time card">
-                    <img class="slide" src="assets/projects/fitcampus/3-categories.webp" width="540" height="960" loading="lazy" alt="FitCampus exercise categories with No equipment, Dorm-friendly, Quiet and Gym filters">
+                    <button class="wx-item" type="button" role="tab" id="wx-tab-ambot" aria-controls="project-ambot" aria-selected="false" tabindex="-1" data-wx-select="ambot">
+                      <span class="wx-item-logo wx-item-logo--pixel">
+                        <img src="assets/projects/ambot-logo.png" width="44" height="44" alt="" aria-hidden="true">
+                      </span>
+                      <span class="wx-item-copy">
+                        <span class="wx-item-top">
+                          <span class="wx-item-title">AMBOT</span>
+                          <span class="wx-item-pill">Play</span>
+                        </span>
+                        <span class="wx-item-sub">Java game · OOP2</span>
+                        <span class="wx-item-hook">Playable 2D Java platformer running in WebAssembly</span>
+                      </span>
+                    </button>
                   </div>
                 </div>
-                <div class="live-info">
-                  <h3 id="fitcampus-title" class="feature-title">04 / FitCampus
-                    <span class="feature-links">
-                      <a class="feature-link" href="https://appetize.io/app/b_tns4jileka7ujfwydazwje6xxi?device=pixel7&amp;autoplay=true&amp;params=%7B%22demoProfile%22%3A%22Ken%22%7D" target="_blank" rel="noopener" data-tip="Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.">Live demo <span class="arrow" aria-hidden="true">↗</span></a>
-                      <a class="feature-link" href="https://github.com/Pb2kick/FitCampus" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                    </span>
-                  </h3>
-                  <p class="label project-kind">Android app / Kotlin</p>
-                  <p class="feature-desc">An offline workout planner that fits training into the free time between a student’s classes.</p>
-                  <ul class="points">
-                    <li>75 guided exercises, filterable by equipment, space and noise</li>
-                    <li>Weekly plan sized to class-timetable gaps, with reminders</li>
-                    <li>History, streaks and badges, all stored on the phone</li>
-                  </ul>
-                  <p class="feature-tags">Kotlin · Android SDK · Room · SQLite</p>
-                  <p class="project-meta">2-person team · Live demo on Appetize</p>
+                  <div class="wx-rail-foot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M7 10l5-5 5 5M7 14l5 5 5-5"/></svg>
+                    <span>Scroll inside panel to switch projects</span>
+                  </div>
                 </div>
-              </article>
+              </aside>
 
-              <!-- 05 / AMBOT -->
-              <article id="project-ambot" class="live-card live-card--wide reveal" data-item data-tags="desktop" aria-labelledby="ambot-title">
-                <div class="game" data-game data-lenis-prevent>
-                  <div class="game-stage" data-game-stage></div>
-                  <div class="live-cover game-cover" data-game-cover data-state="idle">
-                    <div class="slides" data-slides aria-roledescription="carousel" aria-label="AMBOT screenshots">
-                      <img class="slide is-active" src="games/ambot/slides/1-menu.png" width="640" height="360" alt="AMBOT main menu: Continue, New Game, World Select, Options, Credits, Quit">
-                      <img class="slide" src="games/ambot/slides/2-run.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: the player running across a grassy level">
-                      <img class="slide" src="games/ambot/slides/3-attack.png" width="640" height="360" loading="lazy" alt="AMBOT gameplay: a sword attack on a raised platform">
+              <div class="wx-inspector" data-wx-inspector>
+                <!-- Gallus -->
+                <article id="project-gallus" class="wx-pane is-active" role="tabpanel" aria-labelledby="wx-tab-gallus" data-wx-pane="gallus">
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo wx-item-logo--dark">
+                        <img src="assets/projects/gallus-logo.png" width="44" height="44" alt="Gallus logo">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 id="gallus-title" class="wx-pane-title">Gallus</h3>
+                        <p class="wx-pane-kind">Capstone project · Mobile + desktop</p>
+                      </div>
                     </div>
-                    <span class="game-spinner" aria-hidden="true"></span>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://gallus-desktop-demo.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Desktop web demo</span>
+                      </a>
+                      <a class="wx-cta wx-cta--ghost" href="https://github.com/Xeldia/FeedSmart" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+                        <span>Code</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body">
+                    <div class="wx-stage">
+                      <div class="spotlight-media">
+                        <img class="spotlight-poster" src="assets/projects/gallus-logo.png" alt="" aria-hidden="true">
+                        <video class="spotlight-video" muted loop playsinline controls preload="metadata" poster="assets/projects/gallus-poster.webp" data-lazy-video
+                               aria-label="Gallus video pitch">
+                          <source src="assets/projects/gallus-pitch.mp4" type="video/mp4">
+                        </video>
+                      </div>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Farm management for layer-hen farms that keeps working when the internet doesn’t.</p>
+                      <p class="wx-desc">Gallus (FeedSmart) helps small Philippine poultry farms track flocks, daily egg and mortality records, feed and inventory. Staff record on an Android app, and the owner’s Windows desktop app runs the farm’s local sync server, with Supabase for sign-in and cloud backup.</p>
+                      <ul class="points">
+                        <li>Offline-first: local SQLite with queued sync that survives reconnects</li>
+                        <li>Role-based access for owners, attendants, warehouse staff and supervisors</li>
+                        <li>Daily and monthly reports with CSV export, plus weather and heat alerts</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>React</span><span>TypeScript</span><span>Capacitor</span><span>Tauri (Rust)</span><span>Supabase</span><span>SQLite</span></div>
+                    <p class="wx-meta">FeedSmart · 5-person team · AY 2025–2026</p>
+                  </div>
+                </article>
+
+                <!-- TeamFlow -->
+                <article id="project-teamflow" class="wx-pane" role="tabpanel" aria-labelledby="wx-tab-teamflow" data-wx-pane="teamflow" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/projects/teamflow-logo.svg" width="44" height="44" alt="TeamFlow logo">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 id="teamflow-title" class="wx-pane-title">TeamFlow</h3>
+                        <p class="wx-pane-kind">Web app · Team project</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Live site</span>
+                      </a>
+                      <a class="wx-cta wx-cta--ghost" href="https://github.com/jawee52004/teamflow-project" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+                        <span>Code</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body">
+                    <div class="wx-stage">
+                      <a class="wx-shot-link" href="https://teamflow-n88w.onrender.com/" target="_blank" rel="noopener" aria-label="Open the TeamFlow live site">
+                        <figure class="shot">
+                          <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>teamflow-n88w.onrender.com</span></div>
+                          <img src="assets/projects/teamflow-screenshot.webp" width="1200" height="750"
+                               alt="TeamFlow sign-in page: a login form beside the TeamFlow logo and the line Streamline your team's workflow">
+                        </figure>
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Shared workspaces, task tracking, and team permissions in one web app.</p>
+                      <p class="wx-desc">TeamFlow keeps a project team’s workspaces, tasks, and member invitations organized in one place, backed by a Django REST API and PostgreSQL on Supabase.</p>
+                      <ul class="points">
+                        <li>Email-confirmed sign-up and email-verified workspace invitations for onboarding members</li>
+                        <li>Role-based permissions for owners, developers, and viewers controlling member and task actions</li>
+                        <li>Structured workspaces and task tracking powered by Django REST Framework and PostgreSQL</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>Django</span><span>Django REST Framework</span><span>Supabase</span><span>PostgreSQL</span></div>
+                    <p class="wx-meta">3-person team</p>
+                  </div>
+                </article>
+
+                <!-- NewsHub -->
+                <article id="project-newshub" class="wx-pane" role="tabpanel" aria-labelledby="wx-tab-newshub" data-wx-pane="newshub" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/projects/newshub-logo.png?v=2" width="44" height="44" alt="NewsHub logo">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 id="newshub-title" class="wx-pane-title">NewsHub</h3>
+                        <p class="wx-pane-kind">Full-stack web app</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" data-tip="Free hosting: the first visit can take up to a minute to wake up.">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Live site</span>
+                      </a>
+                      <a class="wx-cta wx-cta--ghost" href="https://github.com/Pb2kick/NewsHub" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+                        <span>Code</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body">
+                    <div class="wx-stage">
+                      <a class="wx-shot-link" href="https://newshub-s1dh.onrender.com/" target="_blank" rel="noopener" aria-label="Open the NewsHub live site">
+                        <figure class="shot">
+                          <div class="shot-bar" aria-hidden="true"><i></i><i></i><i></i><span>newshub-s1dh.onrender.com</span></div>
+                          <img src="assets/projects/newshub-screenshot.webp" width="1200" height="750"
+                               alt="NewsHub sign-in page with the headline Your voice in every election and its secure, location-aware features">
+                        </figure>
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Civic news and election participation built around location-aware feeds and verified voting.</p>
+                      <p class="wx-desc">NewsHub brings local election coverage, candidate profiles, and a guided voting flow into one platform, organized into feature-first vertical slices across React 19 and Spring Boot.</p>
+                      <ul class="points">
+                        <li>Location-aware news feed, article views, and election browsing with dedicated candidate pages</li>
+                        <li>Supabase authentication with confirmed-email sign-up, profile controls, and verified voting flow</li>
+                        <li>Admin dashboard for managing voter verifications, elections, candidates, and news articles</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>React 19</span><span>Spring Boot</span><span>PostgreSQL</span><span>Supabase Auth</span><span>Tailwind CSS</span></div>
+                    <p class="wx-meta">Full-stack web application</p>
+                  </div>
+                </article>
+
+                <!-- FitCampus -->
+                <article id="project-fitcampus" class="wx-pane" role="tabpanel" aria-labelledby="wx-tab-fitcampus" data-wx-pane="fitcampus" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/projects/fitcampus-icon.png" width="44" height="44" alt="FitCampus logo">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 id="fitcampus-title" class="wx-pane-title">FitCampus</h3>
+                        <p class="wx-pane-kind">Android app · Kotlin</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://appetize.io/app/b_tns4jileka7ujfwydazwje6xxi?device=pixel7&amp;autoplay=true&amp;params=%7B%22demoProfile%22%3A%22Ken%22%7D" target="_blank" rel="noopener" data-tip="Runs the real app on a cloud Android phone, signed in as Ken. Sessions last up to 3 minutes.">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Live demo</span>
+                      </a>
+                      <a class="wx-cta wx-cta--ghost" href="https://github.com/Pb2kick/FitCampus" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+                        <span>Code</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--phone">
+                    <div class="wx-stage">
+                      <div class="phone">
+                        <div class="phone-screen slides" data-slides aria-roledescription="carousel" aria-label="FitCampus screenshots">
+                          <img class="slide is-active" src="assets/projects/fitcampus/1-splash.webp" width="540" height="960" alt="FitCampus splash screen: the kettlebell logo on orange">
+                          <img class="slide" src="assets/projects/fitcampus/2-home.webp" width="540" height="960" alt="FitCampus home screen greeting Ken, with today's plan and the free-time card">
+                          <img class="slide" src="assets/projects/fitcampus/3-categories.webp" width="540" height="960" alt="FitCampus exercise categories with No equipment, Dorm-friendly, Quiet and Gym filters">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Offline workout planner sized to class-timetable gaps.</p>
+                      <p class="wx-desc">An offline workout planner that fits training into the free time between a student’s classes.</p>
+                      <ul class="points">
+                        <li>75 guided exercises, filterable by equipment, space and noise</li>
+                        <li>Weekly plan sized to class-timetable gaps, with reminders</li>
+                        <li>History, streaks and badges, all stored on the phone</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>Kotlin</span><span>Android SDK</span><span>Room</span><span>SQLite</span></div>
+                    <p class="wx-meta">2-person team · Live demo on Appetize</p>
+                  </div>
+                </article>
+
+                <!-- AMBOT -->
+                <article id="project-ambot" class="wx-pane" role="tabpanel" aria-labelledby="wx-tab-ambot" data-wx-pane="ambot" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo wx-item-logo--pixel">
+                        <img src="assets/projects/ambot-logo.png" width="44" height="44" alt="AMBOT logo">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 id="ambot-title" class="wx-pane-title">AMBOT</h3>
+                        <p class="wx-pane-kind">Java game · OOP2</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta wx-cta--ghost" href="https://github.com/Pb2kick/OOP2" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+                        <span>Code</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--wide">
+                    <div class="wx-stage">
+                      <div class="game" data-game data-lenis-prevent>
+                        <div class="game-stage" data-game-stage></div>
+                        <div class="live-cover game-cover" data-game-cover data-state="idle">
+                          <div class="slides" data-slides aria-roledescription="carousel" aria-label="AMBOT screenshots">
+                            <img class="slide is-active" src="games/ambot/slides/1-menu.png" width="640" height="360" alt="AMBOT main menu: Continue, New Game, World Select, Options, Credits, Quit">
+                            <img class="slide" src="games/ambot/slides/2-run.png" width="640" height="360" alt="AMBOT gameplay: the player running across a grassy level">
+                            <img class="slide" src="games/ambot/slides/3-attack.png" width="640" height="360" alt="AMBOT gameplay: a sword attack on a raised platform">
+                          </div>
+                          <span class="game-spinner" aria-hidden="true"></span>
+                        </div>
+                      </div>
+                      <div class="game-controls" role="group" aria-label="Game controls">
+                        <button class="game-btn" type="button" data-game-start>
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
+                          <span data-game-start-label>Play AMBOT</span>
+                        </button>
+                        <button class="game-btn" type="button" data-game-fullscreen>
+                          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                          Fullscreen
+                        </button>
+                        <p class="game-hint" data-game-hint role="status">The first load downloads a Java runtime, so give it a moment.</p>
+                      </div>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">The real Java game, running live in your browser.</p>
+                      <p class="wx-desc">A 2D side-scrolling platformer in Java and Swing. It started as an unfinished OOP2 group project; I’m restoring and finishing it one world at a time.</p>
+                      <p class="game-keys"><kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd> attack · <kbd>K</kbd> parry · <kbd>L</kbd> dash · <kbd>Esc</kbd> pause</p>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>Java</span><span>Swing</span><span>Tiled</span><span>JUnit</span></div>
+                    <p class="wx-meta">5-person team · Runs in WebAssembly through CheerpJ</p>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- Certifications -->
+          <section id="certifications" class="certs deck-panel" role="tabpanel" aria-labelledby="certs-title" data-deck-panel="certifications"
+                   data-status="Seven verified credentials in one explorer — scroll the directory or click to inspect">
+            <div class="wx-bar">
+              <h2 id="certs-title" class="label">Credentials / Verified certifications</h2>
+              <p class="wx-bar-hint">Scroll the side panel, click, or press <kbd>↑</kbd><kbd>↓</kbd> to browse</p>
+            </div>
+
+            <div class="wx-shell wx-shell--certs" data-wx-shell="certs">
+              <aside class="wx-rail" data-wx-rail aria-label="Certifications directory">
+                <div class="wx-rail-inner">
+                  <div class="wx-rail-head">
+                    <span>Credential Directory</span>
+                    <span class="wx-rail-cue">Scroll / Click</span>
+                  </div>
+                  <div class="wx-list-wrap" data-wx-list-wrap>
+                    <div class="wx-list" role="tablist" aria-orientation="vertical" aria-label="Certifications" data-wx-list>
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-aws-arch" aria-controls="cert-aws-arch" aria-selected="true" tabindex="0" data-wx-select="aws-arch">
+                        <span class="wx-item-logo wx-item-logo--dark">
+                          <img src="assets/certs/aws-arch-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">Cloud Architecting</span>
+                            <span class="wx-item-pill">Cloud</span>
+                          </span>
+                          <span class="wx-item-sub">AWS Academy · Credly</span>
+                          <span class="wx-item-hook">AWS Academy Graduate — Cloud Architecting badge</span>
+                        </span>
+                      </button>
+
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-aws-found" aria-controls="cert-aws-found" aria-selected="false" tabindex="-1" data-wx-select="aws-found">
+                        <span class="wx-item-logo wx-item-logo--dark">
+                          <img src="assets/certs/aws-found-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">Cloud Foundations</span>
+                            <span class="wx-item-pill">Cloud</span>
+                          </span>
+                          <span class="wx-item-sub">AWS Academy · Credly</span>
+                          <span class="wx-item-hook">AWS Academy Graduate — Cloud Foundations badge</span>
+                        </span>
+                      </button>
+
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-aws-genai" aria-controls="cert-aws-genai" aria-selected="false" tabindex="-1" data-wx-select="aws-genai">
+                        <span class="wx-item-logo wx-item-logo--dark">
+                          <img src="assets/certs/aws-genai-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">Generative AI</span>
+                            <span class="wx-item-pill">AI</span>
+                          </span>
+                          <span class="wx-item-sub">AWS Academy · Credly</span>
+                          <span class="wx-item-hook">AWS Academy Graduate — Generative AI Foundations</span>
+                        </span>
+                      </button>
+
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-ibm-ai" aria-controls="cert-ibm-ai" aria-selected="false" tabindex="-1" data-wx-select="ibm-ai">
+                        <span class="wx-item-logo">
+                          <img src="assets/certs/ibm-ai-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">AI Fundamentals</span>
+                            <span class="wx-item-pill">AI</span>
+                          </span>
+                          <span class="wx-item-sub">IBM SkillsBuild · Credly</span>
+                          <span class="wx-item-hook">ML, deep learning, NLP, and computer vision concepts</span>
+                        </span>
+                      </button>
+
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-codechum-java" aria-controls="cert-codechum-java" aria-selected="false" tabindex="-1" data-wx-select="codechum-java">
+                        <span class="wx-item-logo">
+                          <img src="assets/certs/codechum-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">Java OOP</span>
+                            <span class="wx-item-pill">Java</span>
+                          </span>
+                          <span class="wx-item-sub">CodeChum · CIT-U</span>
+                          <span class="wx-item-hook">Java Object-Oriented Programming Certification Exam</span>
+                        </span>
+                      </button>
+
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-asean-ai" aria-controls="cert-asean-ai" aria-selected="false" tabindex="-1" data-wx-select="asean-ai">
+                        <span class="wx-item-logo">
+                          <img src="assets/certs/asean-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">ASEAN AI-Ready</span>
+                            <span class="wx-item-pill">AI</span>
+                          </span>
+                          <span class="wx-item-sub">ASEAN Foundation</span>
+                          <span class="wx-item-hook">12-hour AI literacy curriculum supported by Google.org</span>
+                        </span>
+                      </button>
+
+                      <button class="wx-item" type="button" role="tab" id="cx-tab-canva-design" aria-controls="cert-canva-design" aria-selected="false" tabindex="-1" data-wx-select="canva-design">
+                        <span class="wx-item-logo">
+                          <img src="assets/certs/canva-icon.png" width="44" height="44" alt="" aria-hidden="true">
+                        </span>
+                        <span class="wx-item-copy">
+                          <span class="wx-item-top">
+                            <span class="wx-item-title">Graphic Design</span>
+                            <span class="wx-item-pill">Design</span>
+                          </span>
+                          <span class="wx-item-sub">Canva Design School</span>
+                          <span class="wx-item-hook">Graphic Design Essentials certification award</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="wx-rail-foot">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M7 10l5-5 5 5M7 14l5 5 5-5"/></svg>
+                    <span>Scroll inside panel to switch credentials</span>
                   </div>
                 </div>
-                <div class="game-controls" role="group" aria-label="Game controls">
-                  <button class="game-btn" type="button" data-game-start>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>
-                    <span data-game-start-label>Play AMBOT</span>
-                  </button>
-                  <button class="game-btn" type="button" data-game-fullscreen>
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                    Fullscreen
-                  </button>
-                  <p class="game-hint" data-game-hint role="status">The first load downloads a Java runtime, so give it a moment.</p>
-                </div>
-                <div class="live-info">
-                  <h3 id="ambot-title" class="feature-title">05 / AMBOT
-                    <span class="feature-links">
-                      <a class="feature-link" href="https://github.com/Pb2kick/OOP2" target="_blank" rel="noopener">Code <span class="arrow" aria-hidden="true">↗</span></a>
-                    </span>
-                  </h3>
-                  <p class="label project-kind">Java game / OOP2</p>
-                  <p class="feature-desc">A 2D side-scrolling platformer in Java and Swing. It started as an unfinished OOP2 group project; I’m restoring and finishing it one world at a time.</p>
-                  <p class="game-keys"><kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> jump · <kbd>S</kbd> crouch · <kbd>J</kbd> attack · <kbd>K</kbd> parry · <kbd>L</kbd> dash · <kbd>Esc</kbd> pause</p>
-                  <p class="feature-tags">Java · Swing · Tiled · JUnit</p>
-                  <p class="project-meta">5-person team · The real Java game, running in WebAssembly through CheerpJ</p>
-                </div>
-              </article>
+              </aside>
+
+              <div class="wx-inspector" data-wx-inspector>
+                <!-- AWS Cloud Architecting -->
+                <article id="cert-aws-arch" class="wx-pane is-active" role="tabpanel" aria-labelledby="cx-tab-aws-arch" data-wx-pane="aws-arch">
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo wx-item-logo--dark">
+                        <img src="assets/certs/aws-arch-icon.png" width="44" height="44" alt="AWS Academy Cloud Architecting badge">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">AWS Academy Graduate — Cloud Architecting</h3>
+                        <p class="wx-pane-kind">AWS Academy · Training badge on Credly</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://www.credly.com/badges/13411c87-d22e-49dd-9912-55ff76198ec3/public_url" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Verify on Credly</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--badge" href="https://www.credly.com/badges/13411c87-d22e-49dd-9912-55ff76198ec3/public_url" target="_blank" rel="noopener" aria-label="Verify AWS Academy Cloud Architecting on Credly">
+                        <img src="assets/certs/aws-arch.webp" width="459" height="484" alt="AWS Academy Graduate — Cloud Architecting official training badge">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Cloud architecture training verified by Amazon Web Services.</p>
+                      <p class="wx-desc">Earners of this badge have completed the AWS Academy Cloud Architecting course, covering infrastructure design, scalable architectures, and AWS best practices.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>AWS Training &amp; Certification</dd></div>
+                        <div><dt>Domain</dt><dd>Cloud Architecture</dd></div>
+                        <div><dt>Verification</dt><dd>Public Credly digital badge</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>AWS Academy</span><span>Cloud Architecting</span><span>Credly Verified</span></div>
+                    <p class="wx-meta">Issued to Ken Ranis</p>
+                  </div>
+                </article>
+
+                <!-- AWS Cloud Foundations -->
+                <article id="cert-aws-found" class="wx-pane" role="tabpanel" aria-labelledby="cx-tab-aws-found" data-wx-pane="aws-found" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo wx-item-logo--dark">
+                        <img src="assets/certs/aws-found-icon.png" width="44" height="44" alt="AWS Academy Cloud Foundations badge">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">AWS Academy Graduate — Cloud Foundations</h3>
+                        <p class="wx-pane-kind">AWS Academy · Training badge on Credly</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://www.credly.com/badges/1e07ce1f-c949-442d-9d5a-a8b3bf7eae73/public_url" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Verify on Credly</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--badge" href="https://www.credly.com/badges/1e07ce1f-c949-442d-9d5a-a8b3bf7eae73/public_url" target="_blank" rel="noopener" aria-label="Verify AWS Academy Cloud Foundations on Credly">
+                        <img src="assets/certs/aws-found.webp" width="459" height="484" alt="AWS Academy Graduate — Cloud Foundations official training badge">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Core AWS cloud concepts, services, security, and architecture.</p>
+                      <p class="wx-desc">Earners of this badge have completed the AWS Academy Cloud Foundations course, building an overall understanding of cloud computing concepts and core AWS services.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>AWS Training &amp; Certification</dd></div>
+                        <div><dt>Domain</dt><dd>Cloud Computing</dd></div>
+                        <div><dt>Verification</dt><dd>Public Credly digital badge</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>AWS Academy</span><span>Cloud Foundations</span><span>Credly Verified</span></div>
+                    <p class="wx-meta">Issued to Ken Ranis</p>
+                  </div>
+                </article>
+
+                <!-- AWS Generative AI Foundations -->
+                <article id="cert-aws-genai" class="wx-pane" role="tabpanel" aria-labelledby="cx-tab-aws-genai" data-wx-pane="aws-genai" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo wx-item-logo--dark">
+                        <img src="assets/certs/aws-genai-icon.png" width="44" height="44" alt="AWS Academy Generative AI Foundations badge">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">AWS Academy Graduate — Generative AI Foundations</h3>
+                        <p class="wx-pane-kind">AWS Academy · Training badge on Credly</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://www.credly.com/badges/97e0552f-0e5f-4835-a3a7-376931bf3eb6/public_url" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Verify on Credly</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--badge" href="https://www.credly.com/badges/97e0552f-0e5f-4835-a3a7-376931bf3eb6/public_url" target="_blank" rel="noopener" aria-label="Verify AWS Academy Generative AI Foundations on Credly">
+                        <img src="assets/certs/aws-genai.webp" width="459" height="484" alt="AWS Academy Graduate — Generative AI Foundations official training badge">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Foundational generative AI concepts and cloud AI workflows.</p>
+                      <p class="wx-desc">Earners of this badge have completed the AWS Academy Generative AI Foundations course, covering foundation models, prompt design, and responsible AI practices.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>AWS Training &amp; Certification</dd></div>
+                        <div><dt>Domain</dt><dd>Generative AI</dd></div>
+                        <div><dt>Verification</dt><dd>Public Credly digital badge</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>AWS Academy</span><span>Generative AI</span><span>Credly Verified</span></div>
+                    <p class="wx-meta">Issued to Ken Ranis</p>
+                  </div>
+                </article>
+
+                <!-- IBM SkillsBuild AI Fundamentals -->
+                <article id="cert-ibm-ai" class="wx-pane" role="tabpanel" aria-labelledby="cx-tab-ibm-ai" data-wx-pane="ibm-ai" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/certs/ibm-ai-icon.png" width="44" height="44" alt="IBM SkillsBuild Artificial Intelligence Fundamentals badge">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">Artificial Intelligence Fundamentals</h3>
+                        <p class="wx-pane-kind">IBM SkillsBuild · Credential badge on Credly</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://www.credly.com/badges/3f9145d7-0feb-42cd-8941-d9586ded21f6/public_url" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>Verify on Credly</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--badge wx-cert-showcase--square" href="https://www.credly.com/badges/3f9145d7-0feb-42cd-8941-d9586ded21f6/public_url" target="_blank" rel="noopener" aria-label="Verify IBM SkillsBuild Artificial Intelligence Fundamentals on Credly">
+                        <img src="assets/certs/ibm-ai.webp" width="600" height="600" alt="IBM SkillsBuild Artificial Intelligence Fundamentals official credential badge">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Core AI concepts spanning machine learning, deep learning, NLP, and computer vision.</p>
+                      <p class="wx-desc">This credential demonstrates knowledge of artificial intelligence concepts including natural language processing, computer vision, machine learning, deep learning, chatbots, and neural networks.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>IBM SkillsBuild</dd></div>
+                        <div><dt>Domain</dt><dd>Artificial Intelligence</dd></div>
+                        <div><dt>Verification</dt><dd>Public Credly digital badge</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>IBM SkillsBuild</span><span>Machine Learning</span><span>NLP</span><span>Computer Vision</span></div>
+                    <p class="wx-meta">Issued to Ken Patrick Ranis</p>
+                  </div>
+                </article>
+
+                <!-- CodeChum Java OOP -->
+                <article id="cert-codechum-java" class="wx-pane" role="tabpanel" aria-labelledby="cx-tab-codechum-java" data-wx-pane="codechum-java" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/certs/codechum-icon.png" width="44" height="44" alt="CodeChum logo">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">Java Object-Oriented Programming</h3>
+                        <p class="wx-pane-kind">CodeChum · CIT-U · Course certificate #10004</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://citu.codechum.com/certificates/10004" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>View Certificate</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert-doc">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--doc" href="https://citu.codechum.com/certificates/10004" target="_blank" rel="noopener" aria-label="View Java Object-Oriented Programming certificate on CodeChum">
+                        <img src="assets/certs/codechum-java.webp" width="1200" height="630" alt="CodeChum certificate for Ken Patrick Ranis: CITU Java Object-Oriented Programming Certification Exam">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Passed the CIT-U Java Object-Oriented Programming Certification Exam.</p>
+                      <p class="wx-desc">Verifies completion of the CITU – Java Object-Oriented Programming Certification Exam administered through CodeChum.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>CodeChum · CIT-U</dd></div>
+                        <div><dt>Certificate ID</dt><dd>#10004</dd></div>
+                        <div><dt>Domain</dt><dd>Java / OOP</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>Java</span><span>Object-Oriented Programming</span><span>CodeChum</span><span>CIT-U</span></div>
+                    <p class="wx-meta">Certificate #10004 · Verified online</p>
+                  </div>
+                </article>
+
+                <!-- ASEAN AI-Ready -->
+                <article id="cert-asean-ai" class="wx-pane" role="tabpanel" aria-labelledby="cx-tab-asean-ai" data-wx-pane="asean-ai" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/certs/asean-icon.png" width="44" height="44" alt="AI Ready ASEAN emblem">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">ASEAN AI-Ready Certificate</h3>
+                        <p class="wx-pane-kind">ASEAN Foundation · Program certificate</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://drive.google.com/file/d/1j4S4Mkx3tsy-fn5HbDKeiOfBX41udHHW/view?usp=sharing" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>View Certificate</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert-doc">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--doc" href="https://drive.google.com/file/d/1j4S4Mkx3tsy-fn5HbDKeiOfBX41udHHW/view?usp=sharing" target="_blank" rel="noopener" aria-label="Open full ASEAN AI-Ready Certificate">
+                        <img src="assets/certs/asean-ai.webp" width="1000" height="707" alt="ASEAN Foundation Certificate of Completion presented to Ken Patrick Ranis on November 24, 2025">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Completed all 12 hours of AI learning modules on AIClassASEAN.org.</p>
+                      <p class="wx-desc">Awarded by the ASEAN Foundation with support from Google.org for completing all chapters of the 12-hour AI Ready ASEAN curriculum in AI literacy.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>ASEAN Foundation</dd></div>
+                        <div><dt>Supported by</dt><dd>Google.org</dd></div>
+                        <div><dt>Issued</dt><dd>November 24, 2025</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>ASEAN Foundation</span><span>AI Literacy</span><span>12-Hour Curriculum</span></div>
+                    <p class="wx-meta">Issued Nov 24, 2025 · AIClassASEAN.org</p>
+                  </div>
+                </article>
+
+                <!-- Canva Graphic Design Essentials -->
+                <article id="cert-canva-design" class="wx-pane" role="tabpanel" aria-labelledby="cx-tab-canva-design" data-wx-pane="canva-design" hidden>
+                  <div class="wx-pane-head">
+                    <div class="wx-pane-brand">
+                      <span class="wx-pane-logo">
+                        <img src="assets/certs/canva-icon.png" width="44" height="44" alt="Canva Design School award badge">
+                      </span>
+                      <div class="wx-pane-title-wrap">
+                        <h3 class="wx-pane-title">Graphic Design Essentials</h3>
+                        <p class="wx-pane-kind">Canva Design School · Certification award</p>
+                      </div>
+                    </div>
+                    <div class="wx-actions">
+                      <a class="wx-cta" href="https://www.canva.com/design-school/certification-award/8273b1c9-0dac-48ad-be4e-5637fcb4cb5e" target="_blank" rel="noopener">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                        <span>View Award</span>
+                      </a>
+                    </div>
+                  </div>
+                  <div class="wx-body wx-body--cert">
+                    <div class="wx-stage">
+                      <a class="wx-cert-showcase wx-cert-showcase--badge wx-cert-showcase--square" href="https://www.canva.com/design-school/certification-award/8273b1c9-0dac-48ad-be4e-5637fcb4cb5e" target="_blank" rel="noopener" aria-label="View Canva Design School Graphic Design Essentials award">
+                        <img src="assets/certs/canva-design.webp" width="960" height="960" alt="Canva Design School Graphic Design Essentials certification award">
+                      </a>
+                    </div>
+                    <div class="wx-details">
+                      <p class="wx-lede">Certified in design fundamentals by Canva Design School.</p>
+                      <p class="wx-desc">Awarded upon completing Canva Design School’s Graphic Design Essentials track covering layout, typography, hierarchy, and visual balance.</p>
+                      <dl class="wx-cert-specs">
+                        <div><dt>Issuer</dt><dd>Canva Design School</dd></div>
+                        <div><dt>Domain</dt><dd>Graphic &amp; Visual Design</dd></div>
+                        <div><dt>Verification</dt><dd>Public Canva certification award</dd></div>
+                      </dl>
+                    </div>
+                  </div>
+                  <div class="wx-pane-foot">
+                    <div class="wx-tags"><span>Canva Design School</span><span>Design Fundamentals</span><span>Visual Hierarchy</span></div>
+                    <p class="wx-meta">Official certification award</p>
+                  </div>
+                </article>
+              </div>
             </div>
           </section>
 
@@ -622,94 +1221,12 @@
               <p class="stack-note">Logos from Simple Icons. Antigravity and Codex use generic marks.</p>
             </div>
           </section>
-
-          <!-- Certifications -->
-          <section id="certifications" class="certs deck-panel" role="tabpanel" aria-labelledby="certs-title" data-deck-panel="certifications"
-                   data-status="Seven credentials, each linked to where it can be verified">
-            <div class="section-bar section-bar--tools">
-              <h2 id="certs-title" class="label">Credentials / Verified certifications</h2>
-              <div class="filter-pills" role="group" aria-label="Show certifications for" data-filter-group="certs">
-                <button class="filter-pill" type="button" aria-pressed="true" data-filter="all">All <span>7</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="cloud">Cloud <span>2</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="ai">AI <span>3</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="java">Java / OOP <span>1</span></button>
-                <button class="filter-pill" type="button" aria-pressed="false" data-filter="design">Design <span>1</span></button>
-              </div>
-              <p class="label lime section-count" data-filter-count="certs" aria-live="polite">7 of 7</p>
-            </div>
-
-            <ol class="ledger">
-              <li class="cert reveal" data-item data-tags="cloud">
-                <span class="cert-no" aria-hidden="true">01</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">AWS Academy Graduate — Cloud Architecting</h3>
-                  <p class="cert-meta">AWS Academy · Training badge on Credly</p>
-                </div>
-                <span class="cert-badge">Cloud</span>
-                <a class="cert-link" href="https://www.credly.com/badges/13411c87-d22e-49dd-9912-55ff76198ec3/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> AWS Academy Graduate — Cloud Architecting</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-              <li class="cert reveal" data-item data-tags="cloud">
-                <span class="cert-no" aria-hidden="true">02</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">AWS Academy Graduate — Cloud Foundations</h3>
-                  <p class="cert-meta">AWS Academy · Training badge on Credly</p>
-                </div>
-                <span class="cert-badge">Cloud</span>
-                <a class="cert-link" href="https://www.credly.com/badges/1e07ce1f-c949-442d-9d5a-a8b3bf7eae73/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> AWS Academy Graduate — Cloud Foundations</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-              <li class="cert reveal" data-item data-tags="ai">
-                <span class="cert-no" aria-hidden="true">03</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">AWS Academy Graduate — Generative AI Foundations</h3>
-                  <p class="cert-meta">AWS Academy · Training badge on Credly</p>
-                </div>
-                <span class="cert-badge">AI</span>
-                <a class="cert-link" href="https://www.credly.com/badges/97e0552f-0e5f-4835-a3a7-376931bf3eb6/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> AWS Academy Graduate — Generative AI Foundations</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-              <li class="cert reveal" data-item data-tags="ai">
-                <span class="cert-no" aria-hidden="true">04</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">Artificial Intelligence Fundamentals</h3>
-                  <p class="cert-meta">IBM SkillsBuild · Credential badge on Credly</p>
-                </div>
-                <span class="cert-badge">AI</span>
-                <a class="cert-link" href="https://www.credly.com/badges/3f9145d7-0feb-42cd-8941-d9586ded21f6/public_url" target="_blank" rel="noopener">Verify<span class="visually-hidden"> Artificial Intelligence Fundamentals</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-              <li class="cert reveal" data-item data-tags="java">
-                <span class="cert-no" aria-hidden="true">05</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">Java Object-Oriented Programming</h3>
-                  <p class="cert-meta">CodeChum · CIT-U · Course certificate #10004</p>
-                </div>
-                <span class="cert-badge">Java / OOP</span>
-                <a class="cert-link" href="https://citu.codechum.com/certificates/10004" target="_blank" rel="noopener">View<span class="visually-hidden"> the Java Object-Oriented Programming certificate</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-              <li class="cert reveal" data-item data-tags="ai">
-                <span class="cert-no" aria-hidden="true">06</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">ASEAN AI-Ready Certificate</h3>
-                  <p class="cert-meta">ASEAN Foundation · Program certificate</p>
-                </div>
-                <span class="cert-badge">AI</span>
-                <a class="cert-link" href="https://drive.google.com/file/d/1j4S4Mkx3tsy-fn5HbDKeiOfBX41udHHW/view?usp=sharing" target="_blank" rel="noopener">View<span class="visually-hidden"> the ASEAN AI-Ready Certificate</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-              <li class="cert reveal" data-item data-tags="design">
-                <span class="cert-no" aria-hidden="true">07</span>
-                <div class="cert-main">
-                  <h3 class="cert-title">Graphic Design Essentials</h3>
-                  <p class="cert-meta">Canva Design School · Certification award</p>
-                </div>
-                <span class="cert-badge">Design</span>
-                <a class="cert-link" href="https://www.canva.com/design-school/certification-award/8273b1c9-0dac-48ad-be4e-5637fcb4cb5e" target="_blank" rel="noopener">View<span class="visually-hidden"> the Graphic Design Essentials award</span> <span class="arrow" aria-hidden="true">↗</span></a>
-              </li>
-            </ol>
-          </section>
         </div>
 
         <div class="deck-next">
           <button class="deck-next-btn" type="button" data-deck-next>
             <span class="deck-next-kicker">Next up</span>
-            <span class="deck-next-label" data-deck-next-label>Info</span>
+            <span class="deck-next-label" data-deck-next-label>Certifications</span>
             <span class="arrow" aria-hidden="true">→</span>
           </button>
         </div>

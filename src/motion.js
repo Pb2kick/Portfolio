@@ -38,7 +38,7 @@
           onStart: () => show([card]),
         });
     });
-    inScope('.shot').forEach((shot) => {
+    inScope('.feature-media .shot').forEach((shot) => {
       gsap.fromTo(shot, { '--par-y': '18px' }, {
         '--par-y': '-18px', ease: 'none',
         scrollTrigger: { trigger: shot.closest('.feature-media') || shot, start: 'top bottom', end: 'bottom top', scrub: true },

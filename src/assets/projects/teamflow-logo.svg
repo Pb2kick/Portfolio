@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect width="128" height="128" fill="#0549ff"/>
+  <circle cx="64" cy="64" r="47" fill="#ffffff"/>
+  <g transform="translate(64 64) skewX(-9) translate(-64 -64)">
+    <!-- TeamFlow blue T -->
+    <path fill="#0b84db" d="M35.5 41.5h28.8v47h-7.8c-1.8 0-3.2-1.4-3.2-3.2V51H35.5c-1.8 0-3.2-1.4-3.2-3.2v-3.1c0-1.8 1.4-3.2 3.2-3.2Z"/>
+    <!-- TeamFlow orange F -->
+    <path fill="#f05a28" d="M64.3 41.5h29.2c1.8 0 3.2 1.4 3.2 3.2v3.1c0 1.8-1.4 3.2-3.2 3.2H75.2v10.2h13.3c1.8 0 3.2 1.4 3.2 3.2v3.1c0 1.8-1.4 3.2-3.2 3.2H75.2v14.6c0 1.8-1.4 3.2-3.2 3.2h-7.7v-47Z"/>
+  </g>
+</svg>
