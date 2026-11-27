@@ -1199,7 +1199,7 @@ html.has-dock .float-top { display: none; }
    the width and would cover the text, keep the footer just above the dock instead.) */
 html.has-dock .site-footer {
   grid-template-rows: calc(2.75rem + .45rem * 2);
-  padding-bottom: .75rem;
+  padding-block: .75rem; /* the same margin above as the dock has below: the strip hugs the dock */
 }
 html.has-dock .toast { bottom: 5.25rem; }
 @media (max-width: 760px) {
