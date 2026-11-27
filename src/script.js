@@ -1656,10 +1656,14 @@ window.kprLenis = null;
   window.addEventListener('hashchange', () => openFromHash(false));
 
   // ---- start: one module open, the rest hidden ----
+  // Every visit starts at the very top with Work open. Switching tabs writes #info or
+  // #certifications into the address, so a reload (or a link copied mid-visit) would otherwise
+  // reopen that tab and jump down to it: drop the hash on a fresh load instead of following it.
+  // (During the visit, tabs, header links and #deep-links still work as before via hashchange.)
+  if (location.hash) history.replaceState(null, '', location.pathname + location.search);
   panels[0].dataset.visited = '1';
   show(panels[current]);
   placeGliders(true);
-  openFromHash(true);
 
   // ---- filters (Work by platform, Certifications by field), animated with Flip ----
   deck.querySelectorAll('[data-filter-group]').forEach((group) => {
