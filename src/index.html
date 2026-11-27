@@ -49,7 +49,8 @@
     <meta property="og:title" content="KPR — Digital products. Real-world impact.">
     <meta property="og:description" content="I design and build websites and apps that move brands forward — from first idea to final pixel.">
     <meta property="og:type" content="website">
-    <link rel="icon" href="favicon.png" type="image/png">
+    <!-- The green KPR mark alone, on a transparent background (?v busts the browser's icon cache) -->
+    <link rel="icon" href="favicon.png?v=2" type="image/png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -721,9 +722,9 @@
             <p class="label">Next up / Internships</p>
             <p class="cta-status"><span class="status-dot" aria-hidden="true"></span>Open to internship opportunities</p>
           </div>
-          <h2 id="cta-title" class="cta-title">Looking for an intern?<br>Let’s build something real.</h2>
           <div class="cta-body">
             <div class="cta-main">
+              <h2 id="cta-title" class="cta-title">Looking for an intern?<br>Let’s build something real.</h2>
               <!-- The dock already links the résumé, LinkedIn and GitHub; this spells out the address
                    so it can be read and copied at a glance. -->
               <div class="cta-contacts">
@@ -735,15 +736,17 @@
               </div>
               <p class="cta-note">Graduating IT student building practical software and AI-assisted workflows. Looking for an internship to ship real code and learn from experienced engineering teams.</p>
             </div>
-            <!-- The practical details an employer needs to place an intern, beside the way to reach me. -->
-            <div class="cta-ojt">
-              <h3 class="label">OJT details</h3>
+            <!-- The practical details a school or employer needs to place an intern, as a spec
+                 sheet beside the way to reach me. The required hours lead: they're checked first. -->
+            <aside class="cta-ojt" aria-labelledby="ojt-title">
+              <h3 id="ojt-title" class="label">OJT details</h3>
               <dl class="ojt-list">
-                <div><dt>Setup</dt><dd>On-site · Hybrid · Remote</dd></div>
+                <div class="ojt-hours"><dt>Hours required</dt><dd><span class="ojt-num">500</span> hours</dd></div>
+                <div><dt>Setup</dt><dd>On-site, hybrid or remote</dd></div>
                 <div><dt>Based in</dt><dd>Cebu, Philippines</dd></div>
               </dl>
               <a class="btn btn--lime ojt-resume" href="assets/Ken-Patrick-R-Ranis-Resume.pdf" target="_blank" rel="noopener" data-resume-open>View résumé <span aria-hidden="true">↗</span></a>
-            </div>
+            </aside>
           </div>
         </div>
       </section>

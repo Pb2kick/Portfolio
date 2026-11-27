@@ -31,6 +31,10 @@
   --ease: cubic-bezier(.2, .7, .2, 1);
   --chamfer-sm: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
   --chamfer-md: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  /* Scrollbar: an obsidian track and a dark-green thumb that lights up Razer green */
+  --scroll-track: #050605;
+  --scroll-thumb: #2a5524;
+  --scroll-thumb-hover: #44d62c;
 }
 
 :root[data-theme="light"] {
@@ -50,6 +54,9 @@
   --header-bg: #050605;
   --hero-bg: #080a08;
   --band-bg: #070907;
+  --scroll-track: #e5e9e3;
+  --scroll-thumb: #93ad8d;
+  --scroll-thumb-hover: #1b6d11;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
@@ -69,8 +76,28 @@
     --header-bg: #050605;
     --hero-bg: #080a08;
     --band-bg: #070907;
+    --scroll-track: #e5e9e3;
+    --scroll-thumb: #93ad8d;
+    --scroll-thumb-hover: #1b6d11;
   }
 }
+
+/* The page scrollbar, in the site's colours: a slim bar with a squared thumb inset from the
+   track that lights up green on hover. Chromium and Safari use the ::-webkit-scrollbar rules
+   (setting scrollbar-color would switch those off in Chromium, hover and all); browsers without
+   them, i.e. Firefox, get the standard properties. */
+@supports not selector(::-webkit-scrollbar) {
+  html { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--scroll-track); }
+::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-thumb);
+  border: 2px solid var(--scroll-track);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: var(--scroll-thumb-hover); }
+::-webkit-scrollbar-corner { background: var(--scroll-track); }
 
 /* Header, hero and contact band stay Razer obsidian dark in both themes. */
 .band-dark {
@@ -649,21 +676,31 @@ html:not(.js) #info { margin-top: 2.9rem; }
 .context-copy .label { font-size: .72rem; margin-bottom: 1.4rem; }
 .context-title { font-size: clamp(1.5rem, 3.2vw, 1.85rem); font-weight: 300; line-height: 1.28; text-transform: uppercase; margin-bottom: 1.1rem; }
 .context-text { max-width: 28rem; font-size: .9375rem; line-height: 1.55; color: var(--text-soft); }
-/* OJT details (in the contact band): divider rows, label left and value right */
-.cta-ojt { padding-top: .1rem; }
-.cta-ojt > .label { font-size: .72rem; margin-bottom: 1.1rem; }
+/* OJT details (in the contact band): a spec sheet in a chamfered panel with a green top edge,
+   divider rows with the label left and the value right; the required hours lead, large. */
+.cta-ojt {
+  position: relative;
+  padding: 1.35rem 1.5rem 1.55rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  clip-path: var(--chamfer-md);
+}
+.cta-ojt::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--lime); }
+.cta-ojt > .label { font-size: .72rem; margin-bottom: .55rem; }
 .ojt-list { margin: 0; }
 .ojt-list > div {
   display: flex; justify-content: space-between; align-items: baseline; gap: 1.5rem;
   padding: .85rem 0 .9rem; border-bottom: 1px solid var(--line);
 }
-.ojt-list > div:first-child { padding-top: .2rem; }
 .ojt-list dt {
   font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
   color: var(--muted); flex: none;
 }
-.ojt-list dd { margin: 0; font-size: .875rem; text-align: right; }
-.ojt-resume { margin-top: 1.3rem; }
+.ojt-list dd { margin: 0; font-size: .9375rem; text-align: right; }
+.ojt-hours { padding-top: .5rem; }
+.ojt-hours dd { font-size: .875rem; color: var(--text-soft); }
+.ojt-num { margin-right: .3rem; font-size: clamp(2.4rem, 4vw, 3rem); font-weight: 300; line-height: 1; letter-spacing: -.02em; color: var(--accent-text); }
+.ojt-resume { margin-top: 1.4rem; width: 100%; justify-content: center; }
 
 .process { padding: 2.6rem 0 3rem; }
 .process > .label { font-size: .72rem; margin-bottom: 1.4rem; }
@@ -980,11 +1017,14 @@ html:not(.js) #info { margin-top: 2.9rem; }
 }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 .cta-note { max-width: 34rem; margin-top: 1.05rem; font-size: .8125rem; line-height: 1.5; color: var(--muted); }
-/* Contact on the left, the OJT details an employer needs on the right; stacked on narrow screens. */
+/* Contact on the left (headline, address, note), the OJT spec sheet on the right, its top level
+   with the headline; stacked on narrow screens. */
 .cta-body {
-  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 2rem 4rem; align-items: start;
+  display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 1fr);
+  gap: 2.2rem clamp(2.5rem, 5vw, 5rem); align-items: start;
+  margin-top: 1.55rem;
 }
+.cta-main .cta-title { margin-top: 0; }
 @media (max-width: 900px) {
   .cta-body { grid-template-columns: 1fr; }
   .cta-ojt { max-width: 30rem; }
