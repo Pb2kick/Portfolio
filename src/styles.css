@@ -1193,8 +1193,18 @@ html:not(.js) #info { margin-top: 2.9rem; }
 .dock-item[data-hop] .dock-label { opacity: 0; }
 /* With the dock up: it takes over back-to-top, and the page and toast make room for it. */
 html.has-dock .float-top { display: none; }
-html.has-dock .site-footer { padding-bottom: 5.5rem; }
+/* The page ends where the footer lines up with the dock: the footer's row is exactly the dock's
+   height, the same distance off the bottom, so at full scroll the copyright sits on the dock's
+   centre line and there's nothing more to scroll. (Narrow screens, where the dock spans most of
+   the width and would cover the text, keep the footer just above the dock instead.) */
+html.has-dock .site-footer {
+  grid-template-rows: calc(2.75rem + .45rem * 2);
+  padding-bottom: .75rem;
+}
 html.has-dock .toast { bottom: 5.25rem; }
+@media (max-width: 760px) {
+  html.has-dock .site-footer { grid-template-rows: auto; padding-top: 1.6rem; padding-bottom: calc(.75rem + 2.5rem + .4rem * 2 + 1rem); }
+}
 @media (max-width: 640px) {
   .dock { --dock-base: 2.5rem; --dock-gap: .45rem; --dock-pad: .4rem; }
 }
