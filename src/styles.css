@@ -639,7 +639,7 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
 /* ---------- Info ---------- */
 html:not(.js) #info { margin-top: 2.9rem; }
 .context {
-  display: grid; grid-template-columns: 1fr 1fr;
+  display: grid; grid-template-columns: 1fr;
   gap: 3.5rem;
   background: var(--surface);
   border: 1px solid var(--card-border);
@@ -649,9 +649,9 @@ html:not(.js) #info { margin-top: 2.9rem; }
 .context-copy .label { font-size: .72rem; margin-bottom: 1.4rem; }
 .context-title { font-size: clamp(1.5rem, 3.2vw, 1.85rem); font-weight: 300; line-height: 1.28; text-transform: uppercase; margin-bottom: 1.1rem; }
 .context-text { max-width: 28rem; font-size: .9375rem; line-height: 1.55; color: var(--text-soft); }
-/* OJT details: fills the right half as divider rows, label left and value right */
-.context-ojt { padding-top: .1rem; }
-.context-ojt > .label { font-size: .72rem; margin-bottom: 1.1rem; }
+/* OJT details (in the contact band): divider rows, label left and value right */
+.cta-ojt { padding-top: .1rem; }
+.cta-ojt > .label { font-size: .72rem; margin-bottom: 1.1rem; }
 .ojt-list { margin: 0; }
 .ojt-list > div {
   display: flex; justify-content: space-between; align-items: baseline; gap: 1.5rem;
@@ -687,9 +687,132 @@ html:not(.js) #info { margin-top: 2.9rem; }
 }
 .process-step.is-dim { opacity: .42; }
 .process-step.is-dim .process-node { background: var(--bg); border-color: var(--line); box-shadow: none; }
-.process-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+.process-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; }
 .process-steps h3 { font-size: 1.0625rem; font-weight: 600; margin-bottom: .9rem; }
 .process-steps p { max-width: 18rem; font-size: .875rem; color: var(--text-soft); line-height: 1.5; }
+
+/* ---------- Info: the story ---------- */
+/* The headline tells the before and after: the hardware line is a bare outline, the software
+   line is filled in. */
+.context-title--story { font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.08; letter-spacing: -.012em; margin-bottom: 1.4rem; }
+.story-line { display: block; }
+.story-line--outline { color: transparent; -webkit-text-stroke: 1.25px var(--text); }
+@supports not (-webkit-text-stroke: 1px black) { .story-line--outline { color: var(--muted); } }
+.context-title--story + .context-text { max-width: 40rem; font-size: 1rem; }
+
+/* My journey: a circuit board. Always dark (.band-dark), with a fine dot grid. Each step is a
+   solder pad; script.js routes one copper trace through the pads in order (45-degree corners,
+   round the board's edge between rows) and powers it up once, lighting each pad as it arrives.
+   The run into "Next" stays dashed: that part hasn't happened yet. */
+.journey {
+  position: relative;
+  margin-top: 2.6rem;
+  padding: 1.6rem 2rem 2.2rem;
+  background-color: #050a06;
+  background-image: radial-gradient(rgba(68, 214, 44, .13) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+  border: 1px solid #1d2f1d;
+  clip-path: var(--chamfer-md);
+  color: var(--text);
+}
+.journey-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 2.1rem; }
+.journey-head .label { font-size: .72rem; color: var(--text-soft); }
+/* Silkscreen print, as on a real board */
+.journey-silk { font-size: .6875rem; font-weight: 600; letter-spacing: .14em; color: #7f8d7d; }
+.journey-trace { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.journey-trace path { fill: none; stroke-width: 3; stroke-linecap: square; stroke-linejoin: miter; }
+.journey-trace__base { stroke: #1c331d; }
+.journey-trace__live { stroke: var(--lime); filter: drop-shadow(0 0 4px rgba(68, 214, 44, .55)); }
+.journey-trace__next { stroke: #3d6b38; stroke-dasharray: 6 7; }
+.journey-list {
+  position: relative;
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3.4rem 2.4rem;
+}
+.journey-step { position: relative; padding-top: 2.1rem; }
+/* The pad: an annular ring that fills in when the trace reaches it */
+.journey-pad {
+  position: absolute; left: 0; top: 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #050a06; border: 3px solid #2c4a2b;
+  transition: background-color .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.journey-step.is-lit .journey-pad { background: var(--lime); border-color: #b9ff9f; box-shadow: 0 0 0 4px rgba(68, 214, 44, .18); }
+.journey-step--next .journey-pad { border-style: dashed; border-color: #4e8a47; }
+.journey-when { display: block; margin-bottom: .45rem; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #7f8d7d; transition: color .25s ease; }
+.journey-step.is-lit .journey-when, .journey-step--next .journey-when { color: var(--accent-text); }
+.journey-step h3 { margin-bottom: .5rem; font-size: 1.25rem; font-weight: 300; line-height: 1.25; text-transform: uppercase; }
+.journey-step p { max-width: 22rem; font-size: .875rem; line-height: 1.5; color: var(--text-soft); }
+
+/* Gallus: the copy beside a drawing of the breakthrough, the desktop-to-mobile link */
+.story {
+  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  gap: 2.4rem 3.5rem; align-items: center;
+  margin-top: 2.6rem;
+  padding: 1.8rem 2.2rem 2rem 1.8rem;
+  background: var(--surface);
+  border: 1px solid var(--card-border); border-left: 3px solid var(--lime);
+}
+.story-title { margin-bottom: .9rem; font-size: clamp(1.35rem, 2.6vw, 1.7rem); font-weight: 300; line-height: 1.25; text-transform: uppercase; }
+.story-text { max-width: 36rem; font-size: .9375rem; line-height: 1.55; color: var(--text-soft); }
+.story-facts { margin: 1.4rem 0 0; max-width: 36rem; }
+.story-facts > div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1rem; padding: .8rem 0; border-top: 1px solid var(--line); }
+.story-facts dt { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding-top: .12rem; }
+.story-facts dd { margin: 0; font-size: .875rem; line-height: 1.45; }
+.story-link {
+  margin: 0;
+  display: grid; grid-template-columns: auto minmax(3rem, 1fr) auto; align-items: center; gap: .9rem;
+}
+.story-device { display: grid; justify-items: center; gap: .45rem; }
+.story-device svg { width: 3.6rem; height: 3rem; fill: none; stroke: var(--text); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.story-device span { font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.story-wire { position: relative; height: 3px; margin-bottom: 1.4rem; background: var(--lime); overflow: hidden; }
+.story-wire i {
+  position: absolute; top: -2px; left: -12%; width: 10%; height: 7px;
+  background: var(--accent-head);
+  opacity: 0;
+}
+.story.is-linked .story-wire i { animation: story-packet 1.5s cubic-bezier(.45, 0, .55, 1) 3; }
+.story.is-linked .story-wire i:nth-child(2) { animation-delay: .5s; }
+.story.is-linked .story-wire i:nth-child(3) { animation-delay: 1s; }
+@keyframes story-packet {
+  0% { left: -12%; opacity: 1; }
+  100% { left: 102%; opacity: 1; }
+}
+.story-link figcaption { grid-column: 1 / -1; text-align: center; font-size: .8125rem; color: var(--accent-text); }
+
+/* Off the clock: four plain cards, each led by one big line */
+.offclock { padding-bottom: 3rem; }
+.offclock > .label { font-size: .72rem; margin-bottom: 1.4rem; }
+.offclock-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.1rem; }
+.offclock-card { padding: 1.25rem 1.15rem 1.4rem; background: var(--surface); border: 1px solid var(--card-border); }
+.offclock-kicker { display: block; margin-bottom: .5rem; font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-text); }
+.offclock-card h3 { margin-bottom: .65rem; font-size: clamp(1.35rem, 2.2vw, 1.65rem); font-weight: 300; line-height: 1.15; text-transform: uppercase; }
+.offclock-card p { font-size: .8125rem; line-height: 1.5; color: var(--text-soft); }
+.offclock-card cite { font-style: italic; }
+
+@media (max-width: 1180px) {
+  .process-steps { grid-template-columns: repeat(2, 1fr); gap: 2.2rem 2rem; }
+  .offclock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .story { grid-template-columns: 1fr; }
+  .story-link { max-width: 26rem; }
+}
+/* Narrow: one column, pads down the left, the trace running straight down beside the text */
+@media (max-width: 760px) {
+  .journey { padding: 1.4rem 1.2rem 1.6rem; }
+  .journey-list { grid-template-columns: 1fr; gap: 1.9rem; }
+  .journey-step { padding: 0 0 0 2.6rem; }
+  .journey-silk { display: none; }
+}
+@media (max-width: 520px) {
+  .offclock-grid { grid-template-columns: 1fr; }
+  .story { padding: 1.4rem 1.2rem 1.6rem; }
+  .story-facts > div { grid-template-columns: 1fr; gap: .3rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story.is-linked .story-wire i { animation: none; }
+}
 
 /* ---------- Technologies ---------- */
 .stack { padding-bottom: 3.2rem; }
@@ -857,6 +980,15 @@ html:not(.js) #info { margin-top: 2.9rem; }
 }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 .cta-note { max-width: 34rem; margin-top: 1.05rem; font-size: .8125rem; line-height: 1.5; color: var(--muted); }
+/* Contact on the left, the OJT details an employer needs on the right; stacked on narrow screens. */
+.cta-body {
+  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 2rem 4rem; align-items: start;
+}
+@media (max-width: 900px) {
+  .cta-body { grid-template-columns: 1fr; }
+  .cta-ojt { max-width: 30rem; }
+}
 .spotlight-links { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin-bottom: 1rem; }
 
 /* ---------- Footer ---------- */
@@ -1341,12 +1473,14 @@ html.intro-pending .intro-splash,
 .intro-splash.is-gate .intro-whole .intro-mark { animation: mark-breathe 3.2s ease-in-out infinite; }
 .intro-splash.is-powering .intro-whole .intro-mark { animation: mark-power .82s cubic-bezier(.5, 0, .75, 0) forwards; }
 
-/* Each strike jolts the whole stage sideways for a few frames. */
+/* Each strike jolts the whole stage sideways for a few frames. Only a jolt, no clip-path slicing:
+   the dragon's back and mid canvases live in this stage, and slicing it chopped the dragon off
+   along a hard edge as it flew out of the orbit into the first cut. */
 @keyframes stage-glitch {
-  0% { transform: translate3d(-9px, 2px, 0) skewX(-3deg); clip-path: inset(0 0 46% 0); }
-  25% { transform: translate3d(7px, -1px, 0) skewX(2deg); clip-path: inset(38% 0 0 0); }
-  50% { transform: translate3d(-4px, 0, 0); clip-path: inset(12% 0 30% 0); }
-  100% { transform: none; clip-path: inset(0); }
+  0% { transform: translate3d(-9px, 2px, 0) skewX(-3deg); }
+  25% { transform: translate3d(7px, -1px, 0) skewX(2deg); }
+  50% { transform: translate3d(-4px, 0, 0); }
+  100% { transform: none; }
 }
 .intro-splash.is-glitch .intro-whole { animation: stage-glitch .22s steps(4, end) 1; }
 /* A dark floor under the stage, so a jolted or sliced stage never shows the site early.
@@ -1430,6 +1564,20 @@ html.intro-pending .intro-splash,
   filter: blur(6px);
 }
 .intro-splash.is-parting .intro-skip { opacity: 0; pointer-events: none; }
+
+/* The dragon wipe (3D cleave): while the dragon's body covers the screen the stage is dropped, so
+   its tail sweeping past uncovers the site itself, which snaps into focus behind it. */
+.intro-splash.is-active.is-wiped { background: transparent; }
+/* display, not visibility: the KPR and diamond shards force themselves visible after the strikes,
+   which a hidden parent can't override, so they would linger over the site until the splash closed. */
+.intro-splash.is-wiped .intro-whole,
+.intro-splash.is-wiped .intro-half,
+.intro-splash.is-wiped .intro-skip { display: none; }
+html.site-unblurring.site-wipe .site-header,
+html.site-unblurring.site-wipe main,
+html.site-unblurring.site-wipe .site-footer {
+  transition: filter .5s cubic-bezier(.16, 1, .3, 1), opacity .35s cubic-bezier(.16, 1, .3, 1);
+}
 
 /* The glimpse: while the cut is open the site behind shows through, still softly blurred,
    brighter than its usual held-back state so it reads; then the normal unblur takes over. */
@@ -1732,7 +1880,6 @@ html.site-blur-hold.site-glimpse .site-footer {
    the OJT details under the intro. */
 @media (max-width: 1180px) {
   .context { grid-template-columns: 1fr; gap: 2.2rem; }
-  .context-ojt { max-width: 30rem; }
 }
 
 @media (max-width: 860px) {

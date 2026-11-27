@@ -1472,120 +1472,186 @@
       return theta;
     }
 
-    // ---- Strike dashes: on the first two slashes the dragon is the blade ----
-    // Three beats, like a real cut: it whips round from the orbit and slows almost to a stop just
-    // behind where the cut begins, already facing along it (the wind-up); it creeps forward for a
-    // beat; then it explodes through the whole cut in a few frames, overshoots past the end and
-    // hooks back toward the ring under its own steering. The strike's ease starts at full speed,
-    // so the hit reads as a snap, not a drag. It stays on the near side (in front of the diamond,
-    // behind the KPR letters as always). The cleave keeps its own scripted lunge.
-    let dash = null;
+    // ---- Strike passes: the first two slashes are smaller versions of the cleave ----
+    // Each runs along that slash's own cut and on off the far side of the screen. The dragon is at
+    // full speed as its head crosses the middle of the cut, on the hit; there it freezes for a beat
+    // (the hit-stop), then tears on through and away, and waits off-screen for the next strike.
+    // Slash 1 is led out of the orbit (fromOrbit): the path begins with the body exactly where it
+    // is, then the head breaks off the ring along a curve that bends into the line of the swing,
+    // accelerating all the way, and the body follows the way the head really went, so it reads
+    // as the dragon being pulled into the sword's swing rather than appearing on the cut.
+    // Slash 2 dives in from off-screen. Each pass is bigger than the last, building to the cleave.
+    // opts: leadMs (time to the hit), stopMs (hit-stop), bodyFrac (body length as a share of the
+    // path, when not led from the orbit), zPeak/zBase (depth swing toward the camera), wavePx,
+    // grow (thickness), front (draw over everything incl. KPR), fromOrbit.
+    let pass = null, growNow = 1;
     function screenToWorld(px, py, z) {
       const k = (9.2 - z) / 9.2; // lands exactly on (px, py) after perspective
       return { x: pxToWorldX(px) * k, y: pxToWorldY(py) * k, z };
     }
-    function cutPoint(d, s) {
-      const u = 1 - s;
-      const px = u * u * d.p0.x + 2 * u * s * d.cp.x + s * s * d.p1.x;
-      const py = u * u * d.p0.y + 2 * u * s * d.cp.y + s * s * d.p1.y;
-      return screenToWorld(px, py, 0.35 + 0.9 * Math.sin(Math.PI * s));
-    }
-    const unit = (a, b) => {
-      const x = b.x - a.x, y = b.y - a.y, z = b.z - a.z, l = Math.hypot(x, y, z) || 1;
-      return { x: x / l, y: y / l, z: z / l };
-    };
-    const addS = (p, v, s) => ({ x: p.x + v.x * s, y: p.y + v.y * s, z: p.z + v.z * s });
-    const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
-    function bez3(A, B, C, D, u) {
-      const v = 1 - u, k0 = v * v * v, k1 = 3 * v * v * u, k2 = 3 * v * u * u, k3 = u * u * u;
-      return { x: A.x * k0 + B.x * k1 + C.x * k2 + D.x * k3, y: A.y * k0 + B.y * k1 + C.y * k2 + D.y * k3, z: A.z * k0 + B.z * k1 + C.z * k2 + D.z * k3 };
-    }
-    function dashPoint(d, tMs) {
-      if (tMs < d.holdAt) {
-        // Whip in: leaves at its orbit speed, arrives at the wind-up point all but stopped.
-        const u = clamp((tMs - d.start) / (d.holdAt - d.start), 0, 1), v0 = d.v0;
-        const f = v0 * u + (3 - 2 * v0) * u * u + (v0 - 2) * u * u * u;
-        return bez3(d.a, d.b, d.c, d.w, f);
+    const sub3 = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+    const len3 = (v) => Math.hypot(v.x, v.y, v.z);
+    const norm3 = (v) => { const l = len3(v) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; };
+    const along3 = (p, v, s) => ({ x: p.x + v.x * s, y: p.y + v.y * s, z: p.z + v.z * s });
+    // Shortest path in the plane from (p, heading a0) to (q, heading a1) whose turns are never
+    // tighter than radius r: one of the four arc-straight-arc (Dubins CSC) shapes. Sampled every ds,
+    // start excluded, end included.
+    function dubins2D(p, a0, q, a1, r, ds) {
+      const mod = (x) => ((x % TAU) + TAU) % TAU;
+      const centre = (pt, a, left) => (left
+        ? { x: pt.x - Math.sin(a) * r, y: pt.y + Math.cos(a) * r }
+        : { x: pt.x + Math.sin(a) * r, y: pt.y - Math.cos(a) * r });
+      let best = null;
+      for (const [l0, l1] of [[true, true], [false, false], [true, false], [false, true]]) {
+        const c0 = centre(p, a0, l0), c1 = centre(q, a1, l1);
+        const Dx = c1.x - c0.x, Dy = c1.y - c0.y, d = Math.hypot(Dx, Dy);
+        let phi, straight;
+        if (l0 === l1) { phi = Math.atan2(Dy, Dx); straight = d; }
+        else {
+          if (d < 2 * r) continue;
+          straight = Math.sqrt(d * d - 4 * r * r);
+          phi = Math.atan2(Dy, Dx) + (l0 ? 1 : -1) * Math.atan2(2 * r, straight);
+        }
+        const t0 = l0 ? mod(phi - a0) : mod(a0 - phi);
+        const t1 = l1 ? mod(a1 - phi) : mod(phi - a1);
+        const L = r * (t0 + t1) + straight;
+        if (!best || L < best.L) best = { L, l0, l1, c0, c1, t0, t1, phi, straight };
       }
-      if (tMs < d.cutAt) {
-        // Coiled: a slow creep along the line of the cut.
-        const u = clamp((tMs - d.holdAt) / (d.cutAt - d.holdAt), 0, 1);
-        return addS(d.w, d.t0, d.creep * u);
+      const out = [];
+      if (!best) return out;
+      const B = best;
+      const onArc = (c, a, left) => (left
+        ? { x: c.x + Math.sin(a) * r, y: c.y - Math.cos(a) * r }
+        : { x: c.x - Math.sin(a) * r, y: c.y + Math.cos(a) * r });
+      const s0 = onArc(B.c0, B.phi, B.l0);
+      for (let s = ds; s <= B.L + 1e-9; s += ds) {
+        if (s < r * B.t0) {
+          const a = a0 + (B.l0 ? 1 : -1) * (s / r);
+          out.push(onArc(B.c0, a, B.l0));
+        } else if (s < r * B.t0 + B.straight) {
+          const k = s - r * B.t0;
+          out.push({ x: s0.x + Math.cos(B.phi) * k, y: s0.y + Math.sin(B.phi) * k });
+        } else {
+          const k = s - r * B.t0 - B.straight;
+          const a = B.phi + (B.l1 ? 1 : -1) * (k / r);
+          out.push(onArc(B.c1, a, B.l1));
+        }
       }
-      // The strike: ease-out that starts at full speed and keeps a little speed at the end, so it
-      // hands back to the orbit without stalling. Distance along the path, via its length table.
-      const x = clamp((tMs - d.cutAt) / d.strikeMs, 0, 1);
-      const f = 0.85 * (1 - Math.pow(1 - x, 4)) + 0.15 * x;
-      const target = f * d.len[d.len.length - 1];
-      let i = 1;
-      while (i < d.len.length - 1 && d.len[i] < target) i++;
-      const a = d.pts[i - 1], b = d.pts[i];
-      const seg = d.len[i] - d.len[i - 1] || 1;
-      const k = clamp((target - d.len[i - 1]) / seg, 0, 1);
-      return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: a.z + (b.z - a.z) * k };
+      out.push({ x: q.x, y: q.y });
+      return out;
     }
-    function triggerDash(nowMs, path, leadMs, cutMs) {
-      if (!head.p || !head.h || lunge) return;
-      const lead = Math.max(60, leadMs);
-      const d = { p0: path.p0, cp: path.cp, p1: path.p1, start: nowMs, cutAt: nowMs + lead };
-      d.holdAt = d.cutAt - Math.min(70, lead * 0.28);
-      d.strikeMs = Math.max(60, cutMs) * 1.4;
-      d.end = d.cutAt + d.strikeMs;
-      const s0 = cutPoint(d, 0);
-      d.t0 = unit(s0, cutPoint(d, 0.04));
-      const back = Math.max(0.7, ring.r * 0.32);
-      d.creep = back * 0.18;
-      d.w = addS(s0, d.t0, -back);                 // the wind-up point, behind the cut's start
-      // The strike path: from where the creep ends, through the whole cut, then on past its end.
-      const pts = [addS(d.w, d.t0, d.creep)];
-      for (let k = 0; k <= 24; k++) pts.push(cutPoint(d, k / 24));
-      const end = pts[pts.length - 1], tEnd = unit(pts[pts.length - 2], end);
-      const over = Math.max(0.9, ring.r * 0.45);
-      for (let k = 1; k <= 4; k++) pts.push(addS(end, tEnd, (over * k) / 4));
+    function triggerPass(nowMs, path, opts) {
+      if (lunge) return;
+      const zBase = opts.zBase || 0.2;
+      const quad = (s) => {
+        const u = 1 - s;
+        return { x: u * u * path.p0.x + 2 * u * s * path.cp.x + s * s * path.p1.x,
+                 y: u * u * path.p0.y + 2 * u * s * path.cp.y + s * s * path.p1.y };
+      };
+      const m = Math.min(W, H) * 0.14;
+      const outside = (p) => p.x < -m || p.x > W + m || p.y < -m || p.y > H + m;
+      const marchOut = (from, dir) => {
+        const pts = [];
+        let p = from;
+        for (let k = 0; k < 400 && !outside(p); k++) { p = { x: p.x + dir.x * 12, y: p.y + dir.y * 12 }; pts.push(p); }
+        return pts;
+      };
+      const unit2 = (a, b) => { const x = b.x - a.x, y = b.y - a.y, l = Math.hypot(x, y) || 1; return { x: x / l, y: y / l }; };
+      // The cut, in world space, swelling toward the camera mid-stroke; then on off the far side.
+      const cutPx = [];
+      for (let k = 0; k <= 32; k++) cutPx.push(quad(k / 32));
+      const cut = cutPx.map((p, k) => screenToWorld(p.x, p.y, zBase + opts.zPeak * Math.sin((Math.PI * k) / 32)));
+      const exit = marchOut(cutPx[cutPx.length - 1], unit2(cutPx[cutPx.length - 2], cutPx[cutPx.length - 1]))
+        .map((p) => screenToWorld(p.x, p.y, zBase));
+
+      let lead, headIndex, v0;
+      if (opts.fromOrbit && hist.length >= BODY_RINGS) {
+        // Out of the orbit: the body as it is (tail first, head last), then the break-away curve
+        // from the head, along the way it is flying, into the start of the cut along the cut.
+        const body = hist.slice(0, BODY_RINGS).reverse().map((p) => ({ x: p.x, y: p.y, z: p.z }));
+        const P = body[body.length - 1];
+        const hDir = norm3(sub3(P, body[body.length - 2]));
+        const C0 = cut[0], tIn = norm3(sub3(cut[1], cut[0]));
+        // The break-away is the shortest flight from where the head is, the way it's heading, to the
+        // start of the cut lined up with the cut, never turning tighter than RMIN (a Dubins path:
+        // arc, straight, arc). So any change of course is a sweeping arc, never a pivot or a loop.
+        // It flies the screen plane; its depth eases over to the cut's.
+        const curve = dubins2D(P, Math.atan2(hDir.y, hDir.x), C0, Math.atan2(tIn.y, tIn.x), 0.9, 0.04);
+        const total = curve.length || 1;
+        curve.forEach((q, k) => { const f = (k + 1) / total; q.z = lerp(P.z, C0.z, f * f * (3 - 2 * f)); });
+        lead = body.concat(curve);
+        headIndex = body.length - 1;
+        v0 = (speed * ring.r) / 1000; // it leaves the ring at the speed it was flying (world per ms)
+      } else {
+        // Off-screen: it dives in along the cut's own line from beyond the edge.
+        lead = marchOut(cutPx[0], unit2(cutPx[1], cutPx[0])).reverse().map((p) => screenToWorld(p.x, p.y, zBase));
+        headIndex = 0;
+        v0 = 0;
+      }
+      const pts = lead.concat(cut, exit);
       const len = [0];
-      for (let k = 1; k < pts.length; k++) len.push(len[k - 1] + dist3(pts[k], pts[k - 1]));
-      d.pts = pts; d.len = len;
-      // The whip in: a cubic from the head along its heading, into the wind-up along the cut.
-      const a = { ...head.p };
-      const L = Math.max(0.6, dist3(d.w, a) / 3);
-      d.a = a;
-      d.b = addS(a, head.h, L);
-      d.c = addS(d.w, d.t0, -L);
-      // Start the whip at the speed it is already flying (capped so the curve stays smooth).
-      const curveLen = dist3(d.a, d.b) + dist3(d.b, d.c) + dist3(d.c, d.w);
-      const orbitSpeed = speed * ring.r;
-      d.v0 = clamp((orbitSpeed * (d.holdAt - d.start) / 1000) / (curveLen || 1), 0, 2.4);
-      d.last = nowMs;
-      dash = d;
+      for (let k = 1; k < pts.length; k++) len.push(len[k - 1] + len3(sub3(pts[k], pts[k - 1])));
+      let sHit = len[lead.length]; // the middle of the cut
+      for (let k = 1; k <= 16; k++) sHit += len3(sub3(cut[k], cut[k - 1]));
+      const sExit = len[len.length - 1];
+      const s0 = len[headIndex];
+      // Led from the orbit the body keeps its length as it peels off; diving in, it's a share of the path.
+      const bodyLen = opts.fromOrbit && headIndex > 0 ? s0 : opts.bodyFrac * sExit;
+      const T = Math.max(60, opts.leadMs);
+      // From s0 at speed v0, accelerating evenly, to land on the hit point at the hit.
+      const acc = Math.max(0, (2 * (sHit - s0 - v0 * T)) / (T * T));
+      const vHit = v0 + acc * T;
+      const vOut = vHit * 1.25; // it tears away a little faster after the freeze
+      pass = {
+        start: nowMs, hitAt: nowMs + T, T, stopMs: opts.stopMs || 0, s0, v0, acc, sHit, vOut,
+        pts, len, bodyLen, sEnd: sExit + bodyLen,
+        tN: norm3(sub3(pts[1], pts[0])), tX: norm3(sub3(pts[pts.length - 1], pts[pts.length - 2])),
+        wave: (opts.wavePx || 0) / (H / (2 * HALF_H_AT_Z0)), grow: opts.grow || 1, front: !!opts.front,
+        growFrom: opts.fromOrbit ? growNow : (opts.grow || 1),
+      };
+      pass.end = pass.hitAt + pass.stopMs + (pass.sEnd - sHit) / vOut;
       power = 1.0;
+      alpha = 1;
     }
-    // Moves the head along the dash for this frame and lays the trail behind it in small steps,
-    // so the body follows the curve smoothly even at this speed.
-    function stepDash(nowMs) {
-      const d = dash;
-      const tEnd = Math.min(nowMs, d.end);
-      const steps = Math.max(1, Math.ceil((tEnd - d.last) / 4));
-      for (let i = 1; i <= steps; i++) {
-        const p = dashPoint(d, d.last + ((tEnd - d.last) * i) / steps);
-        trail.unshift(p);
+    // Arc length of the head along the path at time t.
+    function passHeadS(P, tMs) {
+      if (tMs <= P.hitAt) {
+        const t = clamp(tMs - P.start, 0, P.T);
+        return Math.min(P.sHit, P.s0 + P.v0 * t + 0.5 * P.acc * t * t);
       }
-      d.last = tEnd;
-      const p = trail[0], q = dashPoint(d, tEnd - 6);
-      let hx = p.x - q.x, hy = p.y - q.y, hz = p.z - q.z;
-      const hl = Math.hypot(hx, hy, hz);
-      head.p = { x: p.x, y: p.y, z: p.z };
-      if (hl > 1e-5) head.h = { x: hx / hl, y: hy / hl, z: hz / hl };
+      const after = Math.max(0, tMs - P.hitAt - P.stopMs);
+      return Math.min(P.sEnd, P.sHit + after * P.vOut);
+    }
+    // The point at arc length s, and the path's direction there; past either end it carries on.
+    function passPointS(P, s) {
+      const last = P.pts.length - 1, total = P.len[last];
+      if (s <= 0) return { p: along3(P.pts[0], P.tN, s), t: P.tN };
+      if (s >= total) return { p: along3(P.pts[last], P.tX, s - total), t: P.tX };
+      let lo = 0, hi = last;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (P.len[mid] < s) lo = mid; else hi = mid; }
+      const a = P.pts[lo], b = P.pts[hi];
+      const seg = P.len[hi] - P.len[lo] || 1, k = (s - P.len[lo]) / seg;
+      return { p: { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: a.z + (b.z - a.z) * k }, t: norm3(sub3(b, a)) };
+    }
+    function updatePass(nowMs) {
+      const P = pass;
+      const sHead = passHeadS(P, nowMs);
+      const frozen = nowMs > P.hitAt && nowMs < P.hitAt + P.stopMs;
+      const wavePhase = (frozen ? P.hitAt : nowMs) * 0.018;
+      // The swim and the extra size come in over the break-away, so the first frame matches the orbit.
+      const ramp = smoothstep(0, 1, (nowMs - P.start) / Math.max(1, P.T * 0.8));
+      hist.length = 0;
+      for (let i = 0; i < BODY_RINGS; i++) {
+        const ub = i / (BODY_RINGS - 1);
+        const { p, t } = passPointS(P, sHead - ub * P.bodyLen);
+        const env = smoothstep(0.03, 0.2, ub) * (1 - 0.3 * ub) * ramp;
+        const off = Math.sin(ub * 7.5 - wavePhase) * P.wave * env;
+        const nl = Math.hypot(t.x, t.y) || 1; // sideways, in the screen plane
+        hist.push({ x: p.x - (t.y / nl) * off, y: p.y + (t.x / nl) * off, z: p.z });
+      }
+      growNow = lerp(P.growFrom, P.grow, ramp);
       power = 1.0;
-      if (nowMs < d.end) return;
-      // Release: follow through, already hooking back round toward the diamond.
-      dash = null;
-      const cx = ring.cx - head.p.x, cy = ring.cy - head.p.y, cz = -head.p.z;
-      const h = head.h;
-      let ax = h.y * cz - h.z * cy, ay = h.z * cx - h.x * cz, az = h.x * cy - h.y * cx;
-      const al = Math.hypot(ax, ay, az) || 1;
-      head.w = { x: (ax / al) * 6, y: (ay / al) * 6, z: (az / al) * 6 };
-      lastTheta = ringAngleOf(head.p);
-      lapProgress = 0;
+      alpha = 1;
     }
 
     function updateState(dt, nowMs, phase, phaseAtMs) {
@@ -1596,7 +1662,11 @@
       }
 
       if (lunge) {
+        pass = null;
         const p = clamp((nowMs - lunge.start) / lunge.dur, 0, 1);
+        // It swells as it bursts in from the top-right (from a little past slash 2's size), so
+        // the screen fills from that corner rather than all at once; full size before it covers.
+        growNow = lerp(2.6, lunge.grow, smoothstep(0.02, 0.3, p));
         power = 1.0;
         if (dt > 0 && nowMs > lunge.start + lunge.dur + 130) {
           alpha = Math.max(0, alpha - dt / 0.34);
@@ -1604,18 +1674,20 @@
         const aspect = W / H;
         const spanX = HALF_H_AT_Z0 * aspect * 1.45;
         const spanY = HALF_H_AT_Z0 * 1.18;
-        const headU = -0.32 + p * 1.62;
+        const headU = LUNGE.headFrom + p * (LUNGE.headTo - LUNGE.headFrom);
         hist.length = 0;
         for (let i = 0; i < BODY_RINGS; i++) {
-          const u = headU - (i / (BODY_RINGS - 1)) * 1.12;
+          const u = headU - (i / (BODY_RINGS - 1)) * LUNGE.body;
           const sWave = Math.sin(u * 5.2 - p * 4.0) * 0.32;
           const bx = lerp(spanX, -spanX, u) - sWave * 0.45;
           const by = lerp(spanY, -spanY, u) + sWave * 0.82;
-          const bz = Math.sin(clamp(u, 0, 1) * Math.PI) * 2.35 - 0.3;
+          const bz = Math.sin(clamp(u, 0, 1) * Math.PI) * LUNGE.zPeak - 0.3;
           hist.push({ x: bx, y: by, z: bz });
         }
         return;
       }
+      // A strike pass (and, once it is through, waiting off-screen for the next strike).
+      if (pass) { updatePass(nowMs); return; }
 
       if (dt > 0) {
         if (phase === 'charge') {
@@ -1642,19 +1714,15 @@
         ring.tau += (ring.tauT - ring.tau) * k;
 
         uturnLeft = Math.max(0, uturnLeft - dt);
-        if (dash) {
-          stepDash(nowMs); // moves the head and lays its trail itself
-        } else {
-          const theta = steer(dt, speed * ring.r);
-          let d = theta - lastTheta;
-          d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
-          lapProgress += d * ring.dir;
-          lastTheta = theta;
-          // No turning back once the strikes have started: it just speeds round.
-          if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
+        const theta = steer(dt, speed * ring.r);
+        let d = theta - lastTheta;
+        d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
+        lapProgress += d * ring.dir;
+        lastTheta = theta;
+        // No turning back once the strikes have started: it just speeds round.
+        if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
 
-          trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
-        }
+        trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
         const keep = bodyLength() * 1.2;
         let acc = 0;
         for (let i = 1; i < trail.length; i++) {
@@ -1743,7 +1811,7 @@
       const tSec = nowMs * 0.001;
       const headScale = debugOverride
         ? debugOverride.headScale
-        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
+        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale) * growNow;
       const bodyLen = debugOverride ? debugOverride.bodyLen : 11.4 * (0.74 + 0.26 * fitScale);
 
       const spinePts = debugOverride
@@ -2168,6 +2236,10 @@
 
       if (lunge || !backCtx || debugOverride) {
         renderPassToTarget(frontCtx, 0.0, nowMs, false);
+      } else if (pass && pass.front) {
+        // Slash 2's pass draws over everything, KPR included. (Slash 1's is layered like the
+        // orbit it peels out of: behind the diamond where it is far, in front of it where near.)
+        renderPassToTarget(frontCtx, 0.0, nowMs, false);
       } else {
         // Far side (z <= 0) behind diamond and KPR; near side (z >= 0) on mid canvas in front of
         // diamond and strictly behind the KPR logo DOM layer.
@@ -2176,12 +2248,33 @@
       }
     }
 
+    // The cleave: the dragon tears through from top-right to bottom-left and becomes the
+    // transition into the site. It swings in close to the camera and is sized from the screen so
+    // that, as the thick front of its body crosses the middle, it covers every corner; then its
+    // tapering tail sweeps on past and off the screen, uncovering the site from the corners in.
+    // (headTo carries the whole body, tail included, off the far side.)
+    const LUNGE = { dur: 680, headFrom: -0.32, headTo: 2.3, body: 1.12, zPeak: 4.6 };
     function triggerLunge(nowMs) {
+      const base = clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
+      const neckR = base * 0.34;
+      const zMid = LUNGE.zPeak - 0.3;
+      const pxPerWorld = (H / (2 * HALF_H_AT_Z0)) * (9.2 / (9.2 - zMid));
+      // The farthest any screen corner sits from the top-right/bottom-left diagonal, with margin
+      // for the body's swim and its taper just behind the neck.
+      const reachPx = ((W * H) / Math.hypot(W, H)) * 1.2;
       lunge = {
         start: nowMs,
-        dur: 490,
+        dur: LUNGE.dur,
+        grow: reachPx / pxPerWorld / (neckR * 0.9),
       };
+      pass = null;
       power = 1.0;
+      alpha = 1;
+    }
+    // When (ms after the lunge starts) the thick front of the body is across the middle and the
+    // screen is fully covered: the moment to swap the splash for the site underneath.
+    function lungeCoverMs() {
+      return ((0.65 - LUNGE.headFrom) / (LUNGE.headTo - LUNGE.headFrom)) * LUNGE.dur;
     }
 
     function sampleTrailPointScreen() {
@@ -2221,7 +2314,7 @@
           maxZ = Math.max(maxZ, p.z);
         }
         return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r,
-          clearPx: minDistPx, minZ, maxZ, lunge: !!lunge, head: head.p && { ...head.p },
+          clearPx: minDistPx, minZ, maxZ, lunge: !!lunge, pass: !!pass, drawnHead: hist[0] && { ...hist[0] }, spine: hist.filter((_, i) => i % 4 === 0).map((p) => ({ ...p })), head: head.p && { ...head.p },
           heading: head.h && { ...head.h }, turnRate: head.w ? Math.hypot(head.w.x, head.w.y, head.w.z) : 0, theta: lastTheta };
       },
       reset() {
@@ -2236,13 +2329,17 @@
         alpha = 0.0;
         power = 0.0;
         lunge = null;
-        dash = null;
+        pass = null;
+        growNow = 1;
         randomStart();
       },
       update: updateState,
       render,
       triggerLunge,
-      triggerDash,
+      lungeCoverMs,
+      lungeMs: () => LUNGE.dur,
+      triggerPass,
+      isPassing: (nowMs) => !!pass && nowMs < pass.end,
       sampleTrailPointScreen,
       setDebugPose(pose) {
         debugOverride = pose;

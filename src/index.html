@@ -424,21 +424,87 @@
 
           <!-- Info -->
           <section id="info" class="info deck-panel" role="tabpanel" aria-labelledby="info-title" data-deck-panel="info"
-                   data-status="About me, how I work, and the 27 tools behind the projects">
+                   data-status="My story, how I work, life off the clock, and the 27 tools I build with">
+            <!-- Who I am, in my own words: where I came from, how I work, and what I'm like away
+                 from the keyboard. (The practical OJT details live in the contact band.) -->
             <div class="context reveal">
               <div class="context-copy">
-                <h2 id="info-title" class="context-title">Graduating IT student.<br>Looking for an internship.</h2>
-                <p class="context-text">I’m Ken Patrick R. Ranis, an IT student in my final year, looking for an internship where I can learn from a real team and ship real work. I build across the stack: web apps with React, Django and Spring Boot, Android apps in Kotlin, and desktop software in Java. I like taking a project from first commit to something people can actually use.</p>
-              </div>
-              <div class="context-ojt">
-                <h3 class="label">OJT details</h3>
-                <dl class="ojt-list">
-                  <div><dt>Setup</dt><dd>On-site · Hybrid · Remote</dd></div>
-                  <div><dt>Based in</dt><dd>Cebu, Philippines</dd></div>
-                </dl>
-                <a class="btn btn--lime ojt-resume" href="assets/Ken-Patrick-R-Ranis-Resume.pdf" target="_blank" rel="noopener" data-resume-open>View résumé <span aria-hidden="true">↗</span></a>
+                <!-- The type tells the story: the hardware line is a bare outline, the software line is filled in. -->
+                <h2 id="info-title" class="context-title context-title--story"><span class="story-line story-line--outline">Hardware kid.</span> <span class="story-line">Turned software builder.</span></h2>
+                <p class="context-text">I used to crack open our family PC and dream about building one of my own. Then HTML and CSS pulled me into code, and writing software made me appreciate the hardware even more. This year I finally saved up and built my own rig. Now I’m a final-year IT student looking for an internship where I can ship real work with a real team.</p>
               </div>
             </div>
+
+            <!-- The journey is a circuit board: each step is a solder pad on one copper trace, which
+                 script.js routes between the pads and powers up once, the first time it's seen. -->
+            <div class="journey band-dark reveal" aria-labelledby="journey-title" data-journey>
+              <div class="journey-head">
+                <h2 id="journey-title" class="label">My journey</h2>
+                <span class="journey-silk" aria-hidden="true">KPR-BOARD REV.2026</span>
+              </div>
+              <svg class="journey-trace" aria-hidden="true" focusable="false">
+                <path class="journey-trace__base" data-journey-base d=""/>
+                <path class="journey-trace__live" data-journey-live d=""/>
+                <path class="journey-trace__next" data-journey-next d=""/>
+              </svg>
+              <ol class="journey-list">
+                <li class="journey-step"><span class="journey-pad" aria-hidden="true"></span>
+                  <span class="journey-when">Where it started</span>
+                  <h3>The family PC</h3>
+                  <p>Opening up our family computer to see how it all fit together, and dreaming of a build of my own.</p>
+                </li>
+                <li class="journey-step"><span class="journey-pad" aria-hidden="true"></span>
+                  <span class="journey-when">First code</span>
+                  <h3>HTML &amp; CSS</h3>
+                  <p>Simple enough to start, fun enough to keep going. I tinkered until the page looked exactly how I pictured it.</p>
+                </li>
+                <li class="journey-step"><span class="journey-pad" aria-hidden="true"></span>
+                  <span class="journey-when">Senior high</span>
+                  <h3>Going past the brief</h3>
+                  <p>The final project: the best site you could make with HTML and CSS. I added JavaScript on top and scored highest in my section.</p>
+                </li>
+                <li class="journey-step"><span class="journey-pad" aria-hidden="true"></span>
+                  <span class="journey-when">College capstone</span>
+                  <h3>Gallus</h3>
+                  <p>The first time the stakes were real: a real client, expecting a real product.</p>
+                </li>
+                <li class="journey-step"><span class="journey-pad" aria-hidden="true"></span>
+                  <span class="journey-when">2026</span>
+                  <h3>My own rig</h3>
+                  <p>Saved up and finally built the PC I used to dream about.</p>
+                </li>
+                <li class="journey-step journey-step--next"><span class="journey-pad" aria-hidden="true"></span>
+                  <span class="journey-when">Next</span>
+                  <h3>An internship</h3>
+                  <p>Learning from a real team and shipping work that people actually use. That’s where you come in.</p>
+                </li>
+              </ol>
+            </div>
+
+            <article class="story reveal" aria-labelledby="story-title" data-story>
+              <div class="story-copy">
+                <h2 id="story-title" class="story-title">Gallus: offline-first records for layer farmers</h2>
+                <p class="story-text">Philippine layer farmers were keeping records that were easy to get wrong, with no consistent way to log them automatically. Our capstone team built Gallus around working offline first, on desktop and mobile, for a real client expecting a real product.</p>
+                <dl class="story-facts">
+                  <div><dt>My part</dt><dd>Second-most commits across the desktop and mobile apps</dd></div>
+                  <div><dt>Breakthrough</dt><dd>I built the first connection between the desktop and mobile apps: the “one small step” that unlocked the rest of Gallus</dd></div>
+                </dl>
+              </div>
+              <!-- The breakthrough, drawn: the desktop app and the mobile app, and the link between them
+                   that I built first. Packets cross it a few times when it comes into view. -->
+              <figure class="story-link" aria-label="Diagram: the Gallus desktop app and mobile app, joined by the first connection I built">
+                <div class="story-device">
+                  <svg viewBox="0 0 48 40" aria-hidden="true" focusable="false"><rect x="3" y="3" width="42" height="26" rx="1.5"/><path d="M18 37h12M24 29v8"/></svg>
+                  <span>Desktop</span>
+                </div>
+                <div class="story-wire" aria-hidden="true"><i></i><i></i><i></i></div>
+                <div class="story-device">
+                  <svg viewBox="0 0 48 40" aria-hidden="true" focusable="false"><rect x="15" y="2" width="18" height="36" rx="2.5"/><path d="M21.5 33h5"/></svg>
+                  <span>Mobile</span>
+                </div>
+                <figcaption>First connection, built by me</figcaption>
+              </figure>
+            </article>
 
             <div class="process" data-process>
               <h2 class="label">How I work</h2>
@@ -446,20 +512,51 @@
               <ol class="process-steps">
                 <li class="process-step reveal" data-step="1">
                   <span class="process-node" aria-hidden="true"></span>
-                  <h3>01 / Learn</h3>
-                  <p>Read the codebase first. Ask good questions. Understand the problem before writing the fix.</p>
+                  <h3>01 / Make it work</h3>
+                  <p>I’ll chase a bug for hours, even days, until it gives. Getting a stubborn feature to finally work is the best feeling in the job.</p>
                 </li>
                 <li class="process-step reveal" data-step="2">
                   <span class="process-node" aria-hidden="true"></span>
-                  <h3>02 / Build</h3>
-                  <p>Ship in small, tested steps. Keep the code clear for the next person who reads it.</p>
+                  <h3>02 / Make it feel good</h3>
+                  <p>Once the hard part works, designing the UI and UX is my reward: the fun part, with nothing left to worry about.</p>
                 </li>
                 <li class="process-step reveal" data-step="3">
                   <span class="process-node" aria-hidden="true"></span>
-                  <h3>03 / Improve</h3>
-                  <p>Take feedback seriously. Refactor, restore and finish what I start.</p>
+                  <h3>03 / Back the lead</h3>
+                  <p>I do my best work as the leader’s right hand. I take on the pressure and the details so they can make the hard calls.</p>
+                </li>
+                <li class="process-step reveal" data-step="4">
+                  <span class="process-node" aria-hidden="true"></span>
+                  <h3>04 / Own the design</h3>
+                  <p>AI is great at syntax and testing, but it’s only as good as its instructions. Knowing what the system should be is my job, so I’m studying system design.</p>
                 </li>
               </ol>
+            </div>
+
+            <div class="offclock" aria-labelledby="offclock-title">
+              <h2 id="offclock-title" class="label">Off the clock</h2>
+              <ul class="offclock-grid">
+                <li class="offclock-card reveal">
+                  <span class="offclock-kicker">The name</span>
+                  <h3>Pb2kick</h3>
+                  <p>My handle since 2014–15: <cite>Plazma Burst 2</cite> plus “Kick”, from my old username Kick Buttowski Stunter. The robot-headed hero on my profile card is my Roblox avatar, Pb2kick given form.</p>
+                </li>
+                <li class="offclock-card reveal">
+                  <span class="offclock-kicker">The vibe</span>
+                  <h3>Genji main</h3>
+                  <p>This whole site is a love letter to Genji from <cite>Overwatch</cite>. I’ve liked him since his reveal, and got good with him in two months.</p>
+                </li>
+                <li class="offclock-card reveal">
+                  <span class="offclock-kicker">The reading list</span>
+                  <h3>Literary fiction</h3>
+                  <p><cite>The Owl House</cite> ended and I was so heartbroken I started reading, and I’d never even liked reading. Now I’m hooked on literary fiction.</p>
+                </li>
+                <li class="offclock-card reveal">
+                  <span class="offclock-kicker">The gym</span>
+                  <h3>225 lb × 3</h3>
+                  <p>My deadlift PR, with straps and no belt. The closest I get to showing off.</p>
+                </li>
+              </ul>
             </div>
 
             <div id="stack" class="stack" aria-labelledby="stack-title">
@@ -625,16 +722,29 @@
             <p class="cta-status"><span class="status-dot" aria-hidden="true"></span>Open to internship opportunities</p>
           </div>
           <h2 id="cta-title" class="cta-title">Looking for an intern?<br>Let’s build something real.</h2>
-          <!-- The dock already links the résumé, LinkedIn and GitHub; this spells out the address
-               so it can be read and copied at a glance. -->
-          <div class="cta-contacts">
-            <p class="cta-address">kenpatrick.ranis@gmail.com</p>
-            <button class="cta-copy" type="button" data-copy="kenpatrick.ranis@gmail.com" aria-label="Copy my email address">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy
-            </button>
+          <div class="cta-body">
+            <div class="cta-main">
+              <!-- The dock already links the résumé, LinkedIn and GitHub; this spells out the address
+                   so it can be read and copied at a glance. -->
+              <div class="cta-contacts">
+                <p class="cta-address">kenpatrick.ranis@gmail.com</p>
+                <button class="cta-copy" type="button" data-copy="kenpatrick.ranis@gmail.com" aria-label="Copy my email address">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy
+                </button>
+              </div>
+              <p class="cta-note">Graduating IT student building practical software and AI-assisted workflows. Looking for an internship to ship real code and learn from experienced engineering teams.</p>
+            </div>
+            <!-- The practical details an employer needs to place an intern, beside the way to reach me. -->
+            <div class="cta-ojt">
+              <h3 class="label">OJT details</h3>
+              <dl class="ojt-list">
+                <div><dt>Setup</dt><dd>On-site · Hybrid · Remote</dd></div>
+                <div><dt>Based in</dt><dd>Cebu, Philippines</dd></div>
+              </dl>
+              <a class="btn btn--lime ojt-resume" href="assets/Ken-Patrick-R-Ranis-Resume.pdf" target="_blank" rel="noopener" data-resume-open>View résumé <span aria-hidden="true">↗</span></a>
+            </div>
           </div>
-          <p class="cta-note">Graduating IT student building practical software and AI-assisted workflows. Looking for an internship to ship real code and learn from experienced engineering teams.</p>
         </div>
       </section>
     </main>

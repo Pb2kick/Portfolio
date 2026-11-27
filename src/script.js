@@ -447,8 +447,10 @@ window.kprIntro = (function () {
 
   // Blade paths as fractions of the viewport, so they hold on any screen size.
   const STRIKES = [
-    { step: 1, life: 0.40, drawK: 4.8, widthK: 0.036, minW: 16, flash: 0.26, p0: [0.76, 0.20], cp: [0.46, 0.44], p1: [0.24, 0.80] },
-    { step: 2, life: 0.42, drawK: 4.8, widthK: 0.040, minW: 18, flash: 0.30, p0: [0.22, 0.30], cp: [0.52, 0.47], p1: [0.78, 0.70] },
+    // pass: the dragon's dive across the screen for that strike (see triggerPass in dragon3d.js),
+    // each bigger than the last; the cleave has its own full-screen lunge.
+    { step: 1, life: 0.40, drawK: 12, pass: { fromOrbit: true, leadMs: 240, stopMs: 45, zPeak: 0.9, zBase: 0.2, waveK: 0.025, grow: 1.15, front: false }, widthK: 0.036, minW: 16, flash: 0.26, p0: [0.76, 0.20], cp: [0.46, 0.44], p1: [0.24, 0.80] },
+    { step: 2, life: 0.42, drawK: 12, pass: { leadMs: 170, stopMs: 50, bodyFrac: 0.85, zPeak: 1.8, zBase: 0.3, waveK: 0.05, grow: 2.2, front: true }, widthK: 0.040, minW: 18, flash: 0.30, p0: [0.22, 0.30], cp: [0.52, 0.47], p1: [0.78, 0.70] },
     { step: 3, life: 0.50, widthK: 0.052, minW: 24, flash: 0.55, cleave: true, p0: [1.04, 0.14], cp: [0.50, 0.50], p1: [-0.04, 0.86] },
   ];
 
@@ -534,9 +536,10 @@ window.kprIntro = (function () {
           dragon3d.setLogo(r.left, r.top, r.right, r.bottom);
         }
         dragon3d.update(dt, now, phase, phaseAt);
-        if (dt > 0 && (phase === 'charge' || phase === 'lunge')) {
-          const count = phase === 'lunge' ? 4 : 1;
-          for (let i = 0; i < count; i++) shed(dragon, phase === 'lunge' ? 1.6 : 1);
+        const passing = dragon3d.isPassing && dragon3d.isPassing(now);
+        if (dt > 0 && (phase === 'charge' || phase === 'lunge' || passing)) {
+          const count = phase === 'lunge' ? 4 : (passing ? 3 : 1);
+          for (let i = 0; i < count; i++) shed(dragon, phase === 'lunge' || passing ? 1.6 : 1);
         }
         return;
       }
@@ -812,12 +815,13 @@ window.kprIntro = (function () {
       splash.classList.add('is-glitch');
       glitchTimer = setTimeout(() => splash.classList.remove('is-glitch'), 240);
     }
-    // How long a strike's crescent takes to finish drawing: its leading edge eases out and
-    // reaches the end at 1/drawK of the slash's life (see the blade crescents in the frame loop).
-    // The first two strikes draw fast (~85ms) so they snap; the cleave keeps its heavier sweep.
-    const cutMs = (spec) => (spec.life * 1000) / (spec.drawK || 2.15);
+    // A strike's crescent finishes drawing at 1/drawK of its life (see the blade crescents in the
+    // frame loop). The first two flash along the dragon's path almost at once (~35ms) as it freezes
+    // mid-cut; the cleave keeps its heavier sweep.
     function strike(spec) {
       const now = performance.now();
+      // hit-stop: everything holds while the dragon freezes mid-cut (dragon3d holds it too)
+      if (spec.pass) freezeUntil = now + spec.pass.stopMs;
       const m = Math.min(W, H);
       const s = { ...spec, born: now, width: Math.max(spec.minW, m * spec.widthK) };
       slashes.push(s);
@@ -829,7 +833,7 @@ window.kprIntro = (function () {
       }
       const mid = quadPt(p0, cp, p1, 0.5);
       rings.push({ x: mid.x, y: mid.y, born: now, life: spec.cleave ? 0.7 : 0.45, max: m * (spec.cleave ? 0.95 : 0.5), w: spec.cleave ? 10 : 6, flat: !!spec.cleave });
-      shake = spec.cleave ? 12 : 7;
+      shake = spec.cleave ? 12 : (spec.step === 2 ? 9 : 7);
       focus = 0;
       phase = spec.cleave ? 'lunge' : 'strike';
       flash(spec.flash, spec.cleave ? 420 : 260);
@@ -1035,13 +1039,18 @@ window.kprIntro = (function () {
         fitTarget = Math.min(1, Math.max(0.35, (fitHalf - Math.min(W, H) * 0.035) / (rx * 0.72)));
         if (instant) { lift = px; fit = fitTarget; if (dragon3d) dragon3d.setLift(lift, fit); }
       },
-      // The dragon flies this strike's blade path: it whips to the start of the cut over
-      // leadMs, then runs the cut as the crescent is drawn, its head the blade's tip.
-      dash(spec, leadMs) {
-        if (!dragon3d || !dragon3d.triggerDash) return;
-        dragon3d.triggerDash(performance.now(), { p0: at(spec.p0), cp: at(spec.cp), p1: at(spec.p1) }, leadMs, cutMs(spec));
+      // The dragon dives across the screen along this strike's cut; its head crosses the middle of
+      // the cut leadMs from now, on the hit.
+      // With the 3D dragon the cleave is a wipe: its body covers the screen, then uncovers the site.
+      has3d: !!dragon3d,
+      lungeCoverMs: () => (dragon3d && dragon3d.lungeCoverMs ? dragon3d.lungeCoverMs() : 0),
+      lungeMs: () => (dragon3d && dragon3d.lungeMs ? dragon3d.lungeMs() : 0),
+      pass(spec) {
+        if (!dragon3d || !dragon3d.triggerPass || !spec.pass) return;
+        const o = spec.pass;
+        dragon3d.triggerPass(performance.now(), { p0: at(spec.p0), cp: at(spec.cp), p1: at(spec.p1) },
+          { ...o, wavePx: Math.min(W, H) * o.waveK });
       },
-      cutMs,
       strike,
       cleave,
       ringBurst,
@@ -1064,7 +1073,7 @@ window.kprIntro = (function () {
   function startSequence() {
     const token = ++runToken;
     active = true;
-    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping');
+    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping', 'is-wiped');
     root.classList.remove('intro-pending', 'site-unblurring');
     root.classList.add('site-blur-hold');
     root.style.overflow = 'hidden';
@@ -1088,14 +1097,13 @@ window.kprIntro = (function () {
     splash.addEventListener('pointerdown', onSplashPointer);
 
     const at = (ms, fn) => timers.push(setTimeout(() => { if (token === runToken) fn(); }, ms));
-    // The dragon flies the first two cuts: it whips in just before each strike and its head
-    // runs the blade's path as the crescent draws. The second whip starts as the first cut ends.
-    // (dragon3d's strike runs 1.4x the crescent's draw time: the cut, then its follow-through)
-    const CUT1_END = HIT1 + Math.round(fx.cutMs(STRIKES[0]) * 1.4);
-    at(HIT1 - 230, () => fx.dash(STRIKES[0], 230));
-    at(CUT1_END, () => fx.dash(STRIKES[1], HIT2 - CUT1_END));
+    // The first two strikes are dragon passes, its head crossing the middle of each cut right on
+    // the hit, each bigger than the last: for slash 1 it breaks off its orbit and is pulled into
+    // the swing; for slash 2 it dives back in from off-screen.
+    at(HIT1 - STRIKES[0].pass.leadMs, () => fx.pass(STRIKES[0]));
+    at(HIT2 - STRIKES[1].pass.leadMs, () => fx.pass(STRIKES[1]));
     // The music comes in once the first slash has finished.
-    at(CUT1_END, () => siteAudio.startMusic());
+    at(HIT1 + 120, () => siteAudio.startMusic());
     // 1) the first strike shatters the diamond reticle
     at(HIT1, () => fx.strike(STRIKES[0]));
     at(HIT1 + 55, () => { splash.classList.add('is-slash-1'); fx.ringBurst(); });
@@ -1104,19 +1112,32 @@ window.kprIntro = (function () {
     at(HIT2 + 55, () => { splash.classList.add('is-slash-2'); fx.sparkBurst(); });
     // 3) hit-stop, then the cleave: the dragon tears through and the screen parts
     at(HIT3, () => fx.cleave(STRIKES[2]));
-    // The cut runs the whole screen along the cleave's line. The upper half is sliced off and
-    // flies away along the cut, and the site shows through behind it, still blurred: a brief
-    // glimpse. The lower half holds for a beat, then dissolves as the site comes into focus.
-    at(after(1490), () => {
-      splash.classList.add('is-cleaved');
-      root.classList.add('site-glimpse');
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        if (token === runToken) splash.classList.add('is-parting');
-      }));
-    });
-    at(after(1950), () => splash.classList.add('is-revealing'));
-    // 4) once the last half has dissolved, ease the website in from the blur
-    at(after(2420), () => finish(false));
+    if (fx.has3d) {
+      // The dragon is the transition: once its body covers the whole screen, the splash's stage is
+      // dropped and the site comes into focus underneath, so its tail sweeping past uncovers the
+      // site itself. (The lunge starts 80ms after the cleave, after the hit-stop.)
+      const LUNGE_AT = HIT3 + 80;
+      at(LUNGE_AT + fx.lungeCoverMs(), () => {
+        splash.classList.add('is-wiped');
+        root.classList.add('site-wipe');
+        releaseSiteBlur();
+      });
+      at(LUNGE_AT + fx.lungeMs() + 40, () => finish(false));
+    } else {
+      // No 3D dragon: the cut runs the whole screen along the cleave's line. The upper half is
+      // sliced off and flies away along the cut, and the site shows through behind it, still
+      // blurred: a brief glimpse. The lower half holds for a beat, then dissolves.
+      at(after(1490), () => {
+        splash.classList.add('is-cleaved');
+        root.classList.add('site-glimpse');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (token === runToken) splash.classList.add('is-parting');
+        }));
+      });
+      at(after(1950), () => splash.classList.add('is-revealing'));
+      // 4) once the last half has dissolved, ease the website in from the blur
+      at(after(2420), () => finish(false));
+    }
 
     function finish(skipped) {
       if (token !== runToken) return;
@@ -1126,7 +1147,8 @@ window.kprIntro = (function () {
       siteAudio.startMusic(); // if the intro was skipped before the music came in
       const finalizeHide = () => {
         fx.stop();
-        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-revealing', 'is-skipping');
+        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-revealing', 'is-skipping', 'is-wiped');
+        root.classList.remove('site-wipe');
         splash.hidden = true;
         splash.setAttribute('aria-hidden', 'true');
         root.style.overflow = '';
@@ -1807,6 +1829,119 @@ window.kprLenis = null;
       }, { threshold: 0.6 });
       io.observe(process);
     }
+  }
+})();
+
+// ---- Info: the journey board's copper trace, and the Gallus link diagram ----
+// The trace is routed through the solder pads in reading order: straight along a row, straight
+// down a column, and between rows round the board's right edge, back along the gap, and in from
+// the left, with 45-degree corners like a real PCB. The run into the last pad ("Next") is drawn
+// dashed and never powers up. The first time the board is on screen the trace powers up once,
+// lighting each pad as it arrives; with reduced motion it is simply lit.
+(function () {
+  const board = document.querySelector('[data-journey]');
+  if (!board) return;
+  const svg = board.querySelector('.journey-trace');
+  const base = board.querySelector('[data-journey-base]');
+  const live = board.querySelector('[data-journey-live]');
+  const next = board.querySelector('[data-journey-next]');
+  const list = board.querySelector('.journey-list');
+  const steps = [...board.querySelectorAll('.journey-step')];
+  const pads = steps.map((s) => s.querySelector('.journey-pad'));
+  let mainLen = 0, padAt = [], powered = false, powering = false;
+
+  // Polyline -> SVG path with each interior corner cut at 45 degrees.
+  function chamfered(pts, cut) {
+    if (pts.length < 2) return '';
+    let d = `M${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = pts[i - 1], p = pts[i], b = pts[i + 1];
+      const la = Math.hypot(p.x - a.x, p.y - a.y) || 1, lb = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+      const c = Math.min(cut, la / 2, lb / 2);
+      d += ` L${p.x - ((p.x - a.x) / la) * c} ${p.y - ((p.y - a.y) / la) * c}`;
+      d += ` L${p.x + ((b.x - p.x) / lb) * c} ${p.y + ((b.y - p.y) / lb) * c}`;
+    }
+    const z = pts[pts.length - 1];
+    return d + ` L${z.x} ${z.y}`;
+  }
+  function route() {
+    const br = board.getBoundingClientRect();
+    if (br.width < 10) return false; // the Info module isn't showing
+    svg.setAttribute('viewBox', `0 0 ${br.width} ${br.height}`);
+    const centres = pads.map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2 - br.left, y: r.top + r.height / 2 - br.top }; });
+    const rowGap = parseFloat(getComputedStyle(list).rowGap) || 40;
+    const edgeR = br.width - 16, edgeL = 16;
+    const legs = [];
+    for (let i = 1; i < centres.length; i++) {
+      const a = centres[i - 1], b = centres[i];
+      if (Math.abs(a.y - b.y) < 6 || Math.abs(a.x - b.x) < 6) { legs.push([a, b]); continue; }
+      const gapY = steps[i].getBoundingClientRect().top - br.top - rowGap / 2;
+      legs.push([a, { x: edgeR, y: a.y }, { x: edgeR, y: gapY }, { x: edgeL, y: gapY }, { x: edgeL, y: b.y }, b]);
+    }
+    // Everything up to the last pad is the powered trace; the last leg is the dashed "next" run.
+    const mainPts = [centres[0]];
+    padAt = [0];
+    legs.slice(0, -1).forEach((leg) => { mainPts.push(...leg.slice(1)); });
+    base.setAttribute('d', chamfered(mainPts, 10));
+    live.setAttribute('d', chamfered(mainPts, 10));
+    next.setAttribute('d', chamfered(legs.length ? legs[legs.length - 1] : [], 10));
+    mainLen = live.getTotalLength();
+    // How far along the trace each pad sits, to light it as the power arrives.
+    let acc = 0;
+    legs.slice(0, -1).forEach((leg) => {
+      for (let k = 1; k < leg.length; k++) acc += Math.hypot(leg[k].x - leg[k - 1].x, leg[k].y - leg[k - 1].y);
+      padAt.push(acc);
+    });
+    // The 45-degree corner cuts make the drawn trace a little shorter than the square route;
+    // scale the pad positions to match, or the pads after a corner would never light.
+    const k = acc > 0 ? mainLen / acc : 1;
+    padAt = padAt.map((v) => v * k);
+    live.style.strokeDasharray = `${mainLen} ${mainLen}`;
+    if (powered) live.style.strokeDashoffset = '0';
+    else if (!powering) live.style.strokeDashoffset = String(mainLen);
+    return true;
+  }
+  function light(drawn) {
+    steps.forEach((s, i) => { if (i < padAt.length) s.classList.toggle('is-lit', drawn >= padAt[i] - 1); });
+  }
+  function powerUp() {
+    if (powered || powering) return;
+    if (!route()) return;
+    if (reduceMotion) { powered = true; live.style.strokeDashoffset = '0'; light(mainLen); return; }
+    powering = true;
+    const t0 = performance.now(), dur = 1700;
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    (function frame(now) {
+      const p = Math.min(1, (now - t0) / dur), drawn = ease(p) * mainLen;
+      live.style.strokeDashoffset = String(mainLen - drawn);
+      light(drawn);
+      if (p < 1) requestAnimationFrame(frame);
+      else { powering = false; powered = true; }
+    })(t0);
+  }
+
+  // Re-route whenever the board changes size (window resizes, or the Info module opening).
+  if ('ResizeObserver' in window) new ResizeObserver(() => { if (!powering) route(); }).observe(board);
+  else window.addEventListener('resize', () => { if (!powering) route(); });
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((en) => en.isIntersecting)) return;
+      if (route()) { io.disconnect(); powerUp(); }
+    }, { threshold: 0.35 });
+    io.observe(board);
+  } else {
+    powerUp();
+  }
+
+  // Gallus: the packets cross the desktop-to-mobile link a few times when it first comes into view.
+  const story = document.querySelector('[data-story]');
+  if (story && 'IntersectionObserver' in window) {
+    const so = new IntersectionObserver((entries) => {
+      if (!entries.some((en) => en.isIntersecting)) return;
+      so.disconnect();
+      story.classList.add('is-linked');
+    }, { threshold: 0.5 });
+    so.observe(story);
   }
 })();
 
