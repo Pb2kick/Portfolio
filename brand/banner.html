@@ -1,0 +1,288 @@
+<!doctype html>
+<!-- Source for the LinkedIn cover (?for=linkedin, 1584x396) and the GitHub profile banner
+     (?for=github, 1280x360), in the portfolio's look. Rendered to PNG by brand/render.mjs.
+     Not part of the site: Vercel only serves src/. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050605; --surface: #0b0e0b; --line: #202a20;
+    --text: #f0f3ef; --soft: #c5cdc3; --muted: #96a294; --silk: #7f8d7d;
+    --lime: #44d62c; --lime-ink: #040804;
+    --chamfer-sm: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); }
+  body { font-family: "Titillium Web", system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+  .banner {
+    position: relative; overflow: hidden;
+    width: 1584px; height: 396px;
+    background-color: var(--bg);
+    background-image:
+      radial-gradient(40% 90% at 50% 50%, rgba(68, 214, 44, .07) 0%, transparent 70%),
+      radial-gradient(48% 90% at 92% 10%, rgba(68, 214, 44, .07) 0%, transparent 70%),
+      radial-gradient(rgba(68, 214, 44, .11) 1px, transparent 1.2px);
+    background-size: 100% 100%, 100% 100%, 18px 18px;
+  }
+  /* The KPR mark: the site's logo, tinted Razer green on a canvas by the script below */
+  .mark { position: absolute; left: 56px; top: 46px; width: 124px; height: 40px; z-index: 2; }
+  .mark-sub { position: absolute; left: 56px; top: 96px; font-size: 13px; font-weight: 600; letter-spacing: .16em; color: var(--muted); text-transform: uppercase; }
+
+  .traces { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+  .traces path { fill: none; stroke-linecap: square; stroke-linejoin: miter; }
+  .traces .cu { stroke: var(--lime); stroke-width: 3; filter: drop-shadow(0 0 3px rgba(68, 214, 44, .45)); }
+  .traces .faint { stroke: #1d3a1d; stroke-width: 2.5; }
+  .traces .pad { fill: var(--lime); stroke: #b9ff9f; stroke-width: 2.5; }
+  .traces .via { fill: var(--bg); stroke: #2f5a2a; stroke-width: 2.5; }
+  .traces .base { stroke: #173018; stroke-width: 3; }
+  .traces .live { stroke: var(--lime); stroke-width: 3; filter: drop-shadow(0 0 4px rgba(68, 214, 44, .5)); }
+  .traces .next { stroke: #3d6b38; stroke-width: 3; stroke-dasharray: 7 8; }
+  .traces .pad--next { fill: var(--bg); stroke: #4e8a47; stroke-width: 3; stroke-dasharray: 4 3; }
+
+  /* Silkscreen: the white print on a circuit board, here in the board's muted green-grey */
+  .silk { display: block; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--silk); }
+
+  /* ---------- LinkedIn: the board. I'm the processor; what I'm after feeds in on the left,
+     the ways to reach me come out on the right, and a QR component hangs off the bottom. ---------- */
+  .part { position: absolute; z-index: 2; }
+  /* Inputs: small labelled components, like resistors on the board */
+  .spec { padding: 8px 14px 10px; background: var(--surface); border: 1px solid var(--line); clip-path: var(--chamfer-sm); }
+  .spec .silk { margin-bottom: 3px; }
+  .spec-big { display: flex; align-items: baseline; gap: 8px; }
+  .spec-big b { font-size: 34px; font-weight: 300; line-height: 1; color: var(--lime); letter-spacing: -.01em; }
+  .spec-big span, .spec-text { font-size: 15px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--soft); }
+  #in1 { left: 220px; top: 46px; width: 270px; }
+  #in2 { left: 220px; top: 140px; width: 270px; }
+
+  /* The processor: a package with pins round the edge, the die in the middle, pin-1 marked */
+  .cpu { left: 548px; top: 58px; width: 470px; height: 262px; }
+  .cpu-die {
+    position: absolute; inset: 14px;
+    padding: 26px 30px 0 34px;
+    background: linear-gradient(160deg, #111711 0%, #0a0d0a 60%);
+    border: 1px solid #2a3a29;
+    clip-path: polygon(22px 0, 100% 0, 100% 100%, 0 100%, 0 22px);
+  }
+  .cpu-die::before { content: ""; position: absolute; left: 14px; top: 26px; width: 9px; height: 9px; border-radius: 50%; background: #2c432b; } /* pin-1 dot */
+  .cpu-die::after { content: ""; position: absolute; inset: 10px; border: 1px solid rgba(68, 214, 44, .09); pointer-events: none; }
+  .cpu-silk { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--silk); }
+  .cpu-name { margin: 10px 0 14px; font-size: 52px; font-weight: 300; line-height: 1; letter-spacing: -.01em; text-transform: uppercase; }
+  .cpu-role { font-size: 15px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--lime); }
+  .pin { position: absolute; background: #34463a; }
+  .pin.is-used { background: #8ee977; }
+  .cpu-label { left: 562px; top: 330px; }
+
+  /* Outputs: connector headers, one per way to reach me */
+  .io { left: 1092px; top: 64px; width: 280px; list-style: none; display: grid; gap: 10px; }
+  .io li { height: 56px; display: flex; flex-direction: column; justify-content: center; padding-left: 22px; }
+  .io li .silk { margin-bottom: 1px; }
+  .io-text { font-size: 18px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+
+  /* The QR component: 33 modules at 4px with a 4-module quiet zone, as the QR spec asks */
+  .qrc { left: 1388px; top: 54px; display: grid; justify-items: center; gap: 8px; }
+  .qr-tile { padding: 16px; background: var(--lime); clip-path: var(--chamfer-sm); }
+  .qr-tile img { display: block; width: 132px; height: 132px; image-rendering: pixelated; }
+  .qrc figcaption { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---------- GitHub: the banner as before ---------- */
+  .is-github .banner {
+    width: 1280px; height: 360px;
+    background-image:
+      radial-gradient(48% 90% at 88% 10%, rgba(68, 214, 44, .11) 0%, transparent 70%),
+      radial-gradient(30% 70% at 12% 0%, rgba(40, 240, 180, .05) 0%, transparent 70%),
+      linear-gradient(rgba(68, 214, 44, .045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(68, 214, 44, .045) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 44px 44px, 44px 44px;
+  }
+  .is-github .mark { left: auto; right: 56px; top: 42px; width: 104px; height: 34px; }
+  .is-github .mark-sub { left: auto; right: 56px; top: 84px; }
+  .kicker { font-size: 15px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--lime); }
+  .outline { display: block; color: transparent; -webkit-text-stroke: 1.4px var(--text); }
+  .solid { display: block; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 13px 8px;
+    font-size: 14px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; line-height: 1.2;
+    color: var(--soft); background: var(--surface); border: 1px solid var(--line); clip-path: var(--chamfer-sm);
+  }
+  .chip b { font-size: 18px; font-weight: 700; color: var(--lime); letter-spacing: 0; line-height: 1; }
+  .copy { position: absolute; left: 56px; right: 56px; top: 38px; z-index: 2; }
+  .copy .title { margin-top: 10px; font-size: 46px; font-weight: 300; line-height: 1.04; letter-spacing: -.01em; text-transform: uppercase; }
+  .copy .chips { margin-top: 18px; }
+  .foot { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 16px; }
+  .stack { font-size: 13px; font-weight: 600; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+  .stack span + span::before { content: "/"; margin: 0 9px; color: #3d6b38; }
+  .url { flex: none; padding: 9px 16px 10px; font-size: 14px; font-weight: 700; letter-spacing: .05em; color: var(--lime-ink); background: var(--lime); clip-path: var(--chamfer-sm); }
+</style>
+</head>
+<body>
+<div class="banner">
+  <svg class="traces" aria-hidden="true"></svg>
+  <canvas class="mark" aria-hidden="true"></canvas>
+  <span class="mark-sub" data-only="github">Pb2kick</span>
+
+  <!-- LinkedIn: the board -->
+  <div data-only="linkedin">
+    <div class="part spec" id="in1"><span class="silk">R1 / OJT</span><div class="spec-big"><b>500</b><span>hours required</span></div></div>
+    <div class="part spec" id="in2"><span class="silk">R2 / Setup</span><span class="spec-text">On-site / hybrid / remote</span></div>
+
+    <div class="part cpu" id="cpu">
+      <div class="cpu-die">
+        <p class="cpu-silk">KPR-2026 / Final-year IT student</p>
+        <h1 class="cpu-name">Ken Patrick<br>R. Ranis</h1>
+        <p class="cpu-role">Software developer / Open for OJT</p>
+      </div>
+    </div>
+    <span class="part silk cpu-label">U1 &nbsp;Ken-Patrick-R-Ranis</span>
+
+    <ul class="part io">
+      <li id="out1"><span class="silk">J1 / Mail</span><span class="io-text">kenpatrick.ranis@gmail.com</span></li>
+      <li id="out2"><span class="silk">J2 / Git</span><span class="io-text">github.com/Pb2kick</span></li>
+      <li id="out3"><span class="silk">J3 / Web</span><span class="io-text">kenpatrickranis.vercel.app</span></li>
+      <li id="out4"><span class="silk">J4 / Loc</span><span class="io-text">Cebu, Philippines</span></li>
+    </ul>
+
+    <figure class="part qrc" id="qr">
+      <span class="silk">U2 / Scan</span>
+      <div class="qr-tile"><img src="qr-portfolio.svg" alt="QR code to kenpatrickranis.vercel.app"></div>
+      <figcaption>See my work</figcaption>
+    </figure>
+  </div>
+
+  <!-- GitHub: the name leads (GitHub doesn't show it in the README), then the story and details -->
+  <div class="copy" data-only="github">
+    <p class="kicker">Ken Patrick R. Ranis / Final-year IT student</p>
+    <h1 class="title"><span class="outline">Hardware kid.</span><span class="solid">Turned software builder.</span></h1>
+    <div class="chips">
+      <span class="chip"><b>500</b> hours required</span>
+      <span class="chip">On-site, hybrid or remote</span>
+      <span class="chip">Open for OJT</span>
+    </div>
+    <div class="foot">
+      <p class="stack"><span>Java</span><span>Kotlin</span><span>React</span><span>Spring Boot</span><span>Django</span><span>Tauri</span></p>
+      <span class="url">kenpatrickranis.vercel.app</span>
+    </div>
+  </div>
+</div>
+<script>
+  // Which banner: ?for=linkedin (default) or ?for=github
+  const which = new URLSearchParams(location.search).get('for') === 'github' ? 'github' : 'linkedin';
+  document.documentElement.classList.add('is-' + which);
+  document.querySelectorAll('[data-only]').forEach((el) => { if (el.dataset.only !== which) el.remove(); });
+
+  const banner = document.querySelector('.banner'), svg = document.querySelector('.traces');
+  const W = banner.offsetWidth, H = banner.offsetHeight;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pt = (x, y) => ({ x, y });
+  // Polyline -> path with each corner cut at 45 degrees, like a real PCB trace.
+  function chamfered(pts, cut = 9) {
+    let d = `M${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = pts[i - 1], p = pts[i], b = pts[i + 1];
+      const la = Math.hypot(p.x - a.x, p.y - a.y) || 1, lb = Math.hypot(b.x - p.x, b.y - p.y) || 1;
+      const c = Math.min(cut, la / 2, lb / 2);
+      d += ` L${p.x - ((p.x - a.x) / la) * c} ${p.y - ((p.y - a.y) / la) * c} L${p.x + ((b.x - p.x) / lb) * c} ${p.y + ((b.y - p.y) / lb) * c}`;
+    }
+    const z = pts[pts.length - 1];
+    return d + ` L${z.x} ${z.y}`;
+  }
+  // From a to b: run out horizontally, step across at 45 degrees, then run in horizontally.
+  function jog(a, b, lead = 18) {
+    const dir = Math.sign(b.x - a.x) || 1, dy = b.y - a.y;
+    if (Math.abs(dy) < 1) return [a, b];
+    const x1 = a.x + dir * lead, x2 = x1 + dir * Math.abs(dy);
+    return [a, pt(x1, a.y), pt(x2, b.y), b];
+  }
+  // Drawn once the fonts are in, since the parts' sizes (and so the wires' ends) depend on them.
+  function drawTraces() {
+  const out = [];
+  const path = (cls, pts, cut) => out.push(`<path class="${cls}" d="${chamfered(pts, cut)}"/>`);
+  const circle = (cls, p, r = 6) => out.push(`<circle class="${cls}" cx="${p.x}" cy="${p.y}" r="${r}"/>`);
+
+  if (which === 'linkedin') {
+    const rel = (el) => { const r = el.getBoundingClientRect(), b = banner.getBoundingClientRect(); return { l: r.left - b.left, t: r.top - b.top, r: r.right - b.left, b: r.bottom - b.top, w: r.width, h: r.height }; };
+    const cpu = document.getElementById('cpu'), c = rel(cpu), inset = 14;
+    // Pins round the package: 14 along the top and bottom, 6 down each side.
+    const pins = { top: [], bottom: [], left: [], right: [] };
+    const addPin = (side, i, n) => {
+      const el = document.createElement('span'); el.className = 'pin';
+      let x, y;
+      if (side === 'top' || side === 'bottom') {
+        x = inset + 26 + (i * (c.w - 2 * inset - 52)) / (n - 1);
+        y = side === 'top' ? 0 : c.h - inset;
+        Object.assign(el.style, { left: `${x - 3}px`, top: `${y}px`, width: '6px', height: `${inset}px` });
+        pins[side].push({ el, tip: pt(c.l + x, side === 'top' ? c.t : c.b) });
+      } else {
+        y = inset + 26 + (i * (c.h - 2 * inset - 52)) / (n - 1);
+        x = side === 'left' ? 0 : c.w - inset;
+        Object.assign(el.style, { left: `${x}px`, top: `${y - 3}px`, width: `${inset}px`, height: '6px' });
+        pins[side].push({ el, tip: pt(side === 'left' ? c.l : c.r, c.t + y) });
+      }
+      cpu.appendChild(el);
+    };
+    for (let i = 0; i < 14; i++) { addPin('top', i, 14); addPin('bottom', i, 14); }
+    for (let i = 0; i < 6; i++) { addPin('left', i, 6); addPin('right', i, 6); }
+    const use = (p) => { p.el.classList.add('is-used'); return p.tip; };
+
+    // Faint traces from the unused pins, running off to vias: the rest of the board.
+    pins.top.forEach((p, i) => { if (i % 3 === 1) { const y = 18 + (i % 2) * 10; path('faint', [p.tip, pt(p.tip.x, y + 14), pt(p.tip.x + 14, y)]); circle('via', pt(p.tip.x + 14, y), 4.5); } });
+    // (clear of the U1 label, which sits under the first few bottom pins)
+    pins.bottom.forEach((p, i) => { if (i === 7 || i === 9) { path('faint', [p.tip, pt(p.tip.x, H - 30), pt(p.tip.x - 16, H - 14)]); circle('via', pt(p.tip.x - 16, H - 14), 4.5); } });
+    // A little faint fill in the empty top right and right edge.
+    path('faint', [pt(1040, -10), pt(1040, 24), pt(1060, 44), pt(1078, 44)]); circle('via', pt(1078, 44), 4.5);
+
+    // Inputs: what I'm after, feeding into the left pins.
+    [['in1', 1], ['in2', 3]].forEach(([id, k]) => {
+      const s = rel(document.getElementById(id)), a = pt(s.r + 7, s.t + s.h / 2), b = use(pins.left[k]);
+      path('cu', jog(a, b, 16)); circle('pad', a, 5);
+    });
+    // Outputs: the ways to reach me, out of the right pins to a pad on each header.
+    ['out1', 'out2', 'out3', 'out4'].forEach((id, k) => {
+      const s = rel(document.getElementById(id)), b = pt(s.l + 4, s.t + s.h / 2), a = use(pins.right[k + 1]);
+      path('cu', jog(a, b, 14)); circle('pad', b, 6);
+    });
+    // The QR component, wired from a bottom pin round the board's lower edge.
+    const q = rel(document.getElementById('qr')), qa = use(pins.bottom[12]), qx = q.l + q.w / 2, qy = q.b + 12;
+    path('cu', [qa, pt(qa.x, 362), pt(qx, 362), pt(qx, qy)], 12); circle('pad', pt(qx, qy), 6);
+  } else {
+    // GitHub: one copper run along the bottom, pads lit, the last run dashed (what's next).
+    const y1 = H - 14, y2 = H - 38, x0 = 56, xs = [x0, 300, 560, 800, 1020, 1224];
+    const live = [pt(-10, y1), pt(x0 - 24, y1), pt(x0, y2)].concat(xs.slice(1, -1).map((x) => pt(x, y2)));
+    out.push(`<path class="base" d="M${live.concat([pt(xs[xs.length - 1], y2), pt(W + 10, y2)]).map((p) => `${p.x} ${p.y}`).join(' L')}"/>`);
+    out.push(`<path class="live" d="M${live.map((p) => `${p.x} ${p.y}`).join(' L')}"/>`);
+    out.push(`<path class="next" d="M${xs[xs.length - 2]} ${y2} L${xs[xs.length - 1]} ${y2}"/>`);
+    xs.slice(0, -1).forEach((x) => circle('pad', pt(x, y2), 7));
+    circle('pad--next', pt(xs[xs.length - 1], y2), 7);
+  }
+  svg.innerHTML = out.join('');
+  }
+
+  // The KPR mark: draw the white logo, then paint the site's green into its shape.
+  const mark = document.querySelector('.mark');
+  const logo = new Image();
+  const logoReady = new Promise((res) => { logo.onload = res; logo.onerror = res; });
+  logo.src = '../src/kpr-logo.png';
+  logoReady.then(() => {
+    const scale = 2, w = mark.offsetWidth, h = mark.offsetHeight;
+    mark.width = w * scale; mark.height = h * scale;
+    const c = mark.getContext('2d');
+    const k = Math.min(mark.width / logo.width, mark.height / logo.height);
+    const dw = logo.width * k, dh = logo.height * k;
+    const dx = which === 'github' ? mark.width - dw : 0; // right-aligned on GitHub
+    c.drawImage(logo, dx, (mark.height - dh) / 2, dw, dh);
+    c.globalCompositeOperation = 'source-in';
+    c.fillStyle = '#44d62c';
+    c.fillRect(0, 0, mark.width, mark.height);
+  });
+  const qrImg = document.querySelector('.qr-tile img');
+  const qrReady = qrImg ? new Promise((res) => { if (qrImg.complete) res(); else { qrImg.onload = res; qrImg.onerror = res; } }) : Promise.resolve();
+  Promise.all([document.fonts.ready, logoReady, qrReady]).then(() => { drawTraces(); document.body.setAttribute('data-ready', '1'); });
+</script>
+</body>
+</html>
