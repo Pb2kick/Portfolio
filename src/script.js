@@ -410,7 +410,7 @@ window.kprIntro = (function () {
 
   let active = root.classList.contains('intro-pending') && !!splash && !!gate;
   const doneCallbacks = [];
-  let runToken = 0, timers = [], unblurTimer = 0;
+  let runToken = 0, timers = [], unblurTimer = 0, doneNotified = false;
 
   function scrollToTopNow() {
     root.style.scrollBehavior = 'auto';
@@ -422,6 +422,8 @@ window.kprIntro = (function () {
   }
 
   function notifyDone() {
+    if (doneNotified) return;
+    doneNotified = true;
     scrollToTopNow();
     active = false;
     while (doneCallbacks.length) {
@@ -447,11 +449,12 @@ window.kprIntro = (function () {
 
   // Blade paths as fractions of the viewport, so they hold on any screen size.
   const STRIKES = [
-    // pass: the dragon's dive across the screen for that strike (see triggerPass in dragon3d.js),
-    // each bigger than the last; the cleave has its own full-screen lunge.
-    { step: 1, life: 0.40, drawK: 12, pass: { fromOrbit: true, leadMs: 240, stopMs: 45, zPeak: 0.9, zBase: 0.2, waveK: 0.025, grow: 1.15, front: false }, widthK: 0.036, minW: 16, flash: 0.26, p0: [0.76, 0.20], cp: [0.46, 0.44], p1: [0.24, 0.80] },
-    { step: 2, life: 0.42, drawK: 12, pass: { leadMs: 170, stopMs: 50, bodyFrac: 0.85, zPeak: 1.8, zBase: 0.3, waveK: 0.05, grow: 2.2, front: true }, widthK: 0.040, minW: 18, flash: 0.30, p0: [0.22, 0.30], cp: [0.52, 0.47], p1: [0.78, 0.70] },
-    { step: 3, life: 0.50, widthK: 0.052, minW: 24, flash: 0.55, cleave: true, p0: [1.04, 0.14], cp: [0.50, 0.50], p1: [-0.04, 0.86] },
+    // Sweeping full-frame katana wrist arcs forming a natural continuous dragon combo:
+    // 1) breaks off orbit top-right -> exits bottom-left, 2) whips back top-left -> clears bottom-right cleanly before Slash 3,
+    // 3) single colossal dragon dives top-right -> cleaves KPR dead-center right on HIT3 -> swells into full-screen wipe!
+    { step: 1, life: 0.30, pass: { fromOrbit: true, leadMs: 280, stopMs: 38, exitBoost: 1.40, zPeak: 0.95, zBase: 0.22, waveK: 0.028, grow: 1.22, front: false }, widthK: 0.024, minW: 11, flash: 0.22, p0: [0.90, 0.10], cp: [0.44, 0.44], p1: [0.10, 0.90] },
+    { step: 2, life: 0.32, pass: { leadMs: 185, stopMs: 36, bodyFrac: 0.52, exitBoost: 1.65, zPeak: 1.85, zBase: 0.30, waveK: 0.044, grow: 2.15, front: true }, widthK: 0.028, minW: 13, flash: 0.28, p0: [0.08, 0.22], cp: [0.54, 0.44], p1: [0.94, 0.78] },
+    { step: 3, life: 0.46, widthK: 0.036, minW: 17, flash: 0.46, cleave: true, p0: [1.04, 0.10], cp: [0.49, 0.47], p1: [-0.04, 0.90] },
   ];
 
   const fx = (ctx2d && !reducedMotion) ? createFx() : null;
@@ -471,9 +474,599 @@ window.kprIntro = (function () {
     let W = innerWidth, H = innerHeight, dpr = 1;
     let raf = 0, running = false, lastFrame = 0, freezeUntil = 0;
     let phase = 'idle', phaseAt = 0, shake = 0, focus = 0, glitchTimer = 0;
+    let recoilX = 0, recoilY = 0, recoilVx = 0, recoilVy = 0, markShiftX = 0, markShiftY = 0;
+    let ambientAlpha = 1, wiped = false, onClearCb = null;
     // While the sound choice shows, the coil follows the raised emblem and shrinks to fit above the buttons.
     let lift = 0, liftTarget = 0, fit = 1, fitTarget = 1, fitHalf = Infinity;
     const slashes = [], sparks = [], rings = [], motes = [], embers = [], petals = [];
+    const logoDebris = [];
+    const kprImg = new Image();
+    kprImg.src = 'kpr-logo.png';
+    const wholeStage = splash.querySelector('.intro-whole');
+    const logoMarkEl = splash.querySelector('.intro-whole .intro-mark--logo');
+    // Tracks progressive KPR destruction across the 3 strikes:
+    //   stage 0: intact
+    //   stage 1: deeply scarred along Slash 1's exact `/` line (wounded, NOT yet severed)
+    //   stage 2: sheared cleanly in two along Slash 2's exact `\` dragon direction (still carrying Slash 1's scar)
+    //   stage 3: shattered & crumbled into 38+ tumbling crystalline shards + neon fracture dust
+    let logoDamage = {
+      stage: 0, rect: null, scar1: null, cut2: null, scarTex: null, cut2EdgeTex: null,
+      shatter: null,
+    };
+
+    // Intersects a line through the center of `rect` along direction (p0 -> p1) with all 4 box edges,
+    // returning exact CSS polygon strings for both severed halves + exact shear vectors along the blade!
+    function computeLogoCut(rect, p0, p1) {
+      const w = Math.max(1, rect.width), h = Math.max(1, rect.height);
+      const cx = w * 0.5, cy = h * 0.5;
+      let dx = p1.x - p0.x, dy = p1.y - p0.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      dx /= dl; dy /= dl;
+      const nx = -dy, ny = dx; // perpendicular normal
+
+      const hits = [];
+      const pushIfNew = (x, y) => {
+        if (x < -0.5 || x > w + 0.5 || y < -0.5 || y > h + 0.5) return;
+        const cxp = Math.max(0, Math.min(w, x));
+        const cyp = Math.max(0, Math.min(h, y));
+        if (!hits.some((q) => Math.hypot(q.x - cxp, q.y - cyp) < 1)) hits.push({ x: cxp, y: cyp });
+      };
+      if (Math.abs(dx) > 1e-4) {
+        pushIfNew(0, cy + ((0 - cx) / dx) * dy);
+        pushIfNew(w, cy + ((w - cx) / dx) * dy);
+      }
+      if (Math.abs(dy) > 1e-4) {
+        pushIfNew(cx + ((0 - cy) / dy) * dx, 0);
+        pushIfNew(cx + ((h - cy) / dy) * dx, h);
+      }
+      // Order cut endpoints along (dx, dy) from entry -> exit
+      hits.sort((u, v) => ((u.x - cx) * dx + (u.y - cy) * dy) - ((v.x - cx) * dx + (v.y - cy) * dy));
+      const a = hits[0] || { x: 0, y: cy };
+      const b = hits[1] || { x: w, y: cy };
+
+      const corners = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }];
+      // side < 0 = upper-right half for Slash 2 (`\`); side > 0 = lower-left half
+      const sideOf = (pt) => dx * (pt.y - cy) - dy * (pt.x - cx);
+      const buildPoly = (wantNeg) => {
+        const pts = [a, b, ...corners.filter((c) => (wantNeg ? sideOf(c) <= 0 : sideOf(c) >= 0))];
+        const mx = pts.reduce((s, q) => s + q.x, 0) / pts.length;
+        const my = pts.reduce((s, q) => s + q.y, 0) / pts.length;
+        pts.sort((u, v) => Math.atan2(u.y - my, u.x - mx) - Math.atan2(v.y - my, v.x - mx));
+        return {
+          pts,
+          css: 'polygon(' + pts.map((q) => `${((q.x / w) * 100).toFixed(2)}% ${((q.y / h) * 100).toFixed(2)}%`).join(', ') + ')',
+        };
+      };
+      const topHalf = buildPoly(true);
+      const botHalf = buildPoly(false);
+      // Clean, disciplined katana shear along the exact blade vector (dx, dy) scaled to logo width
+      // so both 290px desktop and 150px mobile KPR marks split cleanly without excessive vertical offset
+      const shearK = Math.max(0.58, Math.min(1.05, w / 245));
+      const shiftTop = { x: (dx * 17 - nx * 4.2) * shearK, y: (dy * 17 - ny * 4.2) * shearK, rot: 0.55 };
+      const shiftBot = { x: (-dx * 15 + nx * 4.2) * shearK, y: (-dy * 15 + ny * 4.2) * shearK, rot: -0.55 };
+      return { w, h, cx, cy, dx, dy, nx, ny, a, b, sideOf, topHalf, botHalf, shiftTop, shiftBot };
+    }
+
+    // Exact convex polygon area & Sutherland-Hodgman infinite straight-line half-plane bisector
+    function polyArea(pts) {
+      let a = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], q = pts[(i + 1) % pts.length];
+        a += p.x * q.y - q.x * p.y;
+      }
+      return Math.abs(a) * 0.5;
+    }
+    function splitConvexPoly(poly, px, py, nx, ny) {
+      const neg = [], pos = [];
+      const side = (q) => (q.x - px) * nx + (q.y - py) * ny;
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i], b = poly[(i + 1) % poly.length];
+        const da = side(a), db = side(b);
+        if (da <= 1e-4) neg.push(a);
+        if (da >= -1e-4) pos.push(a);
+        if ((da < -1e-4 && db > 1e-4) || (da > 1e-4 && db < -1e-4)) {
+          const t = da / (da - db);
+          const inter = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          neg.push(inter);
+          pos.push(inter);
+        }
+      }
+      const clean = (pts) => (pts.length >= 3 && polyArea(pts) > 28 ? pts : null);
+      return [clean(neg), clean(pos)];
+    }
+
+    // Draws a dead-straight, razor-tapered incandescent katana flash beam along (dx, dy)
+    function drawRazorLine(c, cx, cy, dx, dy, halfLen, coreW, glowW, alpha) {
+      if (alpha <= 0.01 || halfLen <= 1) return;
+      const nx = -dy, ny = dx;
+      const drawTaper = (hw, fillStyle) => {
+        c.beginPath();
+        c.moveTo(cx - dx * halfLen, cy - dy * halfLen);
+        c.lineTo(cx + nx * hw, cy + ny * hw);
+        c.lineTo(cx + dx * halfLen, cy + dy * halfLen);
+        c.lineTo(cx - nx * hw, cy - ny * hw);
+        c.closePath();
+        c.fillStyle = fillStyle;
+        c.fill();
+      };
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = alpha;
+      drawTaper(glowW * 1.45, 'rgba(68, 214, 44, 0.34)');
+      drawTaper(glowW * 0.72, 'rgba(40, 240, 180, 0.68)');
+      drawTaper(coreW, '#f6fff5');
+      c.restore();
+    }
+
+    // Renders the exact green-cyan gradient KPR logo onto an offscreen HiDPI canvas (for incisions & sliced slabs)
+    function makeKprSprite(w, h) {
+      const sc = 2;
+      const c = document.createElement('canvas');
+      c.width = Math.max(2, Math.round(w * sc));
+      c.height = Math.max(2, Math.round(h * sc));
+      const g = c.getContext('2d');
+      g.scale(sc, sc);
+      const grad = g.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, '#d8ffcf');
+      grad.addColorStop(0.45, '#44d62c');
+      grad.addColorStop(1, '#28f0b4');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, w, h);
+      if (kprImg.complete && kprImg.naturalWidth > 0) {
+        g.globalCompositeOperation = 'destination-in';
+        const ar = kprImg.naturalWidth / kprImg.naturalHeight;
+        let dw = w, dh = h, ox = 0, oy = 0;
+        if (w / h > ar) { dw = h * ar; ox = (w - dw) * 0.5; }
+        else { dh = w / ar; oy = (h - dh) * 0.5; }
+        g.drawImage(kprImg, ox, oy, dw, dh);
+      }
+      g.globalCompositeOperation = 'source-over';
+      return { canvas: c, sc };
+    }
+
+    // Slash 1: A single dead-straight, surgical katana incision along `/` — ZERO jagged cracks, ZERO branches!
+    // Looks razor-sharp: a clean dark-void blade slit with a crisp metallic specular highlight on the cut lip.
+    function makeScarTexture(cut) {
+      const sc = 2;
+      const { w, h, a, b, cx, cy, dx, dy, nx, ny } = cut;
+      const c = document.createElement('canvas');
+      c.width = Math.max(2, Math.round(w * sc));
+      c.height = Math.max(2, Math.round(h * sc));
+      const g = c.getContext('2d');
+      g.scale(sc, sc);
+
+      const len = Math.hypot(b.x - a.x, b.y - a.y) * 0.56;
+      const slitHW = 1.65;
+
+      // 1) Crisp laser-straight dark-void surgical incision tapered cleanly to needle points
+      g.beginPath();
+      g.moveTo(cx - dx * len, cy - dy * len);
+      g.lineTo(cx + nx * slitHW, cy + ny * slitHW);
+      g.lineTo(cx + dx * len, cy + dy * len);
+      g.lineTo(cx - nx * slitHW, cy - ny * slitHW);
+      g.closePath();
+      g.fillStyle = 'rgba(2, 6, 3, 0.98)';
+      g.fill();
+
+      // 2) Razor-crisp metallic specular bevel gleaming strictly along the upper & lower lips of the straight cut
+      g.lineCap = 'butt';
+      g.strokeStyle = 'rgba(242, 255, 248, 0.92)';
+      g.lineWidth = 1.15;
+      g.beginPath();
+      g.moveTo(a.x + nx * 1.4, a.y + ny * 1.4);
+      g.lineTo(b.x + nx * 1.4, b.y + ny * 1.4);
+      g.stroke();
+
+      g.strokeStyle = 'rgba(68, 214, 44, 0.72)';
+      g.lineWidth = 1.0;
+      g.beginPath();
+      g.moveTo(a.x - nx * 1.4, a.y - ny * 1.4);
+      g.lineTo(b.x - nx * 1.4, b.y - ny * 1.4);
+      g.stroke();
+
+      // Mask strictly inside KPR letters so the surgical blade slit sits cleanly ON the logo!
+      if (kprImg.complete && kprImg.naturalWidth > 0) {
+        g.globalCompositeOperation = 'destination-in';
+        const ar = kprImg.naturalWidth / kprImg.naturalHeight;
+        let dw = w, dh = h, ox = 0, oy = 0;
+        if (w / h > ar) { dw = h * ar; ox = (w - dw) * 0.5; }
+        else { dh = w / ar; oy = (h - dh) * 0.5; }
+        g.drawImage(kprImg, ox, oy, dw, dh);
+      }
+      g.globalCompositeOperation = 'source-over';
+      return c;
+    }
+
+    // Slash 2: Surgical, razor-thin metallic specular sheen strictly along the freshly severed `\` letter edges
+    function makeCutEdgeTexture(cut) {
+      const sc = 2;
+      const { w, h, a, b } = cut;
+      const c = document.createElement('canvas');
+      c.width = Math.max(2, Math.round(w * sc));
+      c.height = Math.max(2, Math.round(h * sc));
+      const g = c.getContext('2d');
+      g.scale(sc, sc);
+      g.lineCap = 'butt';
+      g.strokeStyle = 'rgba(40, 240, 180, 0.75)';
+      g.lineWidth = 2.6;
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      g.strokeStyle = '#f5fff8';
+      g.lineWidth = 1.25;
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      if (kprImg.complete && kprImg.naturalWidth > 0) {
+        g.globalCompositeOperation = 'destination-in';
+        const ar = kprImg.naturalWidth / kprImg.naturalHeight;
+        let dw = w, dh = h, ox = 0, oy = 0;
+        if (w / h > ar) { dw = h * ar; ox = (w - dw) * 0.5; }
+        else { dh = w / ar; oy = (h - dh) * 0.5; }
+        g.drawImage(kprImg, ox, oy, dw, dh);
+      }
+      g.globalCompositeOperation = 'source-over';
+      return c;
+    }
+
+    function scarLogo(spec) {
+      if (!logoMarkEl) return;
+      const r = logoMarkEl.getBoundingClientRect();
+      if (r.width < 4) return;
+      const rect = { left: r.left, top: r.top, width: r.width, height: r.height };
+      const cut1 = computeLogoCut(rect, at(spec.p0), at(spec.p1));
+      logoDamage.stage = 1;
+      logoDamage.rect = rect;
+      logoDamage.scar1 = cut1;
+      logoDamage.scarTex = makeScarTexture(cut1);
+      logoDamage.scarFlashBorn = performance.now();
+      // Fine razor sparks trailing strictly along Slash 1's `/` exit vector
+      const mx = rect.left + cut1.cx, my = rect.top + cut1.cy;
+      spawnSparks(mx, my, cut1.dx, cut1.dy, 18, 1.15);
+    }
+
+    function sliceLogo(spec) {
+      if (!logoMarkEl) return;
+      const r = logoMarkEl.getBoundingClientRect();
+      if (r.width < 4) return;
+      const rect = { left: r.left, top: r.top, width: r.width, height: r.height };
+      const cut2 = computeLogoCut(rect, at(spec.p0), at(spec.p1));
+      logoDamage.stage = 2;
+      logoDamage.rect = rect;
+      logoDamage.cut2 = cut2;
+      logoDamage.cut2EdgeTex = makeCutEdgeTexture(cut2);
+      logoDamage.cut2FlashBorn = performance.now();
+      if (wholeStage) {
+        wholeStage.style.setProperty('--cut-top-poly', cut2.topHalf.css);
+        wholeStage.style.setProperty('--cut-bot-poly', cut2.botHalf.css);
+        wholeStage.style.setProperty('--cut-shift-a', `translate(${cut2.shiftTop.x.toFixed(1)}px, ${cut2.shiftTop.y.toFixed(1)}px) rotate(${cut2.shiftTop.rot}deg)`);
+        wholeStage.style.setProperty('--cut-shift-b', `translate(${cut2.shiftBot.x.toFixed(1)}px, ${cut2.shiftBot.y.toFixed(1)}px) rotate(${cut2.shiftBot.rot}deg)`);
+      }
+      // Sharp cutting sparks streaming along Slash 2's exact `\` blade trajectory
+      const mx = rect.left + cut2.cx, my = rect.top + cut2.cy;
+      spawnSparks(mx, my, cut2.dx, cut2.dy, 24, 1.2);
+    }
+
+    // Slash 3: True Iaijutsu Multi-Slice Collapse — ZERO blunt cracks, ZERO lightning zigzags, ZERO triangle grid!
+    // Mathematically bisects both Slash 2 halves with exact straight katana cut planes (starting with Slash 1's
+    // own `/` incision giving way!) into ~22-28 razor-clean geometric slabs of K, P, R that gleam along pure
+    // straight blade-lines for one breathless iaijutsu beat, then slide cleanly off each other and crumble downward!
+    function shatterLogo(spec, now) {
+      const r = logoMarkEl ? logoMarkEl.getBoundingClientRect() : null;
+      const rect = (r && r.width > 4) ? { left: r.left, top: r.top, width: r.width, height: r.height } : logoDamage.rect;
+      if (!rect || rect.width < 4) return;
+      const { left, top, width: w, height: h } = rect;
+      const { canvas: sprite, sc } = makeKprSprite(w, h);
+      const sg = sprite.getContext('2d');
+      const imgData = sg.getImageData(0, 0, sprite.width, sprite.height).data;
+
+      const hasInk = (poly) => {
+        let minX = w, minY = h, maxX = 0, maxY = 0;
+        for (const p of poly) {
+          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+        }
+        let hits = 0;
+        for (let sy = Math.max(0, Math.floor(minY * sc)); sy < Math.min(sprite.height, Math.ceil(maxY * sc)); sy += 3) {
+          for (let sx = Math.max(0, Math.floor(minX * sc)); sx < Math.min(sprite.width, Math.ceil(maxX * sc)); sx += 3) {
+            if (imgData[(sy * sprite.width + sx) * 4 + 3] > 35) { hits++; if (hits >= 4) return true; }
+          }
+        }
+        return false;
+      };
+
+      const cut1 = logoDamage.scar1 || computeLogoCut(rect, at(STRIKES[0].p0), at(STRIKES[0].p1));
+      const cut2 = logoDamage.cut2 || computeLogoCut(rect, at(STRIKES[1].p0), at(STRIKES[1].p1));
+      const cut3 = computeLogoCut(rect, at(spec.p0), at(spec.p1));
+      const s3x = cut3.dx, s3y = cut3.dy;
+
+      // Start from Slash 2's 2 already-severed halves so Frame 0 transitions seamlessly with zero pop!
+      let pieces = [
+        { poly: cut2.topHalf.pts, half: 0 },
+        { poly: cut2.botHalf.pts, half: 1 },
+      ];
+
+      // 8 dead-straight katana cut planes slicing cleanly through K, P, R:
+      // #1 = Slash 1's exact `/` cut finally opening clean across both halves!
+      // #2 = Slash 3's exact `/` cleave slicing cleanly right beside it!
+      // #3-#8 = razor-clean intersecting Dragonblade flurry cuts dicing K, P, R into sleek geometric slabs!
+      const makePlane = (px, py, ang, delay, halfLen) => {
+        const dx = Math.cos(ang), dy = Math.sin(ang);
+        return { px, py, dx, dy, nx: -dy, ny: dx, delay, halfLen };
+      };
+      const ang1 = Math.atan2(cut1.dy, cut1.dx);
+      const ang2 = Math.atan2(cut2.dy, cut2.dx);
+      const ang3 = Math.atan2(cut3.dy, cut3.dx);
+      const diag = Math.hypot(w, h);
+      const cutPlanes = [
+        { px: cut1.cx, py: cut1.cy, dx: cut1.dx, dy: cut1.dy, nx: cut1.nx, ny: cut1.ny, delay: 0, halfLen: diag * 0.95 },
+        { px: w * 0.56, py: h * 0.44, dx: cut3.dx, dy: cut3.dy, nx: cut3.nx, ny: cut3.ny, delay: 12, halfLen: diag * 1.25 },
+        makePlane(w * 0.24, h * 0.50, ang1 + 0.08, 24, diag * 0.85),
+        makePlane(w * 0.77, h * 0.52, ang3 - 0.07, 36, diag * 0.85),
+        makePlane(w * 0.46, h * 0.26, ang2 - 0.09, 48, diag * 0.92),
+        makePlane(w * 0.54, h * 0.74, ang2 + 0.08, 60, diag * 0.92),
+        makePlane(w * 0.50, h * 0.52, -0.14, 72, diag * 1.05),
+        makePlane(w * 0.38, h * 0.48, ang1 + 0.42, 84, diag * 0.78),
+      ];
+
+      // Sequentially bisect every piece with each straight blade plane!
+      for (const pl of cutPlanes) {
+        const next = [];
+        for (const pc of pieces) {
+          const [neg, pos] = splitConvexPoly(pc.poly, pl.px, pl.py, pl.nx, pl.ny);
+          if (neg && pos) {
+            next.push({ poly: neg, half: pc.half });
+            next.push({ poly: pos, half: pc.half });
+          } else {
+            next.push(pc);
+          }
+        }
+        pieces = next;
+      }
+
+      const shards = [];
+      for (const pc of pieces) {
+        const poly = pc.poly;
+        if (!hasInk(poly)) continue;
+        let minX = w, minY = h, maxX = 0, maxY = 0;
+        let cx = 0, cy = 0;
+        for (const p of poly) {
+          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+          cx += p.x; cy += p.y;
+        }
+        cx /= poly.length; cy /= poly.length;
+
+        const pad = 8;
+        const bx = minX - pad, by = minY - pad;
+        const bw = Math.max(8, (maxX + pad) - bx);
+        const bh = Math.max(8, (maxY + pad) - by);
+
+        // Pre-render each razor-sliced KPR slab once with surgical `source-atop` cut-steel edges
+        // AND a crisp dark obsidian backing shadow so every tumbling slab pops cleanly even over the dragon!
+        const inner = document.createElement('canvas');
+        inner.width = Math.max(2, Math.ceil(bw * sc));
+        inner.height = Math.max(2, Math.ceil(bh * sc));
+        const ig = inner.getContext('2d');
+        ig.scale(sc, sc);
+        ig.beginPath();
+        ig.moveTo(poly[0].x - bx, poly[0].y - by);
+        for (let i = 1; i < poly.length; i++) ig.lineTo(poly[i].x - bx, poly[i].y - by);
+        ig.closePath();
+        ig.save();
+        ig.clip();
+        ig.drawImage(sprite, -bx, -by, w, h);
+        ig.restore();
+        ig.globalCompositeOperation = 'source-atop';
+        ig.lineJoin = 'miter';
+        ig.strokeStyle = 'rgba(40, 240, 180, 0.68)';
+        ig.lineWidth = 2.6;
+        ig.stroke();
+        ig.strokeStyle = 'rgba(246, 255, 250, 0.96)';
+        ig.lineWidth = 1.35;
+        ig.stroke();
+        ig.globalCompositeOperation = 'source-over';
+
+        const tc = document.createElement('canvas');
+        tc.width = inner.width;
+        tc.height = inner.height;
+        const tg = tc.getContext('2d');
+        tg.shadowColor = 'rgba(2, 8, 4, 0.92)';
+        tg.shadowBlur = 7 * sc;
+        tg.drawImage(inner, 0, 0);
+        tg.shadowBlur = 0;
+        tg.drawImage(inner, 0, 0);
+
+        const shBase = pc.half === 0 ? cut2.shiftTop : cut2.shiftBot;
+        const rx = (cx - w * 0.5) / (w * 0.5);
+        const ry = (cy - h * 0.5) / (h * 0.5);
+        const dist = Math.hypot(rx, ry) + 0.16;
+        const dirX = rx / dist, dirY = ry / dist;
+        // Side relative to Slash 3's main `/` plane so opposing slices glide cleanly apart along the blade!
+        const s3Side = cut3.sideOf({ x: cx, y: cy }) <= 0 ? -1 : 1;
+        const s1Side = cut1.sideOf({ x: cx, y: cy }) <= 0 ? -1 : 1;
+
+        // Clean iaijutsu micro-slide during the 165ms stillness beat: pieces slip straight off their cut seams!
+        const slipX = s3x * (s3Side * 4.5 + 3.0) + cut1.dx * (s1Side * 3.0) + dirX * rand(2.5, 6.5);
+        const slipY = s3y * (s3Side * 4.5 + 3.0) + cut1.dy * (s1Side * 3.0) + dirY * rand(2.5, 6.5);
+
+        // Collapse physics: sliced blocks glide cleanly off one another along the slash planes, then crumble downward!
+        const cleavePush = rand(140, 340);
+        const slidePush = rand(70, 240);
+        const heavy = polyArea(poly) > (w * h) / 28;
+        shards.push({
+          tex: tc,
+          dxDraw: bx - cx,
+          dyDraw: by - cy,
+          bw, bh,
+          x0: left + cx + shBase.x,
+          y0: top + cy + shBase.y,
+          x: left + cx + shBase.x,
+          y: top + cy + shBase.y,
+          slipX, slipY,
+          vx: s3x * (cleavePush * (0.45 + 0.55 * (s3Side < 0 ? 1 : 0.35))) + dirX * slidePush + rand(-45, 45),
+          vy: s3y * (cleavePush * 0.5) + dirY * (slidePush * 0.7) + (heavy ? rand(-20, 90) : rand(-140, 40)),
+          grav: heavy ? rand(1150, 1680) : rand(840, 1340),
+          rot: (shBase.rot * Math.PI) / 180,
+          vr: s3Side * rand(1.8, 6.2) + rand(-1.5, 1.5),
+          tilt: 0,
+          vtilt: rand(-8.5, 8.5),
+          life: 3.4,
+          age: 0,
+        });
+      }
+
+      // Convert cutPlanes into viewport-space straight razor blade flash lines!
+      const mcx = left + w * 0.5, mcy = top + h * 0.5;
+      const cutFlashes = cutPlanes.map((pl, idx) => ({
+        x: left + pl.px,
+        y: top + pl.py,
+        dx: pl.dx,
+        dy: pl.dy,
+        halfLen: pl.halfLen,
+        delay: pl.delay,
+        dur: idx < 2 ? 230 : 185,
+        coreW: idx < 2 ? 2.1 : 1.35,
+        glowW: idx < 2 ? 6.2 : 3.8,
+      }));
+
+      // Sleek razor-thin metallic-emerald blade slivers (NOT chunky triangles!) streaming off the cut seams
+      logoDebris.length = 0;
+      for (let i = 0; i < 72; i++) {
+        const pl = cutPlanes[i % cutPlanes.length];
+        const t = rand(-w * 0.45, w * 0.45);
+        const px = left + pl.px + pl.dx * t;
+        const py = top + pl.py + pl.dy * t;
+        const spd = rand(180, 680);
+        const dir = Math.random() < 0.7 ? 1 : -1;
+        logoDebris.push({
+          x: px, y: py,
+          vx: pl.dx * spd * dir + s3x * rand(60, 220) + rand(-50, 50),
+          vy: pl.dy * spd * dir + s3y * rand(60, 220) + rand(-40, 60),
+          grav: rand(220, 520),
+          len: rand(7, 22),
+          w: rand(0.9, 2.0),
+          life: rand(0.35, 0.85), age: 0,
+          color: Math.random() < 0.45 ? '#f4fff8' : (Math.random() < 0.65 ? '#28f0b4' : '#44d62c'),
+        });
+      }
+
+      // Crisp directional blade sparks along Slash 3's exact `/` cleave vector + sleek collapse ring
+      spawnSparks(mcx, mcy, s3x, s3y, 32, 1.35);
+      spawnSparks(mcx, mcy, -s3x, -s3y, 14, 1.0);
+      const bornNow = performance.now();
+      rings.push({ x: mcx, y: mcy, born: bornNow + 90, life: 0.56, max: Math.min(W, H) * 0.72, w: 6, flat: false });
+
+      logoDamage.stage = 3;
+      logoDamage.shatter = { born: bornNow, holdMs: 90, collapsed: false, w, h, mcx, mcy, shards, cutFlashes };
+      splash.classList.add('is-shattered');
+    }
+
+    function drawLogoDamage(now) {
+      // Stages 1 & 2 sit on mctx (strictly above .intro-mark--logo, strictly behind the front 3D dragon!)
+      // and track (markShiftX, markShiftY) so scars stay glued to KPR during recoil and are cleanly occluded!
+      const lc = mctx || ctx2d;
+      if (logoDamage.stage === 1 && logoDamage.scarTex && logoDamage.rect) {
+        const r = logoDamage.rect;
+        lc.save();
+        lc.translate(markShiftX, markShiftY);
+        lc.drawImage(logoDamage.scarTex, r.left, r.top, r.width, r.height);
+        if (logoDamage.scar1 && logoDamage.scarFlashBorn) {
+          const dtF = Math.max(0, now - logoDamage.scarFlashBorn);
+          if (dtF < 210) {
+            const p = dtF / 210;
+            const c1 = logoDamage.scar1;
+            const hl = Math.hypot(r.width, r.height) * (0.62 + 0.16 * p);
+            drawRazorLine(lc, r.left + c1.cx, r.top + c1.cy, c1.dx, c1.dy, hl, 1.8 * (1 - p * 0.6), 4.6 * (1 - p * 0.5), 1 - p * p);
+          }
+        }
+        lc.restore();
+      } else if (logoDamage.stage === 2 && logoDamage.cut2 && logoDamage.rect) {
+        const r = logoDamage.rect;
+        const c2 = logoDamage.cut2;
+        lc.save();
+        lc.translate(markShiftX, markShiftY);
+        // Draw Slash 1's straight `/` incision + Slash 2's surgical `\` metallic edge split across BOTH halves!
+        const drawHalfOverlays = (halfPoly, sh) => {
+          lc.save();
+          lc.translate(r.left + r.width * 0.5 + sh.x, r.top + r.height * 0.5 + sh.y);
+          lc.rotate((sh.rot * Math.PI) / 180);
+          lc.translate(-r.width * 0.5, -r.height * 0.5);
+          lc.beginPath();
+          lc.moveTo(halfPoly.pts[0].x, halfPoly.pts[0].y);
+          for (let i = 1; i < halfPoly.pts.length; i++) lc.lineTo(halfPoly.pts[i].x, halfPoly.pts[i].y);
+          lc.closePath();
+          lc.clip();
+          if (logoDamage.scarTex) lc.drawImage(logoDamage.scarTex, 0, 0, r.width, r.height);
+          if (logoDamage.cut2EdgeTex) {
+            lc.globalCompositeOperation = 'lighter';
+            lc.drawImage(logoDamage.cut2EdgeTex, 0, 0, r.width, r.height);
+          }
+          lc.restore();
+        };
+        drawHalfOverlays(c2.topHalf, c2.shiftTop);
+        drawHalfOverlays(c2.botHalf, c2.shiftBot);
+        if (logoDamage.cut2FlashBorn) {
+          const dtF = Math.max(0, now - logoDamage.cut2FlashBorn);
+          if (dtF < 190) {
+            const p = dtF / 190;
+            const hl = Math.hypot(r.width, r.height) * (0.68 + 0.18 * p);
+            drawRazorLine(lc, r.left + c2.cx, r.top + c2.cy, c2.dx, c2.dy, hl, 2.0 * (1 - p * 0.6), 5.2 * (1 - p * 0.5), 1 - p * p);
+          }
+        }
+        lc.restore();
+      }
+
+      // Stage 3: Draw the cleanly straight-sliced KPR slabs + razor iaijutsu slash beams + falling collapse!
+      const sh = logoDamage.shatter;
+      if (!sh) return;
+      const elapsed = Math.max(0, now - sh.born);
+      const inHold = elapsed < sh.holdMs;
+      const holdK = Math.max(0, Math.min(1, elapsed / sh.holdMs));
+
+      for (const s of sh.shards) {
+        // Stay at full solid opacity all the way until each slab physically falls out of sight past the viewport!
+        const px = inHold ? s.x0 + s.slipX * easeOutCubic(holdK) : s.x;
+        const py = inHold ? s.y0 + s.slipY * easeOutCubic(holdK) : s.y;
+        const flipScale = inHold ? 1 : (0.34 + 0.66 * Math.abs(Math.cos(s.tilt)));
+
+        ctx2d.save();
+        ctx2d.translate(px, py);
+        ctx2d.rotate(s.rot);
+        ctx2d.scale(flipScale, 1);
+        ctx2d.drawImage(s.tex, s.dxDraw, s.dyDraw, s.bw, s.bh);
+        ctx2d.restore();
+      }
+
+      // Razor-thin dead-straight katana flash lines slicing cleanly across KPR during the iaijutsu beat!
+      if (sh.cutFlashes) {
+        for (const fl of sh.cutFlashes) {
+          const age = elapsed - fl.delay;
+          if (age < 0 || age > fl.dur) continue;
+          const p = age / fl.dur;
+          const extend = easeOutCubic(Math.min(1, p * 4.5));
+          const fade = Math.max(0, 1 - Math.pow(p, 1.35));
+          drawRazorLine(ctx2d, fl.x, fl.y, fl.dx, fl.dy, fl.halfLen * extend, fl.coreW * (1 - p * 0.55), fl.glowW * (1 - p * 0.45), fade);
+        }
+      }
+
+      // Sleek directional razor-spark streaks streaming off the cleanly cut planes as pieces collapse!
+      if (!inHold && logoDebris.length) {
+        ctx2d.save();
+        ctx2d.globalCompositeOperation = 'lighter';
+        ctx2d.lineCap = 'round';
+        for (const d of logoDebris) {
+          const a = Math.max(0, 1 - d.age / d.life);
+          if (a <= 0.01) continue;
+          const spd = Math.hypot(d.vx, d.vy) || 1;
+          const ux = d.vx / spd, uy = d.vy / spd;
+          ctx2d.globalAlpha = a;
+          ctx2d.strokeStyle = d.color;
+          ctx2d.lineWidth = d.w;
+          ctx2d.beginPath();
+          ctx2d.moveTo(d.x, d.y);
+          ctx2d.lineTo(d.x - ux * d.len, d.y - uy * d.len);
+          ctx2d.stroke();
+        }
+        ctx2d.restore();
+      }
+    }
     const dragon3d = window.createSpiritDragon3D ? window.createSpiritDragon3D() : null;
     window.__kprDragon3D = dragon3d;
     const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
@@ -489,7 +1082,14 @@ window.kprIntro = (function () {
       if (dragon3d) dragon3d.resize(W, H, dpr);
       dragon.len = Math.min(W, H) * (dragon.lunge ? 2 : 1.35);
     }
-    const at = (f) => ({ x: W * f[0], y: H * f[1] });
+    // Maps normalized strike coordinates to CSS px: unchanged on landscape (aspect >= 0.95), and
+    // compresses vertical span around center on tall portrait phones so slashes keep sleek katana diagonals!
+    const at = (f) => {
+      const aspect = W / H;
+      if (aspect >= 0.95) return { x: W * f[0], y: H * f[1] };
+      const yComp = Math.max(0.46, aspect * 1.08);
+      return { x: W * f[0], y: H * (0.5 + (f[1] - 0.5) * yComp) };
+    };
 
     // --- ambient: embers rise, pale petals drift down and across ---
     function newEmber(anywhere) {
@@ -508,15 +1108,17 @@ window.kprIntro = (function () {
       for (let i = 0; i < np; i++) petals.push(newPetal(true));
     }
 
-    // --- the dragon: its head follows a tilted orbit round the mark, the body trails behind ---
+    // --- the dragon: 2D fallback follows a precessing Infinite Dempsey Roll figure-8 round KPR ---
     function orbitPoint(a, now) {
-      const rx = Math.min(W * 0.44, H * 0.42, 360) * dragon.squeeze * fit;
-      const ry = rx * 0.42;
-      const px = Math.cos(a) * rx;
-      const py = Math.sin(a) * ry + Math.sin(a * 2 + now * 0.0011) * ry * 0.22;
-      const tilt = -0.2;
-      // z > 0: the near (lower) side of the orbit, drawn in front of the mark
-      return { x: W / 2 + px * Math.cos(tilt) - py * Math.sin(tilt), y: H / 2 - lift + px * Math.sin(tilt) + py * Math.cos(tilt), z: Math.sin(a) };
+      const rx = Math.min(W * 0.42, H * 0.38, 360) * dragon.squeeze * fit;
+      const ry = Math.min(H * 0.34, rx * 0.82);
+      const psi = a * 0.195;
+      const u8 = Math.sin(a);
+      const v8 = 0.56 * Math.sin(2 * a);
+      const px = (u8 * Math.cos(psi) - v8 * Math.sin(psi)) * rx;
+      const py = (u8 * Math.sin(psi) + v8 * Math.cos(psi)) * ry;
+      // z > 0: near pass across KPR (obstructs KPR); z < 0: far pass behind KPR
+      return { x: W / 2 + px, y: H / 2 - lift + py, z: Math.cos(a) };
     }
     // The diamond round KPR as it is on screen right now (raised and scaled for the sound
     // choice, then gliding back to centre). It's a square turned 45deg, so its bounding box spans
@@ -634,7 +1236,7 @@ window.kprIntro = (function () {
         wid.push(Math.max(0.6, maxW * prof));
       }
       const A = d.alpha;
-      const pick = (z) => d.lunge ? ctx2d : (z < -0.04 && bctx ? bctx : (mctx || ctx2d));
+      const pick = (z) => d.lunge ? ctx2d : (z < -0.04 && bctx ? bctx : ctx2d);
       [ctx2d, mctx, bctx].forEach((c) => { if (c) { c.lineCap = 'butt'; c.lineJoin = 'round'; } });
       // tail first, so the head lands on top
       for (let k = M - 2; k >= 0; k--) {
@@ -759,11 +1361,11 @@ window.kprIntro = (function () {
       c.globalCompositeOperation = 'source-over';
     }
 
-    // --- strike effects ---
+    // --- razor katana blade crescent ---
     function drawCrescent(c, p0, cp, p1, tStart, tEnd, maxW, alpha) {
-      const steps = 28;
+      const steps = 30;
       if (tEnd <= tStart + 0.01) return;
-      const topPts = [], botPts = [];
+      const outerPts = [], innerPts = [], trailPts = [];
       for (let i = 0; i <= steps; i++) {
         const u = i / steps;
         const t = tStart + (tEnd - tStart) * u;
@@ -774,26 +1376,63 @@ window.kprIntro = (function () {
         const len = Math.hypot(tx, ty) || 1;
         tx /= len; ty /= len;
         const nx = -ty, ny = tx;
-        const profile = Math.pow(Math.sin(u * Math.PI), 0.75) * maxW;
-        topPts.push({ x: pt.x + nx * profile * 0.85, y: pt.y + ny * profile * 0.85 });
-        botPts.push({ x: pt.x - nx * profile * 0.35, y: pt.y - ny * profile * 0.35 });
+        // Taper sharply to needle tips so the blade reads razor-keen rather than blunt!
+        const needle = Math.pow(Math.sin(u * Math.PI), 1.22);
+        const wEdge = needle * maxW;
+        outerPts.push({ x: pt.x + nx * wEdge * 0.42, y: pt.y + ny * wEdge * 0.42 });
+        innerPts.push({ x: pt.x - nx * wEdge * 0.22, y: pt.y - ny * wEdge * 0.22 });
+        trailPts.push({ x: pt.x - nx * wEdge * 1.15, y: pt.y - ny * wEdge * 1.15 });
       }
       c.save();
-      c.globalAlpha = alpha;
+      c.globalCompositeOperation = 'lighter';
+      const headP = outerPts[outerPts.length - 1], tailP = outerPts[0];
+      // Directional luminous energy gradient: dissolves softly at the trailing wake -> white-hot at the cutting tip!
+      const wakeGrad = c.createLinearGradient(tailP.x, tailP.y, headP.x, headP.y);
+      wakeGrad.addColorStop(0, 'rgba(68, 214, 44, 0)');
+      wakeGrad.addColorStop(0.35, 'rgba(68, 214, 44, 0.42)');
+      wakeGrad.addColorStop(0.85, 'rgba(68, 214, 44, 0.82)');
+      wakeGrad.addColorStop(1, 'rgba(180, 255, 190, 0.95)');
+
+      const bladeGrad = c.createLinearGradient(tailP.x, tailP.y, headP.x, headP.y);
+      bladeGrad.addColorStop(0, 'rgba(40, 240, 180, 0)');
+      bladeGrad.addColorStop(0.30, 'rgba(40, 240, 180, 0.58)');
+      bladeGrad.addColorStop(0.82, 'rgba(110, 255, 212, 0.96)');
+      bladeGrad.addColorStop(1, 'rgba(248, 255, 252, 1)');
+
+      const edgeGrad = c.createLinearGradient(tailP.x, tailP.y, headP.x, headP.y);
+      edgeGrad.addColorStop(0, 'rgba(248, 255, 248, 0)');
+      edgeGrad.addColorStop(0.42, 'rgba(248, 255, 248, 0.68)');
+      edgeGrad.addColorStop(1, 'rgba(255, 255, 255, 1)');
+
+      // 1) Sleek emerald sword-wind wake trailing behind the cutting edge
+      c.globalAlpha = alpha * 0.54;
       c.beginPath();
-      c.moveTo(topPts[0].x, topPts[0].y);
-      for (let i = 1; i < topPts.length; i++) c.lineTo(topPts[i].x, topPts[i].y);
-      for (let i = botPts.length - 1; i >= 0; i--) c.lineTo(botPts[i].x, botPts[i].y);
+      c.moveTo(outerPts[0].x, outerPts[0].y);
+      for (let i = 1; i < outerPts.length; i++) c.lineTo(outerPts[i].x, outerPts[i].y);
+      for (let i = trailPts.length - 1; i >= 0; i--) c.lineTo(trailPts[i].x, trailPts[i].y);
       c.closePath();
-      c.shadowColor = '#44d62c';
-      c.shadowBlur = 28;
-      c.fillStyle = '#44d62c';
+      c.fillStyle = wakeGrad;
       c.fill();
-      c.shadowBlur = 10;
-      c.shadowColor = '#28f0b4';
-      c.fillStyle = '#edffea';
-      c.globalAlpha = alpha * 0.92;
+
+      // 2) Razor-sharp luminous cyan-emerald blade body
+      c.globalAlpha = alpha * 0.90;
+      c.beginPath();
+      c.moveTo(outerPts[0].x, outerPts[0].y);
+      for (let i = 1; i < outerPts.length; i++) c.lineTo(outerPts[i].x, outerPts[i].y);
+      for (let i = innerPts.length - 1; i >= 0; i--) c.lineTo(innerPts[i].x, innerPts[i].y);
+      c.closePath();
+      c.fillStyle = bladeGrad;
       c.fill();
+
+      // 3) Blazing pure white-hot katana cutting edge right along the leading curve
+      c.globalAlpha = alpha;
+      c.strokeStyle = edgeGrad;
+      c.lineWidth = Math.max(1.6, maxW * 0.14);
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(outerPts[0].x, outerPts[0].y);
+      for (let i = 1; i < outerPts.length; i++) c.lineTo(outerPts[i].x, outerPts[i].y);
+      c.stroke();
       c.restore();
     }
     function spawnSparks(x, y, vxBase, vyBase, count, speedScale) {
@@ -815,39 +1454,65 @@ window.kprIntro = (function () {
       splash.classList.add('is-glitch');
       glitchTimer = setTimeout(() => splash.classList.remove('is-glitch'), 240);
     }
-    // A strike's crescent finishes drawing at 1/drawK of its life (see the blade crescents in the
-    // frame loop). The first two flash along the dragon's path almost at once (~35ms) as it freezes
-    // mid-cut; the cleave keeps its heavier sweep.
+    // Arms a dragon-coupled katana blade crescent right as the dragon begins its strike dive:
+    // its leading edge tracks the dragon's live nose along the curved arc (`tEnd = strikeProgress`)
+    // so the blade energy physically erupts out of the dragon's jaws instead of popping in separately!
+    function armSlashArc(spec) {
+      const now = performance.now();
+      const m = Math.min(W, H);
+      slashes.push({
+        ...spec,
+        armedAt: now,
+        hitAt: 0,
+        born: now,
+        maxEnd: 0,
+        lastSparkT: 0.05,
+        coupled: !!dragon3d,
+        width: Math.max(spec.minW, m * spec.widthK),
+      });
+    }
     function strike(spec) {
       const now = performance.now();
-      // hit-stop: everything holds while the dragon freezes mid-cut (dragon3d holds it too)
-      if (spec.pass) freezeUntil = now + spec.pass.stopMs;
       const m = Math.min(W, H);
-      const s = { ...spec, born: now, width: Math.max(spec.minW, m * spec.widthK) };
-      slashes.push(s);
+      // Bind impact flare to the already-armed dragon-coupled crescent (or spawn fallback if 2D)
+      let s = slashes.find((sl) => sl.step === spec.step && !sl.hitAt);
+      if (s) {
+        s.hitAt = now;
+        s.born = now;
+      } else {
+        s = { ...spec, armedAt: now, hitAt: now, born: now, maxEnd: 0, lastSparkT: 0.05, coupled: false, width: Math.max(spec.minW, m * spec.widthK) };
+        slashes.push(s);
+      }
       const p0 = at(s.p0), cp = at(s.cp), p1 = at(s.p1);
       const dx = p1.x - p0.x, dy = p1.y - p0.y;
-      for (let k = 0; k < 5; k++) {
-        const pt = quadPt(p0, cp, p1, 0.2 + k * 0.16);
-        spawnSparks(pt.x, pt.y, dx, dy, spec.cleave ? 9 : 5, spec.cleave ? 1.25 : 0.9);
-      }
+      const dl = Math.hypot(dx, dy) || 1;
+      const ux = dx / dl, uy = dy / dl;
+      // Directional sparks spraying along the blade's exit momentum right from the center of KPR
       const mid = quadPt(p0, cp, p1, 0.5);
-      rings.push({ x: mid.x, y: mid.y, born: now, life: spec.cleave ? 0.7 : 0.45, max: m * (spec.cleave ? 0.95 : 0.5), w: spec.cleave ? 10 : 6, flat: !!spec.cleave });
-      shake = spec.cleave ? 12 : (spec.step === 2 ? 9 : 7);
+      spawnSparks(mid.x, mid.y, dx, dy, spec.cleave ? 28 : 16, spec.cleave ? 1.30 : 1.05);
+      rings.push({ x: mid.x, y: mid.y, born: now, life: spec.cleave ? 0.65 : 0.42, max: m * (spec.cleave ? 0.92 : 0.48), w: spec.cleave ? 8 : 5, flat: !!spec.cleave });
+      // Smooth directional spring recoil along the exact cut vector (replaces choppy random shake!)
+      const kick = spec.cleave ? 24 : (spec.step === 2 ? 16 : 11);
+      recoilVx += ux * kick * 18;
+      recoilVy += uy * kick * 18;
+      shake = spec.cleave ? 4.5 : (spec.step === 2 ? 3.0 : 2.2);
+      if (dragon3d && dragon3d.impulseCamera) {
+        dragon3d.impulseCamera(ux, uy, spec.cleave ? 0.42 : (spec.step === 2 ? 0.28 : 0.18));
+      }
       focus = 0;
       phase = spec.cleave ? 'lunge' : 'strike';
-      flash(spec.flash, spec.cleave ? 420 : 260);
-      glitch();
+      flash(spec.flash, spec.cleave ? 380 : 230);
     }
     function cleave(spec) {
-      const now = performance.now();
-      freezeUntil = now + 80; // hit-stop: everything holds for a beat before the cut lands
       strike(spec);
+    }
+    function launchLunge() {
+      const now = performance.now();
       if (dragon3d) {
-        dragon3d.triggerLunge(now + 80);
+        dragon3d.triggerLunge(now);
       } else {
         const head = dragon.hist[0] || { x: W * 0.8, y: H * 0.3 };
-        dragon.lunge = { p0: { x: head.x, y: head.y }, cp: { x: W * 0.52, y: H * 0.46 }, p1: { x: -W * 0.4, y: H * 1.3 }, start: now + 80, dur: 430 };
+        dragon.lunge = { p0: { x: head.x, y: head.y }, cp: { x: W * 0.52, y: H * 0.46 }, p1: { x: -W * 0.4, y: H * 1.3 }, start: now, dur: 430 };
         dragon.len = Math.min(W, H) * 2;
       }
     }
@@ -889,12 +1554,57 @@ window.kprIntro = (function () {
         sp.x += sp.vx * dt; sp.y += sp.vy * dt;
         sp.vx *= 0.94; sp.vy *= 0.94;
       }
-      if (shake > 0.2) {
-        const sx = (Math.random() - 0.5) * shake * 2, sy = (Math.random() - 0.5) * shake * 2;
-        marks.forEach((m) => { m.style.transform = `translate(calc(-50% + ${sx.toFixed(1)}px), calc(-50% + ${sy.toFixed(1)}px))`; });
-        if (dt > 0) shake *= 0.8;
-      } else if (shake > 0) {
-        shake = 0;
+      // Update cleanly sliced KPR slabs & razor sparks once the iaijutsu hold collapses!
+      const sh = logoDamage.shatter;
+      if (sh && now - sh.born >= sh.holdMs) {
+        if (!sh.collapsed) {
+          sh.collapsed = true;
+          // Launch seamlessly from each slab's exact iaijutsu micro-slide position into collapse
+          for (const s of sh.shards) { s.x = s.x0 + s.slipX; s.y = s.y0 + s.slipY; }
+        }
+        const sdt = dt > 0 ? dt : 0.016;
+        for (let i = sh.shards.length - 1; i >= 0; i--) {
+          const s = sh.shards[i];
+          s.age += sdt;
+          s.x += s.vx * sdt;
+          s.y += s.vy * sdt;
+          s.vy += s.grav * sdt;
+          s.vx *= Math.pow(0.988, sdt * 60);
+          s.rot += s.vr * sdt;
+          s.tilt += s.vtilt * sdt;
+          // Keep every falling slab alive until it completely exits past the viewport edges!
+          const offBottom = s.y - Math.max(s.bw, s.bh) > H + 48;
+          const offSides = s.x + Math.max(s.bw, s.bh) < -80 || s.x - Math.max(s.bw, s.bh) > W + 80;
+          if (offBottom || offSides || s.age >= s.life) { sh.shards.splice(i, 1); continue; }
+        }
+        for (let i = logoDebris.length - 1; i >= 0; i--) {
+          const d = logoDebris[i];
+          d.age += sdt;
+          if (d.age >= d.life || d.y > H + 48) { logoDebris.splice(i, 1); continue; }
+          d.x += d.vx * sdt; d.y += d.vy * sdt;
+          d.vy += d.grav * sdt;
+          d.vx *= Math.pow(0.968, sdt * 60);
+        }
+      }
+      if (wiped && ambientAlpha > 0) {
+        ambientAlpha = Math.max(0, ambientAlpha - dt / 0.32);
+      }
+      // Spring-damped directional recoil + subtle micro-tremor along the blade vector (organic kinetic punch!)
+      if (dt > 0) {
+        const springK = 260, damp = 18;
+        recoilVx += (-recoilX * springK - recoilVx * damp) * dt;
+        recoilVy += (-recoilY * springK - recoilVy * damp) * dt;
+        recoilX += recoilVx * dt;
+        recoilY += recoilVy * dt;
+      }
+      const hasRecoil = Math.hypot(recoilX, recoilY) > 0.15 || Math.hypot(recoilVx, recoilVy) > 2;
+      if (shake > 0.15 || hasRecoil) {
+        markShiftX = recoilX + (Math.random() - 0.5) * shake * 1.4;
+        markShiftY = recoilY + (Math.random() - 0.5) * shake * 1.4;
+        marks.forEach((m) => { m.style.transform = `translate(calc(-50% + ${markShiftX.toFixed(1)}px), calc(-50% + ${markShiftY.toFixed(1)}px))`; });
+        if (dt > 0) shake *= Math.pow(0.76, dt * 60);
+      } else if (shake > 0 || markShiftX !== 0 || markShiftY !== 0 || recoilX !== 0 || recoilY !== 0) {
+        shake = 0; recoilX = 0; recoilY = 0; recoilVx = 0; recoilVy = 0; markShiftX = 0; markShiftY = 0;
         marks.forEach((m) => { m.style.transform = ''; });
       }
     }
@@ -904,22 +1614,24 @@ window.kprIntro = (function () {
       if (bctx) bctx.clearRect(0, 0, W, H);
       const amb = bctx || ctx2d;
 
-      // ambient
-      amb.globalCompositeOperation = 'lighter';
-      for (const e of embers) {
-        const a = 0.22 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.006 + e.flick));
-        amb.fillStyle = `hsla(${e.hue.toFixed(0)},90%,62%,${a.toFixed(3)})`;
-        amb.beginPath();
-        amb.arc(e.x + Math.sin(e.sway) * e.swayAmp, e.y, e.r, 0, TAU);
-        amb.fill();
-      }
-      amb.globalCompositeOperation = 'source-over';
-      for (const p of petals) {
-        amb.save();
-        amb.translate(p.x, p.y); amb.rotate(p.rot);
-        amb.fillStyle = `rgba(234,255,234,${p.a.toFixed(3)})`;
-        amb.beginPath(); amb.ellipse(0, 0, p.s, p.s * 0.45, 0, 0, TAU); amb.fill();
-        amb.restore();
+      // ambient (fades out cleanly once the dragon wipe uncovers the site)
+      if (ambientAlpha > 0.01) {
+        amb.globalCompositeOperation = 'lighter';
+        for (const e of embers) {
+          const a = (0.22 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.006 + e.flick))) * ambientAlpha;
+          amb.fillStyle = `hsla(${e.hue.toFixed(0)},90%,62%,${a.toFixed(3)})`;
+          amb.beginPath();
+          amb.arc(e.x + Math.sin(e.sway) * e.swayAmp, e.y, e.r, 0, TAU);
+          amb.fill();
+        }
+        amb.globalCompositeOperation = 'source-over';
+        for (const p of petals) {
+          amb.save();
+          amb.translate(p.x, p.y); amb.rotate(p.rot);
+          amb.fillStyle = `rgba(234,255,234,${(p.a * ambientAlpha).toFixed(3)})`;
+          amb.beginPath(); amb.ellipse(0, 0, p.s, p.s * 0.45, 0, 0, TAU); amb.fill();
+          amb.restore();
+        }
       }
 
       // focus lines: speed lines pulling in toward the mark while it charges
@@ -960,17 +1672,57 @@ window.kprIntro = (function () {
 
       drawDragon(now);
       [ctx2d, mctx, bctx].forEach((c) => { if (c) c.globalCompositeOperation = 'source-over'; });
+      // Progressive KPR scar / cut seam / 38-shard cataclysmic crumble overlay
+      drawLogoDamage(now);
 
-      // blade crescents
+      // Dragon-coupled katana blade crescents: sweep organically out of the dragon's live nose along the
+      // curved arc, flaring razor-bright as the jaws cross KPR and shedding sparks cleanly along the tip!
       for (let i = slashes.length - 1; i >= 0; i--) {
         const s = slashes[i];
-        const age = (now - s.born) / 1000;
-        if (age > s.life) { slashes.splice(i, 1); continue; }
-        const prog = age / s.life;
-        const tEnd = easeOutCubic(Math.min(1, prog * (s.drawK || 2.15)));
-        const tStart = Math.max(0, (prog - 0.14) * 1.15);
-        const alpha = Math.max(0, 1 - Math.pow(prog, 1.8));
-        drawCrescent(ctx2d, at(s.p0), at(s.cp), at(s.p1), tStart, tEnd, s.width * (1 - prog * 0.45), alpha);
+        const p0 = at(s.p0), cp = at(s.cp), p1 = at(s.p1);
+        let tEnd, tStart, alpha, wScale;
+        if (s.coupled && dragon3d && dragon3d.strikeProgress) {
+          const liveT = dragon3d.strikeProgress(now);
+          // Lead the katana point right out of the dragon's roaring snout tip (ahead of neck origin hist[0]!)
+          const snoutLead = s.cleave ? 0.12 : (s.step === 2 ? 0.13 : 0.09);
+          const isLatest = i === slashes.length - 1;
+          if (isLatest && liveT > 0.01) s.maxEnd = Math.max(s.maxEnd, Math.min(1, liveT + snoutLead));
+          if (s.hitAt) {
+            const postAge = (now - s.hitAt) / 1000;
+            if (postAge > s.life) { slashes.splice(i, 1); continue; }
+            const prog = postAge / s.life;
+            tEnd = Math.max(s.maxEnd, Math.min(1, 0.58 + easeOutCubic(Math.min(1, prog * 3.6)) * 0.42));
+            // Trailing wake whips swiftly out behind the blade so zero stale sliver lingers into the next slash!
+            tStart = Math.max(0, Math.min(tEnd - 0.02, Math.pow(prog, 0.92) * 1.18));
+            const impactFlare = Math.exp(-prog * 7.5) * 0.35;
+            alpha = Math.max(0, (1 - Math.pow(prog, 1.35)) * (0.94 + impactFlare));
+            wScale = (1 + impactFlare * 0.6) * (1 - prog * 0.48);
+          } else {
+            // Approaching KPR with the dragon: sleek spirit-blade edge spearheading right off the roaring snout!
+            if (now - s.armedAt > 1200) { slashes.splice(i, 1); continue; }
+            tEnd = s.maxEnd;
+            if (tEnd <= 0.04) continue;
+            tStart = Math.max(0, tEnd - 0.36);
+            alpha = Math.min(0.95, tEnd * 2.1);
+            wScale = 0.62 + 0.42 * Math.min(1, tEnd * 2.0);
+          }
+          // Shed crisp directional blade sparks right off the moving tip of the cut!
+          if (tEnd - s.lastSparkT >= 0.09 && tEnd <= 0.96) {
+            s.lastSparkT = tEnd;
+            const tipPt = quadPt(p0, cp, p1, tEnd);
+            const nextPt = quadPt(p0, cp, p1, Math.min(1, tEnd + 0.02));
+            spawnSparks(tipPt.x, tipPt.y, nextPt.x - tipPt.x, nextPt.y - tipPt.y, s.cleave ? 4 : 2, s.cleave ? 1.1 : 0.85);
+          }
+        } else {
+          const age = (now - s.born) / 1000;
+          if (age > s.life) { slashes.splice(i, 1); continue; }
+          const prog = age / s.life;
+          tEnd = easeOutCubic(Math.min(1, prog * 3.2));
+          tStart = Math.max(0, (prog - 0.14) * 1.15);
+          alpha = Math.max(0, 1 - Math.pow(prog, 1.7));
+          wScale = 1 - prog * 0.45;
+        }
+        drawCrescent(ctx2d, p0, cp, p1, tStart, tEnd, s.width * wScale, Math.min(1, alpha));
       }
 
       // shockwaves
@@ -1009,6 +1761,13 @@ window.kprIntro = (function () {
       }
       ctx2d.globalAlpha = 1;
     }
+    function hasActiveDebris() {
+      const sh = logoDamage.shatter;
+      if (sh && sh.shards.length > 0) return true;
+      if (logoDebris.length > 0 || sparks.length > 0 || rings.length > 0) return true;
+      if (ambientAlpha > 0.01) return true;
+      return false;
+    }
     function tick(now) {
       if (!running) return;
       let dt = Math.min(0.05, (now - lastFrame) / 1000);
@@ -1016,6 +1775,12 @@ window.kprIntro = (function () {
       if (now < freezeUntil) dt = 0;
       update(dt, now);
       render(now);
+      if (onClearCb && !hasActiveDebris()) {
+        const cb = onClearCb;
+        onClearCb = null;
+        cb();
+        return;
+      }
       raf = requestAnimationFrame(tick);
     }
 
@@ -1043,16 +1808,30 @@ window.kprIntro = (function () {
       // the cut leadMs from now, on the hit.
       // With the 3D dragon the cleave is a wipe: its body covers the screen, then uncovers the site.
       has3d: !!dragon3d,
+      lungeHitMs: () => (dragon3d && dragon3d.lungeHitMs ? dragon3d.lungeHitMs() : 0),
       lungeCoverMs: () => (dragon3d && dragon3d.lungeCoverMs ? dragon3d.lungeCoverMs() : 0),
       lungeMs: () => (dragon3d && dragon3d.lungeMs ? dragon3d.lungeMs() : 0),
       pass(spec) {
+        armSlashArc(spec);
         if (!dragon3d || !dragon3d.triggerPass || !spec.pass) return;
         const o = spec.pass;
         dragon3d.triggerPass(performance.now(), { p0: at(spec.p0), cp: at(spec.cp), p1: at(spec.p1) },
           { ...o, wavePx: Math.min(W, H) * o.waveK });
       },
+      armLungeArc(spec) {
+        armSlashArc(spec);
+      },
       strike,
       cleave,
+      lunge: launchLunge,
+      scarLogo,
+      sliceLogo,
+      shatterLogo,
+      setWiped() { wiped = true; },
+      whenDebrisClear(cb) {
+        if (!hasActiveDebris()) cb();
+        else onClearCb = cb;
+      },
       ringBurst,
       sparkBurst,
       stop() {
@@ -1073,7 +1852,7 @@ window.kprIntro = (function () {
   function startSequence() {
     const token = ++runToken;
     active = true;
-    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-skipping', 'is-wiped');
+    splash.classList.remove('is-slash-1', 'is-slash-2', 'is-shattered', 'is-cleaved', 'is-parting', 'is-skipping', 'is-wiped');
     root.classList.remove('intro-pending', 'site-unblurring');
     root.classList.add('site-blur-hold');
     root.style.overflow = 'hidden';
@@ -1097,33 +1876,45 @@ window.kprIntro = (function () {
     splash.addEventListener('pointerdown', onSplashPointer);
 
     const at = (ms, fn) => timers.push(setTimeout(() => { if (token === runToken) fn(); }, ms));
-    // The first two strikes are dragon passes, its head crossing the middle of each cut right on
-    // the hit, each bigger than the last: for slash 1 it breaks off its orbit and is pulled into
-    // the swing; for slash 2 it dives back in from off-screen.
+    // Three slashes, ONE dragon pass per slash:
+    // 1) breaks off orbit to score KPR, 2) counter-dives from top-left to sever KPR in two,
+    // 3) single colossal dragon dives from top-right to hit KPR dead-center RIGHT ON HIT3,
+    //    crumbling the sliced slabs across its wake before sweeping away to reveal the site!
     at(HIT1 - STRIKES[0].pass.leadMs, () => fx.pass(STRIKES[0]));
     at(HIT2 - STRIKES[1].pass.leadMs, () => fx.pass(STRIKES[1]));
     // The music comes in once the first slash has finished.
     at(HIT1 + 120, () => siteAudio.startMusic());
-    // 1) the first strike shatters the diamond reticle
+    // 1) First strike shatters the diamond reticle & scores a razor-straight `/` incision into intact KPR
     at(HIT1, () => fx.strike(STRIKES[0]));
-    at(HIT1 + 55, () => { splash.classList.add('is-slash-1'); fx.ringBurst(); });
-    // 2) the counter-cut shears KPR in half
+    at(HIT1 + 28, () => { splash.classList.add('is-slash-1'); fx.scarLogo(STRIKES[0]); fx.ringBurst(); });
+    // 2) Second strike cleanly severs KPR in two along Slash 2's exact `\` dragon direction
     at(HIT2, () => fx.strike(STRIKES[1]));
-    at(HIT2 + 55, () => { splash.classList.add('is-slash-2'); fx.sparkBurst(); });
-    // 3) hit-stop, then the cleave: the dragon tears through and the screen parts
-    at(HIT3, () => fx.cleave(STRIKES[2]));
+    at(HIT2 + 28, () => { fx.sliceLogo(STRIKES[1]); splash.classList.add('is-slash-2'); fx.sparkBurst(); });
+    // 3) Third strike: ONE single dragon launches `lungeHitMs` early so its roaring head slams dead-center
+    //    on KPR RIGHT ON HIT3, cross-slicing & crumbling KPR right across its sweep into the revealed site!
+    at(HIT3, () => { fx.cleave(STRIKES[2]); fx.shatterLogo(STRIKES[2], performance.now()); });
     if (fx.has3d) {
-      // The dragon is the transition: once its body covers the whole screen, the splash's stage is
-      // dropped and the site comes into focus underneath, so its tail sweeping past uncovers the
-      // site itself. (The lunge starts 80ms after the cleave, after the hit-stop.)
-      const LUNGE_AT = HIT3 + 80;
+      const LUNGE_AT = Math.max(HIT2 + 220, Math.round(HIT3 - fx.lungeHitMs()));
+      at(LUNGE_AT, () => { fx.armLungeArc(STRIKES[2]); fx.lunge(); });
       at(LUNGE_AT + fx.lungeCoverMs(), () => {
+        fx.setWiped();
         splash.classList.add('is-wiped');
         root.classList.add('site-wipe');
         releaseSiteBlur();
       });
-      at(LUNGE_AT + fx.lungeMs() + 40, () => finish(false));
+      // As soon as the dragon tail clears, hand full scroll & click control back to the visitor
+      // immediately while keeping the transparent overlay alive until every last KPR shard falls off-screen!
+      at(LUNGE_AT + fx.lungeMs() + 40, () => {
+        splash.style.pointerEvents = 'none';
+        root.style.overflow = '';
+        notifyDone();
+        if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+        fx.whenDebrisClear(() => finish(false));
+      });
+      // Safety ceiling in case a tab was backgrounded mid-fall
+      at(LUNGE_AT + fx.lungeMs() + 3400, () => finish(false));
     } else {
+      at(HIT3 + 80, () => fx.lunge());
       // No 3D dragon: the cut runs the whole screen along the cleave's line. The upper half is
       // sliced off and flies away along the cut, and the site shows through behind it, still
       // blurred: a brief glimpse. The lower half holds for a beat, then dissolves.
@@ -1147,8 +1938,9 @@ window.kprIntro = (function () {
       siteAudio.startMusic(); // if the intro was skipped before the music came in
       const finalizeHide = () => {
         fx.stop();
-        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-cleaved', 'is-parting', 'is-revealing', 'is-skipping', 'is-wiped');
+        splash.classList.remove('is-active', 'is-charging', 'is-powering', 'is-glitch', 'is-slash-1', 'is-slash-2', 'is-shattered', 'is-cleaved', 'is-parting', 'is-revealing', 'is-skipping', 'is-wiped');
         root.classList.remove('site-wipe');
+        splash.style.pointerEvents = '';
         splash.hidden = true;
         splash.setAttribute('aria-hidden', 'true');
         root.style.overflow = '';
@@ -1504,35 +2296,52 @@ window.kprLenis = null;
   }
   // After a module appears: let motion.js arm its first-visit entrances, re-measure scroll
   // effects, and (on later visits) cascade in whatever is on screen.
+  const CASCADE_SEL = '.section-bar, .wx-bar, .wx-shell, [data-item]:not(.is-filtered-out), .context, .process-step, .stack-group, .trace';
+  function clearPanelAnims(panel) {
+    if (!G() || !panel) return;
+    const g = G();
+    g.killTweensOf(panel);
+    g.set(panel, { clearProps: 'opacity,visibility,transform,clipPath' });
+    const items = panel.querySelectorAll(CASCADE_SEL);
+    if (items.length) {
+      g.killTweensOf(items);
+      g.set(items, { clearProps: 'opacity,visibility,transform' });
+    }
+  }
   function afterShow(panel, firstVisit) {
     if (window.kprMotion && window.kprMotion.armPanel) window.kprMotion.armPanel(panel);
     if (window.ScrollTrigger) window.ScrollTrigger.refresh();
     // Re-measure scrollable explorer rails (Work & Certifications) once their panel is visible.
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     if (!firstVisit && canAnimate()) {
-      const items = [...panel.querySelectorAll('.section-bar, .wx-bar, .wx-shell, [data-item]:not(.is-filtered-out), .context, .process-step, .stack-group, .trace')]
+      const items = [...panel.querySelectorAll(CASCADE_SEL)]
         .filter((el) => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; })
         .slice(0, 10);
-      G().fromTo(items, { y: 22, autoAlpha: 0 }, {
-        y: 0, autoAlpha: 1, duration: 0.7, stagger: 0.05, ease: 'power3.out', delay: 0.12,
-        clearProps: 'transform,opacity,visibility',
-      });
+      if (items.length) {
+        G().fromTo(items, { y: 18, autoAlpha: 0 }, {
+          y: 0, autoAlpha: 1, duration: 0.55, stagger: 0.04, ease: 'power3.out', delay: 0.06,
+          overwrite: 'auto',
+          clearProps: 'transform,opacity,visibility',
+        });
+      }
     }
   }
 
   function activate(i, opts) {
     opts = opts || {};
-    if (i === current) {
+    if (i < 0 || i >= panels.length) return;
+    const to = panels[i];
+    if (i === current && to.classList.contains('is-active') && !to.hidden && !switching) {
       if (opts.scroll) scrollToDeck(opts.then);
       else if (opts.then) opts.then();
       return;
     }
-    const from = panels[current];
-    const to = panels[i];
+    // Capture whichever panel is actually visible right now (not stale `from` during rapid clicks).
+    const from = panels.find((p) => p.classList.contains('is-active') && !p.hidden) || panels[current];
     current = i;
     mark();
     placeGliders(false);
-    scramble(tabs[i].querySelector('[data-cipher-text]'), names[ids[i]], 0.6);
+    scramble(tabs[i].querySelector('[data-cipher-text]'), names[ids[i]], 0.55);
 
     // Keep the console in view: from the header (or "Next up") always glide to it, and from
     // the tabs only when the visitor has scrolled past it.
@@ -1541,27 +2350,45 @@ window.kprLenis = null;
     const firstVisit = !to.dataset.visited;
     to.dataset.visited = '1';
 
-    if (switching) { switching.progress(1); switching.kill(); switching = null; }
-    if (!canAnimate()) {
+    // Safely interrupt any in-flight transition BEFORE mutating panels (never call progress(1)
+    // synchronously into onComplete, which previously nulled `switching` right before `.kill()`).
+    if (switching) {
+      const prev = switching;
+      switching = null;
+      prev.kill();
+    }
+    if (G()) {
+      panels.forEach(clearPanelAnims);
+      G().killTweensOf(beam);
+      G().set(beam, { clearProps: 'opacity,visibility,transform', x: 0 });
+    }
+
+    if (!canAnimate() || from === to) {
       show(to);
       afterShow(to, firstVisit);
       if (opts.then) opts.then();
       return;
     }
     const g = G();
-    switching = g.timeline({ onComplete: () => { switching = null; } })
-      .to(from, { autoAlpha: 0, x: -36, duration: 0.26, ease: 'power2.in' })
+    const tl = g.timeline({
+      onComplete: () => {
+        if (switching === tl) switching = null;
+      },
+    });
+    switching = tl;
+    tl.to(from, { autoAlpha: 0, x: -24, duration: 0.16, ease: 'power2.in' })
       .add(() => {
-        g.set(from, { clearProps: 'opacity,visibility,transform' });
+        if (switching !== tl) return;
+        clearPanelAnims(from);
         show(to);
         afterShow(to, firstVisit);
         if (opts.then) opts.then();
       })
       .set(beam, { autoAlpha: 1, x: 0 })
       .fromTo(to, { clipPath: 'inset(0% 100% 0% 0%)' },
-        { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.75, ease: 'power3.inOut', clearProps: 'clipPath' }, '<')
-      .to(beam, { x: () => stage.clientWidth, duration: 0.75, ease: 'power3.inOut' }, '<')
-      .to(beam, { autoAlpha: 0, duration: 0.25, ease: 'power1.out' }, '-=0.18')
+        { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.52, ease: 'power3.inOut', clearProps: 'clipPath' }, '<')
+      .to(beam, { x: () => stage.clientWidth, duration: 0.52, ease: 'power3.inOut' }, '<')
+      .to(beam, { autoAlpha: 0, duration: 0.2, ease: 'power1.out' }, '-=0.14')
       .set(beam, { x: 0 }); // park it at the left edge so it never widens the page
   }
 
@@ -1838,6 +2665,7 @@ window.kprLenis = null;
     const inspector = deck.querySelector('[data-wx-inspector]');
     const target = document.getElementById('project-' + key);
     if (!target) return;
+    if (window.kprWorkSelect) window.kprWorkSelect(key);
     activate(0, {
       scroll: true,
       then: () => {

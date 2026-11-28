@@ -1101,7 +1101,7 @@ html:not(.js) #info { margin-top: 2.9rem; }
 }
 
 /* ---------- Technologies ---------- */
-.stack { padding-bottom: 3.2rem; }
+.stack { margin-top: 2.6rem; padding-bottom: 2.2rem; }
 .stack-groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.1rem; }
 .stack-group {
   padding: 1.25rem 1.1rem 1.35rem;
@@ -1137,7 +1137,6 @@ html:not(.js) #info { margin-top: 2.9rem; }
   width: 1rem; height: 1rem;
   fill: currentColor;
 }
-.stack-note { margin-top: 1rem; font-size: .72rem; color: var(--muted); }
 
 /* ---------- Certifications: Split-Pane Credential Explorer (shared .wx-* chassis) ---------- */
 .certs { padding-top: .75rem; padding-bottom: 2.2rem; }
@@ -1719,12 +1718,12 @@ html.intro-pending .intro-splash,
   position: absolute;
   width: clamp(200px, min(34vw, 46vh), 410px);
   aspect-ratio: 1;
-  border: 1px solid rgba(68, 214, 44, .26);
+  border: 1.5px solid #246e1c;
   pointer-events: none;
 }
 .intro-reticle::before {
   content: ""; position: absolute; inset: 12%;
-  border: 1px solid rgba(40, 240, 180, .18);
+  border: 1px solid #186452;
 }
 .intro-reticle--whole {
   transform: rotate(45deg) scale(.78);
@@ -1761,11 +1760,11 @@ html.intro-pending .intro-splash,
   opacity: 0;
   visibility: hidden;
 }
-.intro-logo--shard-top { clip-path: polygon(0% 0%, 100% 0%, 100% 68%, 0% 32%); }
-.intro-logo--shard-bot { clip-path: polygon(0% 32%, 100% 68%, 100% 100%, 0% 100%); }
+.intro-logo--shard-top { clip-path: var(--cut-top-poly, polygon(14% 0%, 100% 0%, 100% 100%, 86% 100%)); }
+.intro-logo--shard-bot { clip-path: var(--cut-bot-poly, polygon(0% 0%, 14% 0%, 86% 100%, 0% 100%)); }
 .intro-logo.is-forced { opacity: 1; visibility: visible; }
-.intro-half--top .intro-logo.is-forced { transform: translate(-15px, -5px); }
-.intro-half--bottom .intro-logo.is-forced { transform: translate(15px, 5px); }
+.intro-half--top .intro-logo.is-forced { transform: var(--cut-shift-a, translate(16px, 7px) rotate(1.6deg)); }
+.intro-half--bottom .intro-logo.is-forced { transform: var(--cut-shift-b, translate(-14px, 5px) rotate(-1.5deg)); }
 
 /* Phase 0: Power-on (completely solid, zero cut lines) */
 .intro-splash.is-charging .intro-logo--whole { opacity: 1; transform: scale(1); }
@@ -1801,8 +1800,9 @@ html.intro-pending .intro-splash,
 
 /* Behind the diamond: embers and the far side of the dragon's coil. */
 .intro-canvas.intro-canvas--back { z-index: 0; }
-/* Between diamond and KPR: near side of the dragon weaves freely across the diamond while staying behind KPR. */
-.intro-canvas.intro-canvas--mid { z-index: 2; }
+/* Above KPR inside .intro-whole (z=3), strictly behind the front dragon canvas (z=2 of .intro-splash):
+   holds KPR's surgical slash scars & cut bevels so the front dragon cleanly occludes them! */
+.intro-canvas.intro-canvas--mid { z-index: 4; }
 
 /* Strike flash: a short bright bloom over the stage, timed and sized per strike in script.js. */
 .intro-flash {
@@ -1826,7 +1826,7 @@ html.intro-pending .intro-splash,
   100% { opacity: 0; transform: translate(44px, 28px) rotate(56deg) scale(1.08); }
 }
 
-/* Phase 1: Slash 1 shatters and blows apart the outer diamond cyber-reticle */
+/* Phase 1: Slash 1 shatters the diamond reticle and deeply scars KPR (wounded, not yet severed) */
 .intro-splash.is-slash-1 .intro-reticle--whole { opacity: 0; visibility: hidden; transition: none; }
 .intro-splash.is-slash-1 .intro-reticle--shard-a {
   visibility: visible;
@@ -1837,23 +1837,32 @@ html.intro-pending .intro-splash,
   animation: reticle-shatter-b .52s cubic-bezier(.16, .84, .24, 1) forwards;
 }
 .intro-splash.is-slash-1 .intro-logo--whole {
-  transform: scale(1.04) skewX(-4deg);
-  filter: brightness(1.45) drop-shadow(0 0 28px rgba(68, 214, 44, .95));
+  transform: scale(1.015);
+  filter: brightness(1.30) drop-shadow(0 0 22px rgba(68, 214, 44, .85));
 }
 
-/* Phase 2: Slash 2 physically slices the KPR mark into two sheared halves */
+/* Phase 2: Slash 2 cleanly severs KPR in two along the exact dragon trajectory, shearing both halves apart */
 .intro-splash.is-slash-2 .intro-logo--whole { opacity: 0; visibility: hidden; transition: none; }
 .intro-splash.is-slash-2 .intro-whole .intro-logo--shard-top {
   visibility: visible; opacity: 1;
-  transform: translate(-15px, -5px);
-  filter: brightness(1.25) drop-shadow(0 0 24px rgba(68, 214, 44, .85));
+  transform: var(--cut-shift-a, translate(16px, 7px) rotate(1.6deg));
+  filter: brightness(1.32) drop-shadow(0 0 26px rgba(68, 214, 44, .9));
   transition: transform .26s cubic-bezier(.16, .9, .3, 1), filter .25s ease;
 }
 .intro-splash.is-slash-2 .intro-whole .intro-logo--shard-bot {
   visibility: visible; opacity: 1;
-  transform: translate(15px, 5px);
-  filter: brightness(1.25) drop-shadow(0 0 24px rgba(68, 214, 44, .85));
+  transform: var(--cut-shift-b, translate(-14px, 5px) rotate(-1.5deg));
+  filter: brightness(1.32) drop-shadow(0 0 26px rgba(68, 214, 44, .9));
   transition: transform .26s cubic-bezier(.16, .9, .3, 1), filter .25s ease;
+}
+
+/* Phase 3: Slash 3 shatters & crumbles KPR on canvas — hide DOM halves immediately as physics shards take over */
+.intro-splash.is-shattered .intro-logo--whole,
+.intro-splash.is-shattered .intro-whole .intro-logo--shard-top,
+.intro-splash.is-shattered .intro-whole .intro-logo--shard-bot {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
 }
 
 /* Phase 3: the final cleave swaps out .intro-whole and tears the screen open */
@@ -2255,6 +2264,7 @@ html.site-blur-hold.site-glimpse .site-footer {
 
   .wx-bar-hint { display: none; }
   .wx-shell--certs .wx-pane-head { flex-wrap: wrap; }
+  .wx-shell--certs .wx-pane-brand { flex: 1 1 100%; }
   .wx-pane-head { padding: .75rem .95rem; }
   .wx-body { padding: .9rem .95rem; }
   .wx-pane-foot { padding: .7rem .95rem; }
@@ -2265,9 +2275,14 @@ html.site-blur-hold.site-glimpse .site-footer {
   .process-rail, .process-node { display: none; }
 
   .deck { padding-top: 1.8rem; }
-  .deck-tabs { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .deck-tab { grid-template-columns: minmax(0, 1fr); padding: .75rem .8rem .8rem; }
+  /* Work | Certifications | Info: give the wider middle "Certifications" tab its natural width
+     so all three labels stay crisp with zero overlap down to 360px phones */
+  .deck-tabs { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .deck-tab { grid-template-columns: minmax(0, 1fr); padding: .72rem .62rem .78rem; }
   .deck-tab-key { display: none; }
-  .deck-tab-label { font-size: .95rem; font-weight: 600; }
-  .deck-tab-count { font-size: .62rem; }
+  .deck-tab-label { font-size: clamp(.78rem, 3.6vw, .95rem); font-weight: 600; }
+  .deck-tab-count { font-size: .6rem; line-height: 1.25; }
+}
+@media (hover: none) {
+  .intro-skip kbd { display: none; }
 }

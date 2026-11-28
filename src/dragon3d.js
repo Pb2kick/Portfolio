@@ -232,49 +232,53 @@
     return { addVert, addTri, addQuad, loftRings, addSculptedSpike, buildFloat32 };
   }
 
-  // -------------------- Sculpt Authentic Genji Shimada Ryu Head --------------------
+  // -------------------- Sculpt Authentic Overwatch Genji Spirit Dragon Head --------------------
   function buildDragonHeadMeshes() {
     const upper = createMeshBuilder();
 
-    // High-density sculpted cranium & noble Eastern Ryu muzzle with sleek tapered bridge & Ruyi nose
-    const Z_RINGS = 56;
-    const RAD_SEGS = 44;
+    // High-density sculpted Overwatch Genji cranium & chiseled boxy snarling muzzle:
+    // high domed forehead -> 45-deg step-down with deep diagonal snarl folds -> flat-bridged boxy
+    // overhanging snout with flared squared nasal wings & deep forward teardrop nostrils!
+    const Z_RINGS = 76;
+    const RAD_SEGS = 56;
     const skullRings = [];
 
     for (let r = 0; r < Z_RINGS; r++) {
       const u = r / (Z_RINGS - 1);
-      // Cosine-clustered spacing near snout tip so the Ruyi nose & comma nostrils sculpt cleanly
-      const uMapped = u < 0.76 ? (u / 0.76) * 0.84 : 0.84 + Math.sin(((u - 0.76) / 0.24) * (Math.PI * 0.5)) * 0.16;
-      const z = lerp(-0.74, 1.48, uMapped);
+      // Extra ring density across the snarl wrinkles (z ~ 0.45..0.90) and squared nose front (z ~ 1.24..1.48)
+      const uMapped = u < 0.78 ? (u / 0.78) * 0.86 : 0.86 + Math.sin(((u - 0.78) / 0.22) * (Math.PI * 0.5)) * 0.14;
+      const z = lerp(-0.82, 1.48, uMapped);
 
-      // Smooth rounded Ruyi nose dome closure (tucks cleanly without a sharp front pole pinch!)
-      const domeT = clamp((z - 1.30) / 0.18, 0, 1);
-      const snoutDome = Math.sqrt(Math.max(0.012, 1 - domeT * domeT));
+      // Crisp superellipse front snout closure (flat-fronted squared Blizzard muzzle!)
+      const domeT = clamp((z - 1.35) / 0.13, 0, 1);
+      const snoutDome = Math.pow(Math.max(0.008, 1 - Math.pow(domeT, 3.0)), 0.34);
 
-      // Authentic Ref 1/2/3 proportions: WIDE commanding cranium & cheekbones -> SLEEK tapered muzzle -> compact Ruyi nose!
-      const backNeckTaper = lerp(0.82, 1.0, smoothstep(-0.74, -0.32, z));
-      const muzzleTaper = lerp(1.0, 0.60, smoothstep(0.18, 1.04, z));
+      // Smooth seamless hood taper into neck scales at z = -0.82 -> wide muscular cranium -> boxy flared nose!
+      const backNeckTaper = lerp(0.76, 1.0, smoothstep(-0.82, -0.34, z));
+      const muzzleTaper = lerp(1.0, 0.68, smoothstep(0.14, 0.94, z));
       const cheekFlare = Math.exp(-Math.pow((z - 0.04) / 0.34, 2)) * 0.22;
-      const muzzleWaist = -Math.exp(-Math.pow((z - 0.78) / 0.26, 2)) * 0.055;
-      const nosePad = Math.exp(-Math.pow((z - 1.22) / 0.17, 2)) * 0.072;
-      const halfW = (0.42 * backNeckTaper * muzzleTaper + cheekFlare + muzzleWaist + nosePad) * snoutDome;
+      const muzzleWaist = -Math.exp(-Math.pow((z - 0.78) / 0.24, 2)) * 0.048;
+      const noseFlare = Math.exp(-Math.pow((z - 1.26) / 0.18, 2)) * 0.115;
+      const halfW = (0.45 * backNeckTaper * muzzleTaper + cheekFlare + muzzleWaist + noseFlare) * snoutDome;
 
-      // Authentic Ref 2 side profile: HIGH commanding crown & brow -> graceful descending bridge -> sleek slightly upturned Ruyi nose
-      const crownSlope = lerp(0.38, 0.50, smoothstep(-0.74, -0.10, z));
-      const bridgeDrop = lerp(0.0, -0.18, smoothstep(0.24, 0.86, z));
-      const browPeak = Math.exp(-Math.pow((z - 0.14) / 0.26, 2)) * 0.16;
-      const bridgeDip = -Math.exp(-Math.pow((z - 0.76) / 0.24, 2)) * 0.06;
-      const upturnedNose = Math.exp(-Math.pow((z - 1.22) / 0.17, 2)) * 0.115;
-      const rawTopY = crownSlope + bridgeDrop + browPeak + bridgeDip + upturnedNose;
-      const noseCenterY = 0.21;
+      // Exact Overwatch side profile:
+      // High smooth rounded cranial dome (z ~ -0.15..0.34) -> crisp 45-deg forehead step-down ->
+      // FLAT straight horizontal snout bridge (zero cartoonish ski-jump!) with crisp forward overhang!
+      const craniumDome = lerp(0.36, 0.68, smoothstep(-0.82, -0.16, z))
+        + Math.exp(-Math.pow((z - 0.06) / 0.32, 2)) * 0.11;
+      const browStepDown = lerp(0.0, -0.36, smoothstep(0.26, 0.62, z));
+      const noseCornerLift = smoothstep(1.16, 1.44, z) * 0.028;
+      const rawTopY = craniumDome + browStepDown + noseCornerLift;
+      const noseCenterY = 0.195;
       const topY = lerp(noseCenterY, rawTopY, snoutDome);
 
-      // Scalloped Oriental dragon upper lip line (Ref 2)
-      const lipS =
-        Math.sin((z + 0.14) * 4.5) * 0.026 -
-        Math.exp(-Math.pow((z - 1.02) / 0.13, 2)) * 0.045 +
-        smoothstep(1.18, 1.44, z) * 0.092;
-      const rawBotY = z < -0.12 ? lerp(-0.26, 0.03, smoothstep(-0.74, -0.12, z)) : (0.025 + lipS);
+      // Bold snarling upper lip shelf: crisp dip over front fang bosses + flared cheek corner
+      const lipSnarl =
+        Math.exp(-Math.pow((z - 0.56) / 0.22, 2)) * 0.044 -
+        Math.exp(-Math.pow((z - 1.08) / 0.14, 2)) * 0.046 -
+        Math.exp(-Math.pow((z - 1.29) / 0.11, 2)) * 0.026 +
+        smoothstep(1.34, 1.46, z) * 0.056;
+      const rawBotY = z < -0.12 ? lerp(-0.26, 0.02, smoothstep(-0.82, -0.12, z)) : (0.016 + lipSnarl);
       const botY = lerp(noseCenterY, rawBotY, snoutDome);
 
       const row = [];
@@ -284,98 +288,126 @@
         const absCa = Math.abs(ca);
         const sideSign = ca >= 0 ? 1 : -1;
 
-        const boxiness = smoothstep(-0.08, 0.44, z) * smoothstep(1.14, 0.82, z) * 0.18;
-        const shapedX = Math.sign(ca) * Math.pow(absCa, 1 - boxiness);
-        const shapedY = sa >= 0 ? Math.pow(sa, 1 - boxiness * 0.7) : sa;
+        // Strong Blizzard faceted octagonal-box muzzle planes (flat top bridge + sharp beveled cheek walls)
+        const muzzleBox = smoothstep(-0.12, 0.40, z) * smoothstep(1.48, 1.32, z) * 0.42;
+        const shapedX = Math.sign(ca) * Math.pow(absCa, 1 - muzzleBox);
+        const shapedY = sa >= 0 ? Math.pow(sa, 1 - muzzleBox * 0.88) : sa;
 
-        // Round the lower-front lip corners inward cleanly so the Ruyi nose pad has an organic cloud silhouette (Ref 3)
-        const frontLipTaper = 1.0 - smoothstep(0.94, 1.44, z) * (1.0 - smoothstep(-0.1, 0.55, sa)) * 0.36;
-        let x = shapedX * halfW * frontLipTaper;
+        let x = shapedX * halfW;
         let y = sa >= 0 ? lerp(botY, topY, shapedY) : botY;
-        let zOut = z;
-        let cavity = 0.54;
+        // Dramatic forward-overhanging squared nose bridge corner (exact Overwatch 3/4 side silhouette!)
+        let zOut = z + smoothstep(0.96, 1.44, z) * smoothstep(0.18, 0.90, sa) * 0.135;
+        let cavity = 0.56;
         let mId = MAT_HEAD;
 
         if (sa >= 0) {
-          // 1) NOBLE FURROWED GLABELLA & DEEP-SET ORBITAL ARCH (Ref 1, 2, 3, 4)
-          const browRegion = Math.exp(-Math.pow((z - 0.18) / 0.22, 2));
-          const centerScowl = browRegion * Math.exp(-Math.pow(absCa / 0.20, 2)) * smoothstep(0.50, 0.98, sa);
-          y -= centerScowl * 0.145;
-          cavity -= centerScowl * 0.54;
+          // 1) DEEP VERTICAL GLABELLA SCOWL CLEFT, OVERHANGING BROW & SEAMLESS CHEEKBONE SOCKET
+          const glabellaMask = Math.exp(-Math.pow((z - 0.38) / 0.19, 2)) * smoothstep(0.44, 0.96, sa);
+          const centerScowl = glabellaMask * Math.exp(-Math.pow(absCa / 0.20, 2));
+          y -= centerScowl * 0.125;
+          zOut -= centerScowl * 0.04;
+          cavity -= centerScowl * 0.44;
 
-          const browCrest = Math.exp(-Math.pow((z - (0.30 - absCa * 0.24)) / 0.15, 2)) *
-            Math.exp(-Math.pow((absCa - 0.64) / 0.23, 2)) * smoothstep(0.38, 0.86, sa);
-          y += browCrest * 0.21;
-          x += sideSign * browCrest * 0.14;
-          cavity += browCrest * 0.34;
+          // Heavy chiseled overhanging supraorbital brow ridge integrated smoothly below the rounded forehead dome
+          const browZ = 0.42 - absCa * 0.22;
+          const browRidge = Math.exp(-Math.pow((z - browZ) / 0.20, 2))
+            * Math.exp(-Math.pow((absCa - 0.54) / 0.28, 2))
+            * smoothstep(0.46, 0.86, sa);
+          y += browRidge * 0.058;
+          x += sideSign * browRidge * 0.085;
+          cavity += browRidge * 0.24;
 
-          // Deep dark-jade orbital socket recessed cleanly so the piercing eyes shine from both front & 3/4!
-          const socketDist = Math.hypot((z - 0.26) / 0.18, (absCa - 0.74) / 0.24, (sa - 0.44) / 0.24);
+          // Deep recessed orbital socket tucked directly under the overhanging brow
+          const socketDist = Math.hypot((z - 0.36) / 0.16, (absCa - 0.72) / 0.23, (sa - 0.44) / 0.20);
           if (socketDist < 1.38) {
-            const pit = Math.exp(-Math.pow(socketDist / 0.78, 2));
-            x -= sideSign * pit * 0.19;
-            y -= pit * 0.075;
+            const pit = Math.exp(-Math.pow(socketDist / 0.72, 2));
+            x -= sideSign * pit * 0.22;
+            y -= pit * 0.085;
             cavity -= pit * 0.72;
           }
 
-          // 2) CARVED STEPPED CHEVRON NASAL BRIDGE PLATES (Ref 1, 3, 4!)
-          if (z > 0.32 && z < 1.08 && sa > 0.52) {
-            const bridgeMask = smoothstep(0.32, 0.44, z) * smoothstep(1.08, 0.94, z) * smoothstep(0.52, 0.84, sa);
-            const chev = z + absCa * 0.13;
-            const stepWave = Math.pow(0.5 + 0.5 * Math.cos((chev - 0.36) * 26.0), 1.6);
-            const centerCrest = Math.exp(-Math.pow(absCa / 0.20, 2)) * 0.022;
-            y += ((stepWave - 0.32) * 0.052 + centerCrest) * bridgeMask;
-            cavity += (stepWave - 0.48) * 0.58 * bridgeMask;
+          // Seamless sculpted muscular lower-eyelid & cheekbone shelf directly beneath the eye socket!
+          const lowerLid = Math.exp(-Math.pow((z - 0.34) / 0.20, 2))
+            * Math.exp(-Math.pow((absCa - 0.80) / 0.20, 2))
+            * Math.exp(-Math.pow((sa - 0.24) / 0.12, 2));
+          x += sideSign * lowerLid * 0.095;
+          y += lowerLid * 0.042;
+          cavity += lowerLid * 0.26;
+
+          // 2) SIGNATURE OVERWATCH SNARL WRINKLES (3 crisp sculpted diagonal folds clustered at the base of the bridge!)
+          // Smooth flat front bridge (z > 0.92), tight anatomical snarling folds right in front of the eyes (z = 0.46..0.90)
+          if (z > 0.44 && z < 0.92 && sa > 0.16) {
+            const foldMask = smoothstep(0.44, 0.54, z) * smoothstep(0.92, 0.80, z) * smoothstep(0.16, 0.40, sa);
+            const foldPhase = (z - 0.50 + (1.0 - sa) * 0.18 - absCa * 0.10) * 34.0;
+            const ridge = Math.pow(0.5 + 0.5 * Math.cos(foldPhase), 1.35);
+            const crease = Math.pow(0.5 - 0.5 * Math.cos(foldPhase), 2.8);
+            const bridgeTop = smoothstep(0.46, 0.92, sa);
+            const cheekSide = smoothstep(0.24, 0.86, absCa) * (1.0 - bridgeTop * 0.50);
+            y += (ridge * 0.038 - crease * 0.018) * foldMask * (0.58 + 0.42 * bridgeTop);
+            x += sideSign * (ridge * 0.032 - crease * 0.016) * foldMask * cheekSide;
+            cavity += (ridge * 0.22 - crease * 0.44) * foldMask;
           }
 
-          // 3) ORGANIC RUYI CLOUD-SCROLL NOSE & DEEP FORWARD-FACING COMMA NOSTRILS (Ref 1, 3, 4!)
-          const philtrum = Math.exp(-Math.pow((z - 1.38) / 0.13, 2)) * Math.exp(-Math.pow(absCa / 0.16, 2)) * smoothstep(0.05, 0.95, sa);
-          y -= philtrum * 0.048;
-          zOut -= philtrum * 0.052;
-          cavity -= philtrum * 0.48;
+          // 3) SQUARED MUZZLE FRONT, CLEAN VERTICAL PHILTRUM CLEFT & DEEP TEARDROP NOSTRILS!
+          const philtrum = Math.exp(-Math.pow((z - 1.42) / 0.14, 2))
+            * Math.exp(-Math.pow(absCa / 0.14, 2))
+            * smoothstep(0.08, 0.92, sa);
+          y -= philtrum * 0.022;
+          zOut -= philtrum * 0.032;
+          cavity -= philtrum * 0.36;
 
-          // Sculpted Ruyi scroll lobes curling neatly above each nostril
-          const lobe = Math.exp(-Math.pow((z - 1.24) / 0.13, 2)) * Math.exp(-Math.pow((absCa - 0.56) / 0.24, 2)) * smoothstep(0.42, 0.92, sa);
-          x += sideSign * lobe * 0.052;
-          y += lobe * 0.048;
-          cavity += lobe * 0.28;
+          // Flared angular squared nasal arch over each nostril (visible clearly from both front & 3/4!)
+          const nasalWing = Math.exp(-Math.pow((z - 1.32) / 0.15, 2))
+            * Math.exp(-Math.pow((absCa - 0.60) / 0.24, 2))
+            * smoothstep(0.44, 0.92, sa);
+          x += sideSign * nasalWing * 0.084;
+          y += nasalWing * 0.048;
+          zOut += nasalWing * 0.028;
+          cavity += nasalWing * 0.28;
 
-          // Deep sculpted forward-facing comma nostrils right on the front Ruyi nose face (Ref 3 & Ref 4!)
-          const nDz = (z - 1.36) / 0.12;
-          const nDx = (absCa - 0.48) / 0.22;
-          const nDy = (sa - 0.48) / 0.24;
+          // Deep carved teardrop nostril cavities visible clearly in BOTH front & 3/4 views!
+          const nDz = (z - 1.38) / 0.14;
+          const nDx = (absCa - 0.58) / 0.21;
+          const nDy = (sa - 0.48) / 0.22;
           const nDist = Math.hypot(nDz, nDx, nDy);
-          if (nDist < 1.48) {
-            const wing = Math.exp(-Math.pow((nDist - 0.90) / 0.24, 2));
-            const hole = Math.exp(-Math.pow(nDist / 0.64, 2));
-            x += sideSign * (wing * 0.070 - hole * 0.068);
-            y += wing * 0.052 - hole * 0.055;
-            zOut += wing * 0.044 - hole * 0.16;
-            cavity += wing * 0.36 - hole * 1.15;
+          if (nDist < 1.50) {
+            const rim = Math.exp(-Math.pow((nDist - 0.92) / 0.24, 2));
+            const pit = Math.exp(-Math.pow(nDist / 0.62, 2));
+            x += sideSign * (rim * 0.064 - pit * 0.082);
+            y += rim * 0.044 - pit * 0.038;
+            zOut += rim * 0.038 - pit * 0.165;
+            cavity += rim * 0.30 - pit * 1.18;
           }
 
-          // 4) Zygomatic cheek ridge + sculpted flared upper lip scroll + canine boss
-          const zygoma = Math.exp(-Math.pow((z - 0.04) / 0.28, 2)) * Math.exp(-Math.pow((sa - 0.18) / 0.15, 2));
-          x += sideSign * zygoma * 0.088;
+          // 4) MUSCULAR CHEEK PLATE & REFINED JAW-CORNER CONTOUR SEAM (Side 3/4 ref!)
+          const zygoma = Math.exp(-Math.pow((z - 0.08) / 0.28, 2)) * Math.exp(-Math.pow((sa - 0.22) / 0.16, 2));
+          x += sideSign * zygoma * 0.095;
           cavity += zygoma * 0.24;
 
-          const canineBoss = Math.exp(-Math.pow((z - 1.03) / 0.12, 2)) * Math.exp(-Math.pow((sa - 0.14) / 0.16, 2));
-          x += sideSign * canineBoss * 0.038;
-          cavity += canineBoss * 0.20;
+          const cheekSeam = Math.exp(-Math.pow((sa - (0.15 + smoothstep(0.28, -0.60, z) * 0.24)) / 0.070, 2))
+            * smoothstep(0.42, 0.16, z) * smoothstep(-0.76, -0.38, z) * smoothstep(0.55, 0.92, absCa);
+          x -= sideSign * cheekSeam * 0.030;
+          cavity -= cheekSeam * 0.38;
 
-          const lipCurl = smoothstep(-0.06, 0.14, z) * smoothstep(1.42, 1.20, z) * Math.exp(-Math.pow(sa / 0.13, 2));
-          x += sideSign * lipCurl * 0.038;
-          cavity += lipCurl * 0.22;
+          // Flared snarling upper lip roll & canine fang boss
+          const lipRoll = smoothstep(0.30, 0.56, z) * smoothstep(1.44, 1.24, z) * Math.exp(-Math.pow(sa / 0.14, 2));
+          x += sideSign * lipRoll * 0.050;
+          cavity += lipRoll * 0.22;
+
+          const canineBoss = Math.exp(-Math.pow((z - 1.08) / 0.13, 2)) * Math.exp(-Math.pow((sa - 0.15) / 0.16, 2));
+          x += sideSign * canineBoss * 0.046;
+          cavity += canineBoss * 0.20;
         } else {
-          if (z > -0.06) {
-            const vault = Math.sin(-sa) * smoothstep(1.34, 0.96, z) * smoothstep(-0.06, 0.14, z);
-            y = botY + vault * 0.15;
-            x *= 1 - Math.sin(-sa) * 0.15;
-            if (vault > 0.065 && z < 0.88 && absCa < 0.66) {
+          // Blazing upper inner mouth palate (glows warmly out of the wide roaring mouth!)
+          if (z > -0.10) {
+            const vault = Math.sin(-sa) * smoothstep(1.36, 0.92, z) * smoothstep(-0.10, 0.14, z);
+            y = botY + vault * 0.175;
+            x *= 1 - Math.sin(-sa) * 0.14;
+            if (vault > 0.042 && z < 1.02 && absCa < 0.72) {
               mId = MAT_FURNACE;
               cavity = 1.0;
             } else {
-              cavity = 0.22;
+              cavity = 0.24;
             }
           } else {
             y = lerp(botY, -0.28, Math.sin(-sa));
@@ -389,325 +421,245 @@
     }
     upper.loftRings(skullRings, true);
 
-    // Tuck nose tip center neatly inside the philtrum cleft so the front Ruyi nose rounds smoothly with zero pole pinch!
-    const tipCenter = upper.addVert(0, 0.205, 1.445, 1, 0.25, MAT_HEAD, 0.36);
+    // Watertight back-of-cranium cap so viewing the dragon head straight from behind never shows an open neck ring!
+    const backCap = upper.addVert(0, 0.06, -0.88, 0, 0.25, MAT_HEAD, 0.36);
+    const firstRing = skullRings[0];
+    for (let s = 0; s < RAD_SEGS; s++) {
+      upper.addTri(firstRing[(s + 1) % RAD_SEGS], backCap, firstRing[s]);
+    }
+
+    // Flat-fronted muzzle nose cap center aligned with the forward overhang (zero front pole pinch!)
+    const tipCenter = upper.addVert(0, 0.23, 1.545, 1, 0.25, MAT_HEAD, 0.42);
     const lastRing = skullRings[Z_RINGS - 1];
     for (let s = 0; s < RAD_SEGS; s++) {
       upper.addTri(lastRing[s], tipCenter, lastRing[(s + 1) % RAD_SEGS]);
     }
 
-    // --- SCULPTED FLAME-BROW PLATES & LOWER EYELID RIMS (commanding wise gaze visible in front & 3/4 - Ref 1, 2, 3!) ---
+    // --- SEAMLESS CHISELED OVERWATCH ANGULAR BROW ARMOR PLATE (ZERO detached cones or eyelid pills!) ---
+    // Sweeps cleanly from the angry V-scowl center bridge tightly over the glowing eye and flows directly into the horn root!
     upper.addSculptedSpike({
-      rings: 10, segs: 10, matId: MAT_HEAD, mirrorX: true,
+      rings: 14, segs: 12, matId: MAT_HEAD, mirrorX: true,
       sample: (t) => ({
-        x: lerp(0.11, 0.66, Math.pow(t, 0.85)),
-        y: lerp(0.47, 0.72, Math.pow(t, 0.88)) + Math.sin(t * Math.PI) * 0.045,
-        z: lerp(0.48, -0.08, Math.pow(t, 1.04)),
-        rx: 0.095 * (1 - 0.15 * t),
-        ry: 0.056,
-        taperPow: 1.55,
-        rotZ: -0.34,
-        sharp: 0.26,
-        cav: lerp(0.42, 0.88, t),
-      }),
-    });
-    // Secondary temple brow plume curling subtly upward (Ref 3)
-    upper.addSculptedSpike({
-      rings: 8, segs: 8, matId: MAT_HEAD, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.36, 0.69, t),
-        y: lerp(0.58, 0.84, Math.pow(t, 0.88)),
-        z: lerp(0.22, -0.22, t),
-        rx: 0.068,
-        ry: 0.038,
-        taperPow: 1.5,
-        rotZ: -0.44,
-        sharp: 0.30,
-        cav: lerp(0.42, 0.88, t),
-      }),
-    });
-    // Sculpted lower eyelid cheek rim framing the piercing eye cleanly from below (Ref 3)
-    upper.addSculptedSpike({
-      rings: 8, segs: 8, matId: MAT_HEAD, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.25, 0.58, t),
-        y: lerp(0.285, 0.365, Math.sin(t * Math.PI * 0.85)),
-        z: lerp(0.48, 0.06, t),
-        rx: 0.060 * Math.sin(Math.max(0.12, t) * Math.PI * 0.92),
-        ry: 0.036 * Math.sin(Math.max(0.12, t) * Math.PI * 0.92),
-        taperPow: 1.35,
-        sharp: 0.16,
-        cav: 0.56,
+        x: lerp(0.11, 0.56, Math.pow(t, 0.85)),
+        y: lerp(0.45, 0.62, Math.pow(t, 0.72)) + Math.sin(t * Math.PI) * 0.045,
+        z: lerp(0.55, 0.02, Math.pow(t, 1.00)),
+        rx: 0.118 * (0.85 + Math.sin(t * Math.PI) * 0.36),
+        ry: 0.068 * (0.88 + Math.sin(t * Math.PI) * 0.24),
+        taperPow: 1.75,
+        rotZ: -0.36,
+        sharp: 0.44,
+        cav: lerp(0.40, 0.88, t),
       }),
     });
 
-    // --- PIERCING BLAZING ALMOND SPIRIT EYES (focused wise gaze locked forward & 3/4 - Ref 1, 2, 3!) ---
+    // --- FIERCE GLOWING OVERWATCH SPIRIT EYES (compact angry slanted almond blaze tucked right under the brow!) ---
     upper.addSculptedSpike({
       rings: 10, segs: 12, matId: MAT_FURNACE, mirrorX: true,
       sample: (t) => ({
-        x: lerp(0.26, 0.54, t) + Math.sin(t * Math.PI) * 0.034,
-        y: lerp(0.355, 0.480, t) + Math.sin(t * Math.PI) * 0.016,
-        z: lerp(0.47, 0.13, t) + Math.sin(t * Math.PI) * 0.025,
-        rx: 0.068 * Math.sin(Math.max(0.08, t) * Math.PI * 0.94),
-        ry: 0.056 * Math.sin(Math.max(0.08, t) * Math.PI * 0.94),
+        x: lerp(0.25, 0.50, t) + Math.sin(t * Math.PI) * 0.036,
+        y: lerp(0.395, 0.478, t) + Math.sin(t * Math.PI) * 0.012,
+        z: lerp(0.50, 0.23, t) + Math.sin(t * Math.PI) * 0.036,
+        rx: 0.072 * Math.sin(Math.max(0.12, t) * Math.PI * 0.90),
+        ry: 0.056 * Math.sin(Math.max(0.12, t) * Math.PI * 0.90),
         taperPow: 1.25,
-        sharp: 0.24,
+        sharp: 0.30,
         cav: 1.0,
       }),
     });
 
-    // --- DEEP INNER THROAT FURNACE (recessed deep in throat so mouth glows with rich depth instead of flat white!) ---
+    // --- MOLTEN INNER THROAT FURNACE (intense luminous mouth interior matching both Overwatch refs!) ---
     upper.addSculptedSpike({
-      rings: 8, segs: 14, matId: MAT_FURNACE, mirrorX: false,
+      rings: 10, segs: 14, matId: MAT_FURNACE, mirrorX: false,
       sample: (t) => ({
         x: 0,
-        y: lerp(-0.08, 0.04, t),
-        z: lerp(-0.14, 0.22, t),
-        rx: lerp(0.26, 0.15, t),
-        ry: lerp(0.19, 0.11, t),
+        y: lerp(-0.14, 0.05, t),
+        z: lerp(-0.14, 0.42, t),
+        rx: lerp(0.32, 0.19, t),
+        ry: lerp(0.24, 0.13, t),
         sharp: 0.0,
         cav: 1.0,
       }),
     });
 
-    // --- 2 BROAD SCULPTED SCOOPED DRAGON EARS (Ref 1 & Ref 3 #1 iconic silhouette!) ---
+    // --- 2 ICONIC OVERWATCH BROAD FACETED EAR-BLADE HORNS (the #1 bold architectural silhouette!) ---
+    // Wide sculpted ear-shield blade flaring boldly up-outward right behind the brow (Front ref silhouette!)
     upper.addSculptedSpike({
-      rings: 14, segs: 16, matId: MAT_HEAD, mirrorX: true,
+      rings: 14, segs: 14, matId: MAT_HEAD, mirrorX: true,
       sample: (t) => ({
-        x: lerp(0.31, 0.70, Math.pow(t, 0.90)) + Math.sin(t * Math.PI) * 0.03,
-        y: lerp(0.48, 1.28, Math.pow(t, 0.86)) - Math.pow(t, 2.4) * 0.05,
-        z: lerp(-0.08, -0.68, Math.pow(t, 1.05)),
-        rx: 0.245 * (1 - 0.14 * t) * (1 + Math.sin(t * Math.PI) * 0.24),
-        ry: 0.092,
-        taperPow: 1.48,
-        rotZ: -0.42,
-        sharp: 0.24,
-        scoop: 0.82,
-        cav: lerp(0.36, 0.84, t),
+        x: lerp(0.34, 0.74, Math.pow(t, 0.86)) + Math.sin(t * Math.PI) * 0.04,
+        y: lerp(0.52, 1.20, Math.pow(t, 0.82)) - Math.pow(t, 2.6) * 0.05,
+        z: lerp(-0.02, -0.60, Math.pow(t, 1.02)),
+        rx: 0.265 * (1 - 0.12 * t) * (1 + Math.sin(t * Math.PI) * 0.22),
+        ry: 0.098,
+        taperPow: 1.38,
+        rotZ: -0.44,
+        sharp: 0.46,
+        scoop: 0.72,
+        cav: lerp(0.38, 0.88, t),
       }),
     });
 
-    // --- 2 MAJESTIC S-CURVED SWEPT-BACK CROWN HORNS + NOBLE SPUR (graceful curve, Ref 2!) ---
+    // Massive broad sweeping faceted antler-horns arching powerfully back from the temples (Side 3/4 ref!)
     upper.addSculptedSpike({
-      rings: 16, segs: 12, matId: MAT_CREST, mirrorX: true,
+      rings: 18, segs: 12, matId: MAT_HEAD, mirrorX: true,
       sample: (t) => ({
-        x: lerp(0.20, 0.46, Math.pow(t, 0.82)) + Math.sin(t * Math.PI * 1.1) * 0.06,
-        y: lerp(0.55, 1.16, Math.pow(t, 0.72)) - Math.pow(t, 2.2) * 0.16 + Math.pow(Math.max(0, t - 0.65) / 0.35, 2.0) * 0.12,
-        z: lerp(-0.16, -1.62, Math.pow(t, 1.04)),
-        rx: 0.122,
-        ry: 0.102,
-        taperPow: 1.52,
-        sharp: 0.24,
-        cav: lerp(0.34, 0.86, t),
-      }),
-    });
-    // Flowing secondary spur sweeping gracefully upward off the crown horn
-    upper.addSculptedSpike({
-      rings: 9, segs: 10, matId: MAT_CREST, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.34, 0.60, Math.pow(t, 0.88)),
-        y: lerp(0.86, 1.28, Math.pow(t, 0.80)) - Math.pow(t, 2.2) * 0.06,
-        z: lerp(-0.72, -1.16, t),
-        rx: 0.064,
-        ry: 0.054,
+        x: lerp(0.28, 0.62, Math.pow(t, 0.80)) + Math.sin(t * Math.PI * 0.95) * 0.08,
+        y: lerp(0.56, 1.32, Math.pow(t, 0.64)) - Math.pow(t, 2.15) * 0.22,
+        z: lerp(0.06, -1.86, Math.pow(t, 1.02)),
+        rx: 0.225 * (1 + Math.sin(t * Math.PI * 0.8) * 0.16),
+        ry: 0.122,
         taperPow: 1.55,
-        sharp: 0.24,
-        cav: lerp(0.40, 0.88, t),
+        rotZ: -0.34,
+        sharp: 0.46,
+        cav: lerp(0.36, 0.88, t),
       }),
     });
 
-    // --- CENTRAL CROWN CREST (gracefully curved sculpted plates bridging occiput into dorsal spine!) ---
-    const crownFins = [
-      { by: 0.54, bz: 0.02, ty: 0.74, tz: -0.34, rx: 0.044, ry: 0.090 },
-      { by: 0.50, bz: -0.24, ty: 0.78, tz: -0.74, rx: 0.052, ry: 0.110 },
-      { by: 0.44, bz: -0.54, ty: 0.72, tz: -1.10, rx: 0.050, ry: 0.105 },
+    // --- 4 CLEAN, BROAD SWEPT-BACK FACETED CHEEK & NECK-HOOD FINS (bridge seamlessly into neck scales!) ---
+    const cheekFins = [
+      // Upper temple leaf-blade fanning cleanly under the ear-horn
+      { bx: 0.44, by: 0.40, bz: -0.06, tx: 0.84, ty: 0.64, tz: -1.24, arcY: 0.06, arcX: 0.09, rx: 0.195, ry: 0.062, rot: -0.30 },
+      // Primary wide zygomatic cheek-blade (defines the bold pointed cheek flare in front view!)
+      { bx: 0.50, by: 0.20, bz: -0.02, tx: 0.94, ty: 0.26, tz: -1.38, arcY: 0.04, arcX: 0.11, rx: 0.215, ry: 0.068, rot: -0.08 },
+      // Mid-jaw swept blade fin covering the jaw-neck seam
+      { bx: 0.46, by: 0.00, bz: -0.10, tx: 0.84, ty: -0.04, tz: -1.26, arcY: 0.01, arcX: 0.09, rx: 0.190, ry: 0.062, rot: 0.12 },
+      // Lower jaw-angle sculpted fin tucking cleanly into the neck collar
+      { bx: 0.36, by: -0.16, bz: -0.18, tx: 0.68, ty: -0.26, tz: -1.08, arcY: -0.02, arcX: 0.07, rx: 0.165, ry: 0.055, rot: 0.28 },
     ];
-    for (const cf of crownFins) {
-      upper.addSculptedSpike({
-        rings: 8, segs: 8, matId: MAT_CREST, mirrorX: false,
-        sample: (t) => ({
-          x: 0,
-          y: lerp(cf.by, cf.ty, Math.pow(t, 0.76)) - Math.pow(t, 2.2) * 0.05,
-          z: lerp(cf.bz, cf.tz, Math.pow(t, 1.06)),
-          rx: cf.rx,
-          ry: cf.ry,
-          taperPow: 1.5,
-          sharp: 0.32,
-          cav: lerp(0.32, 0.84, t),
-        }),
-      });
-    }
-
-    // --- 6 PAIRS OF CURVED FLOWING FLAME-MANE & COLLAR RUFF LOCKS (graceful calligraphic sweep - Ref 2 & Ref 1!) ---
-    const cheekPlates = [
-      // Upper temple flame-locks sweeping gracefully up-then-back behind ears
-      { bx: 0.40, by: 0.48, bz: -0.10, tx: 0.80, ty: 0.86, tz: -1.24, arcY: 0.11, arcX: 0.08, rx: 0.165, ry: 0.060, rot: -0.40 },
-      { bx: 0.48, by: 0.34, bz: -0.06, tx: 0.92, ty: 0.56, tz: -1.32, arcY: 0.09, arcX: 0.10, rx: 0.185, ry: 0.065, rot: -0.24 },
-      // Heroic main zygomatic cheek-mane wave (widest noble lion-like dragon silhouette!)
-      { bx: 0.52, by: 0.18, bz: -0.05, tx: 0.94, ty: 0.24, tz: -1.34, arcY: 0.06, arcX: 0.11, rx: 0.195, ry: 0.068, rot: -0.06 },
-      { bx: 0.50, by: 0.03, bz: -0.08, tx: 0.86, ty: -0.05, tz: -1.22, arcY: 0.03, arcX: 0.09, rx: 0.175, ry: 0.060, rot: 0.12 },
-      // Lower jaw-angle ruff & neck-collar mane wave
-      { bx: 0.42, by: -0.11, bz: -0.14, tx: 0.72, ty: -0.28, tz: -1.04, arcY: -0.03, arcX: 0.07, rx: 0.155, ry: 0.054, rot: 0.28 },
-      { bx: 0.28, by: -0.22, bz: -0.24, tx: 0.48, ty: -0.42, tz: -0.98, arcY: -0.05, arcX: 0.05, rx: 0.135, ry: 0.048, rot: 0.42 },
-    ];
-    for (const cp of cheekPlates) {
+    for (const cp of cheekFins) {
       upper.addSculptedSpike({
         rings: 12, segs: 10, matId: MAT_CREST, mirrorX: true,
         sample: (t) => ({
-          // Flowing S-curve flame-lock: flares out smoothly, arches, then sweeps into a graceful recurved tip!
-          x: lerp(cp.bx, cp.tx, Math.pow(t, 0.80)) + Math.sin(t * Math.PI) * cp.arcX - Math.pow(t, 2.5) * 0.06,
-          y: lerp(cp.by, cp.ty, Math.pow(t, 0.84)) + Math.sin(t * Math.PI) * cp.arcY + Math.pow(Math.max(0, t - 0.6) / 0.4, 2) * 0.05,
-          z: lerp(cp.bz, cp.tz, Math.pow(t, 1.05)),
-          rx: cp.rx * (1 + Math.sin(t * Math.PI) * 0.18),
-          ry: cp.ry * 0.84,
-          taperPow: 1.48,
+          x: lerp(cp.bx, cp.tx, Math.pow(t, 0.80)) + Math.sin(t * Math.PI) * cp.arcX - Math.pow(t, 2.4) * 0.05,
+          y: lerp(cp.by, cp.ty, Math.pow(t, 0.84)) + Math.sin(t * Math.PI) * cp.arcY,
+          z: lerp(cp.bz, cp.tz, Math.pow(t, 1.04)),
+          rx: cp.rx * (1 + Math.sin(t * Math.PI) * 0.14),
+          ry: cp.ry * 0.82,
+          taperPow: 1.44,
           rotZ: cp.rot,
-          sharp: 0.42,
-          cav: lerp(0.28, 0.86, t),
+          sharp: 0.48,
+          cav: lerp(0.30, 0.86, t),
         }),
       });
     }
 
-    // --- UPPER DENTITION: Seated neatly inside the sleeker scalloped upper lip (Ref 1, 2, 3) ---
+    // --- UPPER DENTITION: Sculpted carved-jade Overwatch blade-fangs seated cleanly along the boxy lip ---
     const upperTeeth = [
-      { x: 0.055, y: 0.075, z: 1.32, dx: 0.0, dy: -0.11, dz: 0.01, r: 0.024 },
-      { x: 0.135, y: 0.065, z: 1.28, dx: 0.01, dy: -0.125, dz: 0.00, r: 0.028 },
-      { x: 0.245, y: 0.040, z: 1.04, dx: -0.015, dy: -0.255, dz: -0.055, r: 0.054 },
-      { x: 0.255, y: 0.048, z: 0.84, dx: -0.01, dy: -0.150, dz: -0.025, r: 0.036 },
-      { x: 0.280, y: 0.050, z: 0.66, dx: -0.01, dy: -0.130, dz: -0.025, r: 0.033 },
-      { x: 0.320, y: 0.052, z: 0.48, dx: -0.01, dy: -0.110, dz: -0.02, r: 0.030 },
-      { x: 0.365, y: 0.058, z: 0.31, dx: -0.01, dy: -0.095, dz: -0.02, r: 0.027 },
+      { x: 0.162, y: 0.042, z: 1.30, dx: 0.005, dy: -0.190, dz: -0.024, rx: 0.042, ry: 0.086, tp: 1.12 },
+      { x: 0.258, y: 0.004, z: 1.08, dx: -0.012, dy: -0.228, dz: -0.042, rx: 0.052, ry: 0.112, tp: 1.12 },
+      { x: 0.270, y: 0.024, z: 0.83, dx: -0.006, dy: -0.142, dz: -0.022, rx: 0.034, ry: 0.082, tp: 1.14 },
+      { x: 0.305, y: 0.046, z: 0.62, dx: -0.006, dy: -0.122, dz: -0.020, rx: 0.030, ry: 0.072, tp: 1.14 },
     ];
     for (const td of upperTeeth) {
       upper.addSculptedSpike({
-        rings: 7, segs: 8, matId: MAT_TOOTH, mirrorX: true,
+        rings: 8, segs: 10, matId: MAT_TOOTH, mirrorX: true,
         sample: (t) => ({
           x: td.x + td.dx * t * t,
           y: td.y + td.dy * t,
           z: td.z + td.dz * t * t,
-          rx: td.r,
-          ry: td.r * 0.88,
-          taperPow: 1.7,
-          sharp: 0.16,
-          cav: lerp(0.44, 0.96, t),
+          rx: td.rx,
+          ry: td.ry,
+          taperPow: td.tp,
+          sharp: 0.46,
+          cav: lerp(0.42, 0.92, t),
         }),
       });
     }
 
-    // === 2. ARTICULATED NOBLE LOWER JAW (SLEEK MANDIBLE + FLOWING CURVED BEARD + GROOVED TONGUE + TUSKS) ===
+    // === 2. ARTICULATED OVERWATCH LOWER JAW (CLEAN BLOCKY UPTURNED CHIN-PROW + BLAZING TONGUE + CARVED TUSKS) ===
     const lower = createMeshBuilder();
-    const J_RINGS = 28;
-    const J_SEGS = 28;
+    const J_RINGS = 36;
+    const J_SEGS = 36;
     const jawRings = [];
 
     for (let r = 0; r < J_RINGS; r++) {
       const u = r / (J_RINGS - 1);
-      const z = lerp(-0.10, 1.16, u);
-      const chinRound = smoothstep(1.16, 1.02, z);
-      const halfW = lerp(0.42, 0.225, Math.pow(u, 0.74)) * Math.max(0.36, Math.pow(chinRound, 0.68));
-      const chinHook = Math.exp(-Math.pow((z - 1.11) / 0.11, 2)) * 0.082;
-      const topGumY = 0.02 + chinHook;
-      const botChinY = -0.195 + u * 0.030 + chinHook * 0.55 - Math.exp(-Math.pow((z - 0.96) / 0.16, 2)) * 0.044;
+      const z = lerp(-0.12, 1.22, u);
+      // Squared blocky chin closure matching the bold guardian-dragon chin prow in both Overwatch refs!
+      const chinT = clamp((z - 1.08) / 0.14, 0, 1);
+      const chinCap = Math.pow(Math.max(0.012, 1 - Math.pow(chinT, 2.6)), 0.38);
+      const halfW = (lerp(0.44, 0.26, Math.pow(u, 0.72)) + Math.exp(-Math.pow((z - 1.02) / 0.16, 2)) * 0.032) * chinCap;
+
+      // Iconic bold upturned chin-guard hook at the tip of the mandible!
+      const chinHook = Math.exp(-Math.pow((z - 1.12) / 0.13, 2)) * 0.105;
+      const topGumY = 0.025 + chinHook;
+      const chinProwDrop = Math.exp(-Math.pow((z - 1.04) / 0.16, 2)) * 0.068;
+      const botChinY = -0.225 + u * 0.032 + chinHook * 0.45 - chinProwDrop;
 
       const row = [];
       for (let s = 0; s < J_SEGS; s++) {
         const a = (s / J_SEGS) * TAU;
         const ca = Math.cos(a), sa = Math.sin(a);
         const absCa = Math.abs(ca);
-        let x = Math.sign(ca) * Math.pow(absCa, 0.82) * halfW;
-        let y = sa >= 0 ? topGumY : lerp(topGumY, botChinY, Math.pow(-sa, 0.80));
+        // Sculpted flat-bottomed faceted jaw cross-section (crisp angular Blizzard bevels!)
+        const jawBox = 0.34;
+        let x = Math.sign(ca) * Math.pow(absCa, 1 - jawBox) * halfW;
+        let y = sa >= 0 ? topGumY : lerp(topGumY, botChinY, Math.pow(-sa, 1 - jawBox * 0.75));
         let mId = MAT_HEAD;
-        let cavity = 0.50;
+        let cavity = 0.52;
 
         if (sa >= 0) {
-          const trough = Math.sin(sa) * smoothstep(1.02, 0.78, z) * smoothstep(-0.06, 0.12, z);
-          y = topGumY - trough * 0.105;
-          if (trough > 0.045 && absCa < 0.58 && z < 0.84) {
+          // Deep molten glowing mouth floor trough lighting up the entire lower jaw interior!
+          const trough = Math.sin(sa) * smoothstep(1.06, 0.74, z) * smoothstep(-0.08, 0.14, z);
+          y = topGumY - trough * 0.12;
+          if (trough > 0.028 && absCa < 0.72 && z < 0.98) {
             mId = MAT_FURNACE;
             cavity = 1.0;
           } else {
             cavity = 0.44;
           }
         } else {
-          const jawBevel = Math.exp(-Math.pow((absCa - 0.72) / 0.20, 2)) * Math.sin(-sa);
-          y -= jawBevel * 0.032;
-          cavity += jawBevel * 0.24 - Math.exp(-Math.pow(absCa / 0.22, 2)) * 0.18;
+          // Crisp carved side jaw-edge ridge + subtle chin cleft groove (zero messy beard spikes!)
+          const jawEdge = Math.exp(-Math.pow((absCa - 0.76) / 0.18, 2)) * Math.sin(-sa);
+          const chinCleft = Math.exp(-Math.pow(absCa / 0.18, 2)) * Math.exp(-Math.pow((z - 1.06) / 0.22, 2)) * Math.sin(-sa);
+          y -= jawEdge * 0.034;
+          cavity += jawEdge * 0.26 - chinCleft * 0.36;
         }
-        row.push(lower.addVert(x, y, z, u, s / J_SEGS, mId, clamp(cavity, 0.12, 1.0)));
+        row.push(lower.addVert(x, y, z, u, s / J_SEGS, mId, clamp(cavity, 0.10, 1.0)));
       }
       jawRings.push(row);
     }
     lower.loftRings(jawRings, true);
-    const jawTip = lower.addVert(0, 0.025, 1.18, 1, 0.25, MAT_HEAD, 0.58);
+    const jawTip = lower.addVert(0, 0.04, 1.24, 1, 0.25, MAT_HEAD, 0.56);
     const lastJawRing = jawRings[J_RINGS - 1];
     for (let s = 0; s < J_SEGS; s++) {
       lower.addTri(lastJawRing[s], jawTip, lastJawRing[(s + 1) % J_SEGS]);
     }
 
-    // Flowing curved Eastern dragon wisdom beard (sweeps smoothly along chin & curls gracefully back!)
+    // Bold Fleshy Glowing Spirit Tongue arching gracefully up inside the roaring mouth with a clean curled tip (Side 3/4 ref!)
     lower.addSculptedSpike({
-      rings: 12, segs: 8, matId: MAT_CREST, mirrorX: false,
+      rings: 18, segs: 14, matId: MAT_FURNACE, mirrorX: false,
       sample: (t) => ({
         x: 0,
-        y: lerp(-0.17, -0.34, Math.pow(t, 0.75)) - Math.sin(t * Math.PI) * 0.06 + Math.pow(t, 2.4) * 0.06,
-        z: lerp(1.00, 0.26, Math.pow(t, 0.96)),
-        rx: 0.082, ry: 0.048, taperPow: 1.55, sharp: 0.30, cav: lerp(0.32, 0.84, t),
-      }),
-    });
-    lower.addSculptedSpike({
-      rings: 10, segs: 8, matId: MAT_CREST, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.13, 0.25, Math.pow(t, 0.85)),
-        y: lerp(-0.15, -0.29, Math.pow(t, 0.80)) - Math.sin(t * Math.PI) * 0.04,
-        z: lerp(0.90, 0.28, t),
-        rx: 0.060, ry: 0.038, taperPow: 1.55, rotZ: 0.22, sharp: 0.30, cav: lerp(0.32, 0.84, t),
-      }),
-    });
-    lower.addSculptedSpike({
-      rings: 9, segs: 8, matId: MAT_CREST, mirrorX: true,
-      sample: (t) => ({
-        x: lerp(0.24, 0.42, Math.pow(t, 0.85)),
-        y: lerp(-0.12, -0.22, t) - Math.sin(t * Math.PI) * 0.03,
-        z: lerp(0.58, 0.02, t),
-        rx: 0.066, ry: 0.038, taperPow: 1.5, rotZ: 0.30, sharp: 0.30, cav: lerp(0.30, 0.82, t),
+        y: 0.04 + Math.sin(t * Math.PI * 0.90) * 0.145 + Math.pow(t, 2.3) * 0.135,
+        z: lerp(0.06, 0.98, t),
+        rx: 0.195,
+        ry: 0.105,
+        taperPow: 1.72,
+        sharp: 0.24,
+        cav: 1.0,
       }),
     });
 
-    // Curled glowing dragon tongue (sculpted translucent jade-lime tongue that reads cleanly against the bright throat - Ref 2 & 3!)
-    lower.addSculptedSpike({
-      rings: 14, segs: 12, matId: MAT_HEAD, mirrorX: false,
-      sample: (t) => ({
-        x: 0,
-        y: 0.01 + Math.sin(t * Math.PI * 0.92) * 0.095 + Math.pow(t, 3) * 0.065,
-        z: lerp(0.10, 0.94, t),
-        rx: lerp(0.145, 0.022, Math.pow(t, 0.85)),
-        ry: lerp(0.044, 0.014, t),
-        sharp: 0.14,
-        cav: lerp(0.88, 0.64, t),
-      }),
-    });
-
-    // Lower Dentition: Seated cleanly inside the sleeker mandible
+    // Lower Dentition: Iconic bold curved front chin-tusks at the blocky prow + 3 compact carved jaw serrations
     const lowerTeeth = [
-      { x: 0.048, y: 0.050, z: 1.09, dx: 0.0, dy: 0.092, dz: 0.01, r: 0.021 },
-      { x: 0.115, y: 0.040, z: 1.07, dx: 0.0, dy: 0.110, dz: 0.01, r: 0.025 },
-      { x: 0.195, y: 0.022, z: 0.96, dx: 0.012, dy: 0.225, dz: -0.025, r: 0.048 },
-      { x: 0.220, y: 0.012, z: 0.76, dx: 0.0, dy: 0.130, dz: -0.02, r: 0.032 },
-      { x: 0.255, y: 0.012, z: 0.56, dx: 0.0, dy: 0.112, dz: -0.02, r: 0.029 },
-      { x: 0.295, y: 0.012, z: 0.38, dx: 0.0, dy: 0.088, dz: -0.01, r: 0.026 },
+      { x: 0.182, y: 0.018, z: 1.08, dx: 0.008, dy: 0.225, dz: -0.052, rx: 0.048, ry: 0.100, tp: 1.12 },
+      { x: 0.236, y: 0.002, z: 0.84, dx: 0.0, dy: 0.108, dz: -0.020, rx: 0.030, ry: 0.074, tp: 1.14 },
+      { x: 0.272, y: -0.002, z: 0.63, dx: 0.0, dy: 0.092, dz: -0.018, rx: 0.028, ry: 0.066, tp: 1.14 },
+      { x: 0.308, y: -0.002, z: 0.44, dx: 0.0, dy: 0.078, dz: -0.016, rx: 0.025, ry: 0.058, tp: 1.14 },
     ];
     for (const td of lowerTeeth) {
       lower.addSculptedSpike({
-        rings: 7, segs: 8, matId: MAT_TOOTH, mirrorX: true,
+        rings: 8, segs: 10, matId: MAT_TOOTH, mirrorX: true,
         sample: (t) => ({
           x: td.x + td.dx * t * t,
           y: td.y + td.dy * t,
           z: td.z + td.dz * t * t,
-          rx: td.r,
-          ry: td.r * 0.88,
-          taperPow: 1.7,
-          sharp: 0.16,
-          cav: lerp(0.48, 0.98, t),
+          rx: td.rx,
+          ry: td.ry,
+          taperPow: td.tp,
+          sharp: 0.46,
+          cav: lerp(0.44, 0.94, t),
         }),
       });
     }
@@ -759,9 +711,11 @@
     uniform vec3 uCamPos;
     uniform vec3 uMouthPos;
     uniform float uTime;
+    uniform float uTravel;
     uniform float uAlpha;
     uniform float uPower;
     uniform float uClipSide;
+    uniform float uDepthCue;
     uniform float uHasDeriv;
     // The KPR logo as a mask (its PNG's alpha) and where it sits in this framebuffer, in pixels
     // from the bottom-left: x0, y0, x1, y1. Lets the front pass cut the dragon away wherever it
@@ -839,8 +793,11 @@
     }
 
     void main() {
-      if (uClipSide < -0.5 && vWorldPos.z > 0.015) discard;
-      if (uClipSide > 0.5 && vWorldPos.z < -0.015) discard;
+      // Solid body uses crisp z=0 split; volumetric spirit aura uses a complementary smooth partition below.
+      if (vMat <= 4.5) {
+        if (uClipSide < -0.5 && vWorldPos.z > 0.015) discard;
+        if (uClipSide > 0.5 && vWorldPos.z < -0.015) discard;
+      }
       // Front pass: never draw over a KPR letter. The orbit already keeps clear of the emblem;
       // this is only for the final lunge across the screen. Exact letter shapes, no margin, so
       // it never leaves a dark outline round the letters.
@@ -851,29 +808,106 @@
         }
       }
 
+      // Smooth continuous 3D depth cues during orbit (uDepthCue = 1.0):
+      // farT rises smoothly behind KPR (z < 0 -> -5.6); nearT rises as the dragon looms close (z > 0 -> +3.2).
+      float farT = uDepthCue * smoothstep(0.25, -5.6, vWorldPos.z);
+      float nearT = uDepthCue * smoothstep(-0.15, 3.2, vWorldPos.z);
+
+      // 3D World-Space Spirit Embers / Chi Motes (MAT_EMBER = 20.0)
+      if (vMat > 19.5) {
+        float clipFade = 1.0;
+        if (uClipSide < -0.5) clipFade = 1.0 - smoothstep(-0.02, 0.22, vWorldPos.z);
+        else if (uClipSide > 0.5) clipFade = smoothstep(-0.02, 0.22, vWorldPos.z);
+        if (clipFade < 0.002) discard;
+
+        vec2 p = vUv * 2.0 - 1.0;
+        float r2 = dot(p, p);
+        if (r2 >= 1.0) discard;
+        float halo = pow(1.0 - r2, 2.3);
+        float core = pow(1.0 - r2, 6.8);
+        float depthScale = (1.0 - farT * 0.55) * (1.0 + nearT * 0.22);
+        float intensity = (halo * 0.38 + core * 0.92) * vCavity * (0.76 + 0.55 * uPower) * uAlpha * clipFade * depthScale;
+        if (intensity < 0.003) discard;
+        vec3 col = mix(vec3(0.20, 0.88, 0.16), vec3(0.92, 1.00, 0.60), core);
+        col = mix(col, vec3(0.08, 0.44, 0.22), farT * 0.45);
+        vec3 outRgb = col * intensity;
+        gl_FragColor = vec4(outRgb, clamp(max(outRgb.r, max(outRgb.g, outRgb.b)), 0.0, 1.0));
+        return;
+      }
+
+      // Volumetric Flowing Spirit-Chi Aura (MAT_SPIRIT = 5.0 .. 19.0)
+      // Rendered into additive auraFbo with shared solid-body depth occlusion and camera-facing ribbons.
+      if (vMat > 4.5) {
+        float seed = vMat - 5.0;
+        // Exact complementary Z-partition across back (-1) and mid (+1) passes: sums to 1.0 everywhere,
+        // and stays strictly 0 for z <= -0.02 in the mid pass so it never bleeds over the far-half body.
+        float clipFade = 1.0;
+        if (uClipSide < -0.5) clipFade = 1.0 - smoothstep(-0.02, 0.22, vWorldPos.z);
+        else if (uClipSide > 0.5) clipFade = smoothstep(-0.02, 0.22, vWorldPos.z);
+        if (clipFade < 0.002) discard;
+
+        // Wake-advected fluid flow coordinates driven by true travel distance + gentle drift.
+        float flowU = vUv.x * 5.2 - uTime * 1.48 - uTravel * 0.58 + seed * 4.37;
+        float signedV = vUv.y * 2.0 - 1.0;
+        float across = abs(signedV);
+
+        // Domain-warped two-octave FBM: breaks edges into wisps and snakes the core energy filament.
+        float warp = fbm(vec2(flowU * 0.62, signedV * 1.15 + seed * 2.71)) - 0.5;
+        float n1 = fbm(vec2(flowU + warp * 1.15, signedV * 1.9 + warp * 0.90));
+        float n2 = fbm(vec2(flowU * 2.35 - uTime * 0.85, signedV * 3.6 - warp * 0.75));
+        float turb = n1 * 0.62 + n2 * 0.38;
+
+        // Sinuous displaced core centerline so bright calligraphic spirit threads dance inside the mist.
+        float snakeCenter = sin(flowU * 1.75 + seed * 3.1) * 0.22 * (0.35 + 0.65 * vUv.x) + warp * 0.34;
+        float distToCore = abs(signedV - snakeCenter);
+
+        // Steep bell-curve lateral profile that reaches strictly 0 before the quad edge (across = 0.88).
+        float outerEnv = 1.0 - smoothstep(0.0, 0.88, across);
+        outerEnv = outerEnv * outerEnv * (3.0 - 2.0 * outerEnv);
+
+        // 1) Noise-eroded whisper-soft emerald vapor veil (zero straight polygon edges possible!)
+        float mistField = outerEnv * (0.30 + 1.05 * turb) - (0.16 + 0.28 * vUv.x) * (1.0 - outerEnv);
+        float mist = smoothstep(0.08, 0.76, mistField);
+
+        // 2) Crisp twisting inner calligraphic spirit-chi filament + fine secondary plasma thread
+        float filament = exp(-distToCore * distToCore * 14.5) * outerEnv * smoothstep(0.24, 0.78, turb + 0.16);
+        float thread = exp(-abs(signedV + snakeCenter * 0.85) * 9.5) * outerEnv * smoothstep(0.42, 0.84, n2 + 0.12) * 0.45;
+
+        // Seamless root emergence from inside the scales/mane & silky misty dissipation at the trailing tip.
+        float rootFade = smoothstep(0.0, 0.15, vUv.x);
+        float tipFade = pow(1.0 - smoothstep(0.12, 1.0, vUv.x), 1.42);
+        float depthAura = (1.0 - farT * 0.56) * (1.0 + nearT * 0.26);
+        float envelope = rootFade * tipFade * vCavity * (0.80 + 0.64 * uPower) * uAlpha * clipFade * depthAura;
+
+        float energy = (mist * 0.42 + filament * 0.92 + thread * 0.55) * envelope;
+        if (energy < 0.003) discard;
+
+        // Multi-stop Overwatch spirit gradient: deep translucent emerald mist -> vivid jade -> lime-white core.
+        vec3 colMist = vec3(0.06, 0.58, 0.15);
+        vec3 colJade = vec3(0.32, 0.92, 0.18);
+        vec3 colHot  = vec3(0.88, 1.00, 0.52);
+        vec3 outRgb = colMist * (mist * 0.44)
+                    + colJade * (filament * 0.68 + thread * 0.48)
+                    + colHot  * (pow(clamp(filament, 0.0, 1.0), 1.8) * (0.58 + 0.35 * uPower));
+        outRgb = mix(outRgb, vec3(0.04, 0.36, 0.20) * (mist + filament), farT * 0.48);
+        outRgb *= envelope;
+
+        gl_FragColor = vec4(outRgb, clamp(max(outRgb.r, max(outRgb.g, outRgb.b)), 0.0, 1.0));
+        return;
+      }
+
       // Smooth sculpted normals (no harsh low-poly triangle faceting!)
       vec3 N = normalize(vNormal);
       if (!gl_FrontFacing) N = -N;
       vec3 V = normalize(uCamPos - vWorldPos);
 
-      // Translucent Spirit-Flame Mane & Coil Wisps (MAT_SPIRIT = 5.0)
-      if (vMat > 4.5) {
-        float flow = fbm(vec2(vUv.x * 4.5 - uTime * 2.3, vUv.y * 2.8));
-        float edgeFade = pow(sin(clamp(vUv.y, 0.0, 1.0) * 3.14159265), 1.35);
-        float lenFade = smoothstep(0.0, 0.16, vUv.x) * pow(1.0 - clamp(vUv.x, 0.0, 1.0), 1.5);
-        float wispA = edgeFade * lenFade * (0.26 + 0.68 * flow) * (0.58 + 0.38 * uPower) * uAlpha * vCavity;
-        if (wispA < 0.008) discard;
-        vec3 wispCol = mix(vec3(0.38, 0.84, 0.12), vec3(0.88, 1.00, 0.48), flow * 0.78 + uPower * 0.2);
-        gl_FragColor = vec4(wispCol * wispA, clamp(wispA * 0.66, 0.0, 1.0));
-        return;
-      }
-
       // Blazing Incandescent Spirit Core: Eyes + Deep Inner Throat (MAT_FURNACE = 3.0)
       if (vMat > 2.5 && vMat < 3.5) {
         float flicker = 0.95 + 0.05 * sin(uTime * 15.0 + vWorldPos.x * 4.5);
         float core = clamp(0.24 + pow(abs(dot(N, V)), 0.85) * 0.76, 0.0, 1.0);
-        // Luminous chartreuse-lime edge -> warm glowing cream-white core (never flat blown-out block!)
+        // Luminous chartreuse-lime edge -> warm glowing cream-white core; dims into misty depth when behind KPR
         vec3 hotCol = mix(vec3(0.76, 0.98, 0.22), vec3(1.0, 1.0, 0.88), core) * (1.28 * flicker + uPower * 0.22);
+        hotCol = mix(hotCol, vec3(0.28, 0.64, 0.16), farT * 0.46) * (1.0 - farT * 0.42) * (1.0 + nearT * 0.10);
         float a = clamp(uAlpha, 0.0, 1.0);
         gl_FragColor = vec4(hotCol * a, a);
         return;
@@ -921,15 +955,20 @@
       vec3 colRim    = vec3(0.92, 1.00, 0.54);
 
       float shade = clamp(ndl * 0.48 + fill * 0.12 + cavity * 0.56 - 0.19, 0.0, 1.0);
-      // Deep carved dark-jade occlusion inside nostrils, eye sockets, brow furrows, ear hollows & scale seams
-      shade *= smoothstep(0.0, 0.32, cavity) * 0.80 + 0.20 * smoothstep(0.02, 0.18, cavity);
+      // Deep carved emerald-olive occlusion inside nostrils, eye sockets, snarl wrinkles & cheek seams (refined carved jade, never muddy black!)
+      float creaseSharp = smoothstep(0.0, 0.34, cavity) * 0.82 + 0.18 * smoothstep(0.02, 0.18, cavity);
+      shade *= creaseSharp;
+      if (vMat < 0.5) {
+        float wrinkleDark = smoothstep(0.12, 0.42, cavity);
+        shade = mix(shade * 0.70, shade, wrinkleDark);
+      }
       vec3 color = mix(colCrease, colShadow, smoothstep(0.02, 0.34, shade));
       color = mix(color, colMid, smoothstep(0.30, 0.66, shade));
       color = mix(color, colBright, smoothstep(0.64, 0.98, shade));
-      color += vec3(0.92, 1.00, 0.62) * spec;
-      color += colRim * (fresnel * (0.40 + 0.24 * cavity));
-      color += vec3(0.86, 1.00, 0.36) * sssMouth;
-      color += vec3(0.62, 0.92, 0.20) * chiPulse;
+      color += vec3(0.92, 1.00, 0.62) * spec * (1.0 - farT * 0.72) * (1.0 + nearT * 0.35);
+      color += colRim * (fresnel * (0.40 + 0.24 * cavity) * (1.0 - farT * 0.62) * (1.0 + nearT * 0.24));
+      color += vec3(0.86, 1.00, 0.36) * sssMouth * (1.0 - farT * 0.45);
+      color += vec3(0.62, 0.92, 0.20) * chiPulse * (1.0 - farT * 0.48);
 
       // Cheek-mane locks, crown horns, curved dorsal fins, wisdom beard & whiskers (MAT_CREST = 4.0)
       // Keep the same rich carved jade family with a refined luminous edge toward tips (no neon yellow blowout!)
@@ -938,12 +977,19 @@
         color = mix(color, vec3(0.80, 0.97, 0.38), tip * 0.24);
       }
 
-      // Fangs & Teeth (MAT_TOOTH = 2.0): crisp sculpted ivory-jade backlit by inner mouth glow
+      // Carved Jade Fangs (MAT_TOOTH = 2.0): seamless sculpted jade blades backlit by the inner spirit mouth
       if (vMat > 1.5 && vMat < 2.5) {
-        float toothBacklight = exp(-mouthDist * 2.4) * 0.42;
-        color = mix(vec3(0.56, 0.78, 0.18), vec3(0.96, 1.00, 0.74), clamp(vCavity * 0.70 + fresnel * 0.40, 0.0, 1.0));
-        color += vec3(1.0, 1.0, 0.84) * toothBacklight;
+        float toothBacklight = exp(-mouthDist * 2.15) * 0.44;
+        float edgeRim = pow(1.0 - ndv, 2.0) * 0.32;
+        color = mix(color, vec3(0.72, 0.95, 0.28), 0.22 + vUv.x * 0.18);
+        color += vec3(0.92, 1.00, 0.58) * (toothBacklight + edgeRim) * (1.0 - farT * 0.45);
       }
+
+      // Continuous cinematic atmospheric depth: recedes into cool shadowed emerald-abyss behind KPR,
+      // and brightens cleanly with crisp punch when surging close in front of KPR & the diamond!
+      vec3 abyssFog = vec3(0.014, 0.058, 0.026);
+      color = mix(color, abyssFog, farT * 0.56);
+      color *= (1.0 - farT * 0.34) * (1.0 + nearT * 0.14);
 
       color *= (1.0 + uPower * 0.14);
 
@@ -962,12 +1008,14 @@
     }
   `;
 
-  // Selective HDR Bloom: blooms the blazing eyes, roaring inner mouth, and crisp silhouette rims
-  // into a soft green halo without washing out the sculpted crevices.
+  // Selective HDR Bloom: blooms the blazing eyes, roaring inner mouth, crisp silhouette rims,
+  // and additive spirit-chi aura into a soft emerald halo without washing out the sculpted crevices.
   const BRIGHT_FRAG = `
     precision mediump float;
     varying vec2 vUv;
     uniform sampler2D uTex;
+    uniform sampler2D uAuraTex;
+    uniform float uHasAura;
     void main() {
       vec4 c = texture2D(uTex, vUv);
       float lum = max(c.r, max(c.g, c.b));
@@ -977,6 +1025,9 @@
       vec3 emeraldTint = vec3(0.34, 0.86, 0.14) * lum;
       vec3 hotTint = vec3(0.84, 1.0, 0.44);
       vec3 glow = mix(emeraldTint, hotTint, hot) * (aura + hot * 0.92);
+      if (uHasAura > 0.5) {
+        glow += texture2D(uAuraTex, vUv).rgb * 0.52;
+      }
       gl_FragColor = vec4(glow, 1.0);
     }
   `;
@@ -1000,14 +1051,35 @@
     precision mediump float;
     varying vec2 vUv;
     uniform sampler2D uTex;
+    uniform sampler2D uAuraTex;
+    uniform float uHasAura;
     uniform float uMode;
+    uniform vec2 uDofPx;
+    uniform float uBloomGain;
     void main() {
       vec4 c = texture2D(uTex, vUv);
       if (uMode < 0.5) {
+        // Subtle cinematic soft-focus bokeh when uDofPx > 0 (far pass deep behind KPR & diamond)
+        if (uDofPx.x > 0.00001) {
+          vec4 s = c * 0.28;
+          s += texture2D(uTex, vUv + vec2( uDofPx.x,  0.0)) * 0.11;
+          s += texture2D(uTex, vUv + vec2(-uDofPx.x,  0.0)) * 0.11;
+          s += texture2D(uTex, vUv + vec2( 0.0,  uDofPx.y)) * 0.11;
+          s += texture2D(uTex, vUv + vec2( 0.0, -uDofPx.y)) * 0.11;
+          s += texture2D(uTex, vUv + vec2( uDofPx.x * 0.72,  uDofPx.y * 0.72)) * 0.07;
+          s += texture2D(uTex, vUv + vec2(-uDofPx.x * 0.72,  uDofPx.y * 0.72)) * 0.07;
+          s += texture2D(uTex, vUv + vec2( uDofPx.x * 0.72, -uDofPx.y * 0.72)) * 0.07;
+          s += texture2D(uTex, vUv + vec2(-uDofPx.x * 0.72, -uDofPx.y * 0.72)) * 0.07;
+          c = s;
+        }
         float a = clamp(c.a, 0.0, 1.0);
         gl_FragColor = vec4(min(c.rgb, vec3(a)), a);
       } else {
-        vec3 b = c.rgb * 0.44;
+        vec3 b = c.rgb * uBloomGain;
+        if (uHasAura > 0.5) {
+          b += texture2D(uAuraTex, vUv).rgb * (0.92 * (uBloomGain / 0.44));
+        }
+        b = clamp(b, 0.0, 1.0);
         float a = clamp(max(b.r, max(b.g, b.b)), 0.0, 1.0);
         gl_FragColor = vec4(min(b, vec3(a)), a);
       }
@@ -1041,7 +1113,7 @@
     return p;
   }
 
-  function createFbo(gl, w, h, withDepth) {
+  function createFbo(gl, w, h, withDepth, sharedDepthRb) {
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -1054,21 +1126,26 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
 
-    let depthRb = null;
-    if (withDepth) {
+    let depthRb = sharedDepthRb || null;
+    let ownsDepth = false;
+    if (withDepth && !depthRb) {
       depthRb = gl.createRenderbuffer();
       gl.bindRenderbuffer(gl.RENDERBUFFER, depthRb);
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
+      ownsDepth = true;
+    }
+    if (depthRb) {
       gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthRb);
     }
+    const complete = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    return { fbo, tex, depthRb, w, h };
+    return { fbo, tex, depthRb, ownsDepth, complete, w, h };
   }
 
   function disposeFbo(gl, f) {
     if (!f) return;
     if (f.tex) gl.deleteTexture(f.tex);
-    if (f.depthRb) gl.deleteRenderbuffer(f.depthRb);
+    if (f.depthRb && f.ownsDepth) gl.deleteRenderbuffer(f.depthRb);
     if (f.fbo) gl.deleteFramebuffer(f.fbo);
   }
 
@@ -1107,13 +1184,35 @@
       uCamPos: gl.getUniformLocation(progDragon, 'uCamPos'),
       uMouthPos: gl.getUniformLocation(progDragon, 'uMouthPos'),
       uTime: gl.getUniformLocation(progDragon, 'uTime'),
+      uTravel: gl.getUniformLocation(progDragon, 'uTravel'),
       uAlpha: gl.getUniformLocation(progDragon, 'uAlpha'),
       uPower: gl.getUniformLocation(progDragon, 'uPower'),
       uClipSide: gl.getUniformLocation(progDragon, 'uClipSide'),
+      uDepthCue: gl.getUniformLocation(progDragon, 'uDepthCue'),
       uHasDeriv: gl.getUniformLocation(progDragon, 'uHasDeriv'),
       uLogoTex: gl.getUniformLocation(progDragon, 'uLogoTex'),
       uLogoRect: gl.getUniformLocation(progDragon, 'uLogoRect'),
       uLogoOn: gl.getUniformLocation(progDragon, 'uLogoOn'),
+    };
+    const uBright = {
+      aQuad: gl.getAttribLocation(progBright, 'aQuad'),
+      uTex: gl.getUniformLocation(progBright, 'uTex'),
+      uAuraTex: gl.getUniformLocation(progBright, 'uAuraTex'),
+      uHasAura: gl.getUniformLocation(progBright, 'uHasAura'),
+    };
+    const uBlur = {
+      aQuad: gl.getAttribLocation(progBlur, 'aQuad'),
+      uTex: gl.getUniformLocation(progBlur, 'uTex'),
+      uDir: gl.getUniformLocation(progBlur, 'uDir'),
+    };
+    const uBlit = {
+      aQuad: gl.getAttribLocation(progBlit, 'aQuad'),
+      uTex: gl.getUniformLocation(progBlit, 'uTex'),
+      uAuraTex: gl.getUniformLocation(progBlit, 'uAuraTex'),
+      uHasAura: gl.getUniformLocation(progBlit, 'uHasAura'),
+      uMode: gl.getUniformLocation(progBlit, 'uMode'),
+      uDofPx: gl.getUniformLocation(progBlit, 'uDofPx'),
+      uBloomGain: gl.getUniformLocation(progBlit, 'uBloomGain'),
     };
 
     // The KPR logo image, used as the mask that keeps the dragon behind the letters.
@@ -1151,8 +1250,10 @@
     const FIN_COUNT = 34; // bold, sculptural, clearly spaced swept dorsal blades (Ref 2!)
     const WHISK_RINGS = 26;
     const WHISK_SEGS = 8;
-    const RIBBON_COUNT = 16;
-    const RIBBON_RINGS = 20;
+    const RIBBON_COUNT = 12;
+    const RIBBON_RINGS = 34;
+    const EMBER_COUNT = 28;
+    const MAT_EMBER = 20.0;
 
     const dynIndices = [];
     let vCursor = 0;
@@ -1207,7 +1308,7 @@
 
     const solidIndexCount = dynIndices.length;
 
-    // D) Spirit-smoke / flame ribbons
+    // D) Spirit-smoke / flame ribbons + E) World-space 3D spirit embers (rendered together in auraFbo)
     const ribbonBaseV = vCursor;
     const spiritStartIdx = dynIndices.length;
     for (let rb = 0; rb < RIBBON_COUNT; rb++) {
@@ -1217,6 +1318,12 @@
         const a0 = base + r * 2, a1 = a0 + 1, b0 = a0 + 2, b1 = a0 + 3;
         dynIndices.push(a0, b0, b1, a0, b1, a1);
       }
+    }
+    const emberBaseV = vCursor;
+    for (let em = 0; em < EMBER_COUNT; em++) {
+      const b = vCursor;
+      vCursor += 4;
+      dynIndices.push(b, b + 1, b + 2, b, b + 2, b + 3);
     }
     const spiritIndexCount = dynIndices.length - spiritStartIdx;
 
@@ -1235,7 +1342,7 @@
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
     let W = 1, H = 1, dpr = 1, fboW = 1, fboH = 1, bloomW = 1, bloomH = 1;
-    let sceneFbo = null, bloomA = null, bloomB = null;
+    let sceneFbo = null, auraFbo = null, bloomA = null, bloomB = null;
 
     function resize(width, height, pixelRatio) {
       W = Math.max(1, width);
@@ -1249,10 +1356,16 @@
       bloomH = Math.max(2, Math.round(nh * 0.36));
       glCanvas.width = nw;
       glCanvas.height = nh;
+      disposeFbo(gl, auraFbo);
       disposeFbo(gl, sceneFbo);
       disposeFbo(gl, bloomA);
       disposeFbo(gl, bloomB);
       sceneFbo = createFbo(gl, fboW, fboH, true);
+      auraFbo = createFbo(gl, fboW, fboH, true, sceneFbo.depthRb);
+      if (!auraFbo.complete) {
+        disposeFbo(gl, auraFbo);
+        auraFbo = null;
+      }
       bloomA = createFbo(gl, bloomW, bloomH, false);
       bloomB = createFbo(gl, bloomW, bloomH, false);
     }
@@ -1276,6 +1389,28 @@
     let liftPx = 0, fitScale = 1;
     let lunge = null;
     let debugOverride = null;
+    let travelDist = 0;
+    let lastHeadPos = null;
+    let lastEmberMs = 0;
+    const headUpState = { x: 0, y: 1, z: 0, init: false, t: 0 };
+    const embers = [];
+    for (let i = 0; i < EMBER_COUNT; i++) {
+      embers.push({
+        x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0,
+        age: (i / EMBER_COUNT) * 1.6, life: 1.1 + (i % 7) * 0.16,
+        size: 0.04 + (i % 5) * 0.011, phase: i * 2.39996, active: false,
+      });
+    }
+
+    function recordTravel() {
+      if (!hist.length) return;
+      const p0 = hist[0];
+      if (lastHeadPos) {
+        const ds = Math.hypot(p0.x - lastHeadPos.x, p0.y - lastHeadPos.y, p0.z - lastHeadPos.z);
+        if (ds < 1.8) travelDist += ds;
+      }
+      lastHeadPos = { x: p0.x, y: p0.y, z: p0.z };
+    }
 
     function pxToWorldY(py) {
       return (0.5 - py / H) * 2 * HALF_H_AT_Z0;
@@ -1285,34 +1420,39 @@
       return (px / W - 0.5) * 2 * HALF_H_AT_Z0 * aspect;
     }
 
-    // ---- Orbit: a tilted 3D ring weaving freely through and around the diamond ----
-    // The head flies a true 3D tilted ring centered on the diamond, with zero solid barrier or
-    // keep-out collision, so it glides smoothly behind (back canvas, behind diamond and KPR) and
-    // in front of the diamond (mid canvas, in front of the diamond while KPR stays crisp on top).
-    // Every lap or so the ring smoothly re-tilts and may execute a wide sweeping 3D U-turn off
-    // the ring's plane; the body follows the trail the head actually flew with a gentle wave.
+    // ---- Orbit: Organic Momentum-Steered 3D Infinite Dempsey Roll around KPR ----
+    // Instead of riding a rigid parametric rail (which feels stiff or bounces off tight corners),
+    // the dragon flies freely with physical angular momentum (head.h + head.w inertia), chasing a
+    // pure-pursuit lure point that glides seamlessly along a wide, sweeping 3D Dempsey Roll weave
+    // (horizontal infinity, sweeping diagonals, and broad tilted orbital rings).
+    // Far side (z <= 0) passes cleanly behind KPR; near side (z >= 0) sweeps right in front of KPR!
     const rand = (a, b) => a + Math.random() * (b - a);
-    const ring = { cx: 0, cy: 0, r: 2.4, alpha: 0.34, tau: -0.18, alphaT: 0.34, tauT: -0.18, dir: 1, side: 1 };
+    const ring = { cx: 0, cy: 0, r: 2.4, rx: 2.8, ry: 2.0, rz: 2.2, rzFront: 3.1, rzBack: 5.5, alpha: 0.32, tau: 0, dir: 1 };
     let ringPx = null;          // the diamond on screen: { cx, cy, half } in CSS px (script.js)
     const head = { p: null, h: null, w: null }; // position, heading, angular velocity
     const trail = [];           // head positions, newest first
-    let lapProgress = 0, lapGoal = TAU * 1.1, lastTheta = null;
-    let uturnLeft = 0;          // seconds left of the outward push at the start of a U-turn
-    const tmpP = { x: 0, y: 0, z: 0 };
+    let lurePhi = 0;            // pure-pursuit carrot parameter along the 3D Dempsey Roll curve
+    let dempseyPsi0 = 0.4;      // initial weave phase offset
+    let dempseyTilt = 0.34;     // gentle pitch tilt of the wide equatorial ring sweep
+    let lastTheta = 0;
+    const tmpA = { x: 0, y: 0, z: 0 };
+    const tmpB = { x: 0, y: 0, z: 0 };
+    const tmpLure = { x: 0, y: 0, z: 0 };
 
-    // Every load starts the dragon somewhere new: a random point on the orbit, flying either
-    // way round, with the ring tilted and rolled at random, so no two intros open the same.
+    // Every load opens on a fresh sweeping Dempsey Roll phase, flying either direction.
     function randomStart() {
       orbitAngle = rand(0, TAU);
+      lurePhi = orbitAngle;
+      dempseyPsi0 = rand(0, TAU);
+      dempseyTilt = (Math.random() < 0.5 ? -1 : 1) * rand(0.24, 0.46);
       ring.dir = Math.random() < 0.5 ? -1 : 1;
-      ring.alpha = ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.22, 0.46);
-      ring.tau = ring.tauT = rand(-0.3, 0.3);
-      lapGoal = TAU * rand(0.75, 1.25);
+      ring.alpha = dempseyTilt;
+      ring.tau = 0;
     }
     randomStart();
 
-    // Centre and radius from the diamond: slightly wider than its tips so the sides sweep
-    // gracefully outside while the near and far passes weave freely through the diamond.
+    // Generous, airy 3D orbital envelope centered on KPR so every curve is a wide, graceful arc
+    // with zero tight edge bounces or ceiling collisions.
     function updateRingFrame() {
       const aspect = W / H;
       const worldPerPx = (2 * HALF_H_AT_Z0) / H;
@@ -1324,152 +1464,175 @@
       }
       ring.cx = cx;
       ring.cy = cy;
-      ring.r = Math.min(HALF_H_AT_Z0 * aspect * 0.86, Math.max(1.0, half * worldPerPx * 1.18)) * squeeze;
+      ring.r = Math.min(HALF_H_AT_Z0 * aspect * 0.84, Math.max(1.0, half * worldPerPx * 1.18)) * squeeze;
+
+      const maxHalfX = HALF_H_AT_Z0 * aspect * 0.76;
+      const topRoom = Math.max(1.0, HALF_H_AT_Z0 - cy);
+      const botRoom = Math.max(1.0, HALF_H_AT_Z0 + cy);
+      const maxHalfY = Math.min(topRoom * 0.72, botRoom * 0.66, HALF_H_AT_Z0 * 0.68);
+
+      ring.rx = Math.min(maxHalfX, Math.max(ring.r * 1.38, 2.25)) * squeeze;
+      ring.ry = Math.min(maxHalfY, Math.max(ring.r * 1.08, 1.55)) * squeeze;
+      // Dramatic asymmetric 3D depth span around KPR (z = 0):
+      // plunges far behind KPR (live z -> ~-4.6, ~0.66x scale!) and surges boldly in front
+      // (live z -> ~+3.2, ~1.54x scale!) for a breathtaking ~2.3x front-to-back 3D foreshortening ratio!
+      const depthScale = 0.78 + 0.22 * squeeze;
+      ring.rzFront = Math.min(3.55, Math.max(2.35, Math.min(ring.rx, ring.ry) * 1.54)) * depthScale;
+      ring.rzBack = Math.min(6.95, Math.max(4.65, Math.min(ring.rx, ring.ry) * 3.05)) * depthScale;
+      ring.rz = (ring.rzFront + ring.rzBack) * 0.5;
     }
-    // The ring starts in the XZ plane, tilts toward the viewer by alpha (so the near and far
-    // halves sweep gracefully above/below and across the diamond), and rolls in the screen plane by tau.
-    function ringPoint(theta, out) {
-      const R = ring.r;
-      const x0 = Math.cos(theta) * R, zr = Math.sin(theta) * R;
-      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
-      const y1 = -zr * sa, z1 = zr * ca;
-      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      out.x = ring.cx + x0 * ct - y1 * st;
-      out.y = ring.cy + x0 * st + y1 * ct;
-      out.z = z1;
+
+    // Evaluates the sweeping 3D Infinite Dempsey Roll guide curve at phase phi:
+    //   - Roll tilt sweeps gracefully between -56deg and +56deg (horizontal ∞, right-diagonal ∞,
+    //     left-diagonal ∞, and steep oblique ∞) so the dragon weaves wildly around KPR WITHOUT
+    //     ever flying vertically upside-down into a harsh roll-reset or ceiling bounce!
+    //   - Periodically blossoms smoothly into a wide equatorial orbital ring encircling KPR.
+    function dempseyPoint(phi, out) {
+      const cycle = dempseyPsi0 + phi * 0.165;
+      // Smooth continuous swing across horizontal & sweeping diagonals (max ±56deg, never upside-down!)
+      const roll = Math.sin(cycle) * 0.98;
+      const cR = Math.cos(roll);
+      const sR = Math.sin(roll);
+      // Periodically opens into the wide sweeping Saturn-ring orbit when roll passes through 0
+      const hoop = Math.pow(0.5 + 0.5 * Math.cos(cycle * 2.0), 4) * 0.85;
+
+      // A) Wide, lush 3D figure-8 (Dempsey Roll weave):
+      //    phi = 0 (mod 2pi) -> sweeps right IN FRONT of KPR (z = +rzFront, ~1.57x larger!)
+      //    phi = pi (mod 2pi)-> plunges deep BEHIND KPR (z = -rzBack, ~0.61x smaller!)
+      const u8 = Math.sin(phi);
+      const v8 = 0.72 * Math.sin(2 * phi);
+      const z8 = Math.cos(phi);
+      const x8 = (u8 * cR - v8 * sR) * ring.rx;
+      const y8 = (u8 * sR + v8 * cR) * ring.ry;
+
+      // B) Broad tilted horizontal orbital ring encircling KPR (100% phase-aligned with A!)
+      const xR = Math.sin(phi) * ring.rx * 1.04;
+      const yR = Math.sin(phi + 0.4) * ring.ry * 0.46 * Math.sin(dempseyTilt);
+
+      // C-infinity smooth asymmetric depth mapping across z = 0
+      const zNorm = clamp(lerp(z8, z8 * 1.02, hoop), -1, 1);
+      const rzLocal = lerp(ring.rzBack, ring.rzFront, smoothstep(-1, 1, zNorm));
+      const z = zNorm * rzLocal;
+
+      // Perspective-compensated XY envelope: keeps the close foreground pass cleanly inside the viewport
+      // above the sound buttons while letting the deep background pass recede naturally behind KPR!
+      const perspK = Math.pow(clamp((9.2 - z) / 9.2, 0.54, 1.75), 0.70);
+      out.x = ring.cx + lerp(x8, xR, hoop) * perspK;
+      out.y = ring.cy + lerp(y8, yR, hoop) * perspK;
+      out.z = z;
       return out;
     }
-    function ringAngleOf(p) {
-      const dx = p.x - ring.cx, dy = p.y - ring.cy;
-      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      const x0 = dx * ct + dy * st;
-      const y1 = -dx * st + dy * ct;
-      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
-      return Math.atan2(-y1 * sa + p.z * ca, x0);
+
+    function dempseyDerivLen(phi) {
+      const eps = 0.005;
+      dempseyPoint(phi - eps, tmpA);
+      dempseyPoint(phi + eps, tmpB);
+      return Math.hypot(tmpB.x - tmpA.x, tmpB.y - tmpA.y, tmpB.z - tmpA.z) / (2 * eps);
     }
-    function ringNormal() {
-      const ca = Math.cos(ring.alpha), sa = Math.sin(ring.alpha);
-      const ct = Math.cos(ring.tau), st = Math.sin(ring.tau);
-      return { x: -st * ca, y: ct * ca, z: sa };
+
+    function bodyLength() {
+      return TAU * ring.r * 0.74;
     }
-    function bodyLength() { return TAU * ring.r * 0.62; }
 
     function placeOnRing(theta) {
       updateRingFrame();
-      head.p = ringPoint(theta, { x: 0, y: 0, z: 0 });
-      const ahead = ringPoint(theta + ring.dir * 0.01, { x: 0, y: 0, z: 0 });
+      head.p = dempseyPoint(theta, { x: 0, y: 0, z: 0 });
+      const ahead = dempseyPoint(theta + ring.dir * 0.015, { x: 0, y: 0, z: 0 });
       const hx = ahead.x - head.p.x, hy = ahead.y - head.p.y, hz = ahead.z - head.p.z;
       const hl = Math.hypot(hx, hy, hz) || 1;
       head.h = { x: hx / hl, y: hy / hl, z: hz / hl };
-      // Start already curving round the ring (axis from how the tangent turns just ahead, rate =
-      // the orbit's angular speed), so there's no settling wobble on the first frames.
-      const a2 = ringPoint(theta + ring.dir * 0.02, { x: 0, y: 0, z: 0 });
-      const a3 = ringPoint(theta + ring.dir * 0.03, { x: 0, y: 0, z: 0 });
-      let tx = a3.x - a2.x, ty = a3.y - a2.y, tz = a3.z - a2.z;
-      const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
-      let wx = head.h.y * tz - head.h.z * ty, wy = head.h.z * tx - head.h.x * tz, wz = head.h.x * ty - head.h.y * tx;
-      const wl = Math.hypot(wx, wy, wz) || 1;
-      head.w = { x: (wx / wl) * speed, y: (wy / wl) * speed, z: (wz / wl) * speed };
-      // Lay the body out behind the head along the ring, so it is whole from the first frame.
+      head.w = { x: 0, y: 0, z: 0 };
+
+      // Position the pure-pursuit carrot generously ahead so the dragon banks early into wide deep 3D dives
+      lurePhi = theta;
+      const lookAhead = Math.max(1.95, ring.r * 1.08);
+      for (let k = 0; k < 56; k++) {
+        dempseyPoint(lurePhi, tmpLure);
+        if (Math.hypot(tmpLure.x - head.p.x, tmpLure.y - head.p.y, tmpLure.z - head.p.z) >= lookAhead) break;
+        lurePhi += ring.dir * 0.04;
+      }
+
+      // Pre-fill the body smoothly backwards along the curve so it is whole from frame 1
       trail.length = 0;
-      const len = bodyLength() * 1.15, steps = 160;
-      for (let k = 0; k <= steps; k++) {
-        trail.push(ringPoint(theta - ring.dir * (k / steps) * (len / ring.r), { x: 0, y: 0, z: 0 }));
+      trail.push({ x: head.p.x, y: head.p.y, z: head.p.z });
+      const totalLen = bodyLength() * 1.18;
+      const steps = 160;
+      const ds = totalLen / steps;
+      let phiBack = theta;
+      for (let k = 1; k <= steps; k++) {
+        const dLen = Math.max(0.45, dempseyDerivLen(phiBack));
+        phiBack -= ring.dir * (ds / dLen);
+        trail.push(dempseyPoint(phiBack, { x: 0, y: 0, z: 0 }));
       }
       lastTheta = theta;
-      lapProgress = 0;
+      headUpState.init = false;
+      lastHeadPos = null;
     }
 
-    // A new lap: smoothly re-tilt the 3D ring and, about half the time, swing into a wide U-turn.
-    function newLap() {
-      ring.alphaT = (Math.random() < 0.5 ? -1 : 1) * rand(0.22, 0.52);
-      ring.tauT = rand(-0.36, 0.36);
-      if (Math.random() < 0.55) {
-        ring.dir *= -1;
-        // Bias the U-turn arc toward whichever vertical side has more room so it stays framed.
-        ring.side = head.p && head.p.y < ring.cy - 0.25 ? 1 : (head.p && head.p.y > ring.cy + 0.25 ? -1 : (Math.random() < 0.5 ? -1 : 1));
-        uturnLeft = 1.4;
-      }
-      lapProgress = 0;
-      lapGoal = TAU * rand(0.75, 1.25);
-    }
-
-    // Steering with momentum. Rather than pivoting at a fixed rate (which read as a robot
-    // rotating on the spot), the head carries an angular velocity that eases toward what the
-    // turn needs, so every curve builds up and lets go gradually, like a dragon leaning into a
-    // glide. Turns are never tighter than ~40% of the ring's radius, and the dragon slows a
-    // little through its tightest curves, then picks back up coming out of them.
-    // When the target is behind it (just reversed), the turn sweeps up-and-over off the ring's
-    // plane so the U-turn is a wide fluid arc clear of its own body.
-    function steer(dt, baseSpeed) {
+    // Pure-pursuit momentum steering: a carrot glides well ahead on the sweeping 3D Dempsey Roll curve
+    // (lookAhead > 1.5x turnRadius) so the dragon initiates turns early and glides in wide, soaring,
+    // organic arcs—never overshooting edges, never snapping, never bonking an invisible wall!
+    function steerDempsey(dt, baseSpeed) {
       const p = head.p, h = head.h, w = head.w;
-      const theta = ringAngleOf(p);
-      // Far off the ring (e.g. coming out of a wide U-turn): aim back at the nearest ring point
-      // instead of one ahead, so it always curves home rather than wandering off.
-      const far = Math.hypot(p.x - ring.cx, p.y - ring.cy, p.z) > ring.r * 1.45;
-      ringPoint(theta + (far ? 0 : ring.dir * 0.7), tmpP);
-      let dx = tmpP.x - p.x, dy = tmpP.y - p.y, dz = tmpP.z - p.z;
-      let dl = Math.hypot(dx, dy, dz) || 1;
-      dx /= dl; dy /= dl; dz /= dl;
-      // The sweeping push is only for the start of a U-turn, never for finding the way back.
-      if (uturnLeft > 0 && !far && h.x * dx + h.y * dy + h.z * dz < -0.2) {
-        ringPoint(theta, tmpP);
-        const ox = tmpP.x - ring.cx, oy = tmpP.y - ring.cy, oz = tmpP.z;
-        const ol = Math.hypot(ox, oy, oz) || 1;
-        const n = ringNormal();
-        // Mostly up-and-over (off the ring's plane), a little outward: a sweeping arc that
-        // stays nicely framed on screen.
-        dx += (ox / ol) * 0.85 + n.x * 1.15 * ring.side;
-        dy += (oy / ol) * 0.85 + n.y * 1.15 * ring.side;
-        dz += (oz / ol) * 0.85 + n.z * 1.15 * ring.side;
-        dl = Math.hypot(dx, dy, dz) || 1;
-        dx /= dl; dy /= dl; dz /= dl;
-      }
+      const lookAhead = Math.max(1.95, ring.r * 1.08);
 
-      // Axis and angle from the current heading to the wanted one.
+      // Advance the carrot smoothly along the curve so it always floats generously ahead of the nose
+      for (let k = 0; k < 28; k++) {
+        dempseyPoint(lurePhi, tmpLure);
+        const dist = Math.hypot(tmpLure.x - p.x, tmpLure.y - p.y, tmpLure.z - p.z);
+        if (dist >= lookAhead) break;
+        lurePhi += ring.dir * 0.04;
+      }
+      dempseyPoint(lurePhi, tmpLure);
+
+      let dx = tmpLure.x - p.x, dy = tmpLure.y - p.y, dz = tmpLure.z - p.z;
+      const dl = Math.hypot(dx, dy, dz) || 1;
+      dx /= dl; dy /= dl; dz /= dl;
+
+      // Turn axis & angle from current heading to carrot direction
       let ax = h.y * dz - h.z * dy, ay = h.z * dx - h.x * dz, az = h.x * dy - h.y * dx;
       const sinA = Math.hypot(ax, ay, az);
       const ang = Math.atan2(sinA, clamp(h.x * dx + h.y * dy + h.z * dz, -1, 1));
-      if (sinA > 1e-3) {
+      if (sinA > 1e-4) {
         ax /= sinA; ay /= sinA; az /= sinA;
-      } else if (ang > 1.5) {
-        // Target dead behind: the cross product vanishes, so turn about the ring's normal
-        // (made perpendicular to the heading) rather than not turning at all.
-        const n = ringNormal();
-        const nd = n.x * h.x + n.y * h.y + n.z * h.z;
-        ax = n.x - h.x * nd; ay = n.y - h.y * nd; az = n.z - h.z * nd;
-        const al = Math.hypot(ax, ay, az) || 1;
-        ax /= al; ay /= al; az /= al;
       } else {
         ax = 0; ay = 0; az = 0;
       }
 
-      const turnRadius = Math.max(0.75, ring.r * 0.4);
+      // Wide turn radius + silky angular-velocity inertia: soaring, graceful deep-3D Eastern dragon arcs
+      const turnRadius = Math.max(1.18, ring.r * 0.54);
       const wNow = Math.hypot(w.x, w.y, w.z);
-      const linSpeed = baseSpeed * (1 - 0.28 * clamp(wNow / (baseSpeed / turnRadius), 0, 1));
-      const wDes = Math.min(ang * 1.8, linSpeed / turnRadius);
-      const k = 1 - Math.exp(-dt * 2.6); // how quickly the turn builds up / relaxes
+      const linSpeed = baseSpeed * (1 - 0.14 * clamp(wNow / (baseSpeed / turnRadius), 0, 1));
+      const wDes = Math.min(ang * 1.45, linSpeed / turnRadius);
+      const k = 1 - Math.exp(-dt * 1.85);
       w.x += (ax * wDes - w.x) * k;
       w.y += (ay * wDes - w.y) * k;
       w.z += (az * wDes - w.z) * k;
 
-      // Rotate the heading about w by |w| * dt (Rodrigues).
-      const wl = Math.hypot(w.x, w.y, w.z);
-      if (wl > 1e-6) {
-        const kx = w.x / wl, ky = w.y / wl, kz = w.z / wl;
-        const th = wl * dt, c = Math.cos(th), s = Math.sin(th);
-        const kd = kx * h.x + ky * h.y + kz * h.z;
-        const cx = ky * h.z - kz * h.y, cy = kz * h.x - kx * h.z, cz = kx * h.y - ky * h.x;
-        h.x = h.x * c + cx * s + kx * kd * (1 - c);
-        h.y = h.y * c + cy * s + ky * kd * (1 - c);
-        h.z = h.z * c + cz * s + kz * kd * (1 - c);
-        const hl = Math.hypot(h.x, h.y, h.z) || 1;
-        h.x /= hl; h.y /= hl; h.z /= hl;
+      // Sub-step Rodrigues integration so trail stays dense & silky even during high-speed charge
+      const subSteps = Math.max(1, Math.min(8, Math.ceil((linSpeed * dt) / 0.075)));
+      const subDt = dt / subSteps;
+      for (let s = 0; s < subSteps; s++) {
+        const wl = Math.hypot(w.x, w.y, w.z);
+        if (wl > 1e-6) {
+          const kx = w.x / wl, ky = w.y / wl, kz = w.z / wl;
+          const th = wl * subDt, c = Math.cos(th), sn = Math.sin(th);
+          const kd = kx * h.x + ky * h.y + kz * h.z;
+          const cx = ky * h.z - kz * h.y, cy = kz * h.x - kx * h.z, cz = kx * h.y - ky * h.x;
+          h.x = h.x * c + cx * sn + kx * kd * (1 - c);
+          h.y = h.y * c + cy * sn + ky * kd * (1 - c);
+          h.z = h.z * c + cz * sn + kz * kd * (1 - c);
+          const hl = Math.hypot(h.x, h.y, h.z) || 1;
+          h.x /= hl; h.y /= hl; h.z /= hl;
+        }
+        p.x += h.x * linSpeed * subDt;
+        p.y += h.y * linSpeed * subDt;
+        p.z += h.z * linSpeed * subDt;
+        trail.unshift({ x: p.x, y: p.y, z: p.z });
       }
-      p.x += h.x * linSpeed * dt;
-      p.y += h.y * linSpeed * dt;
-      p.z += h.z * linSpeed * dt;
-      return theta;
+
+      ring.tau = Math.sin(dempseyPsi0 + lurePhi * 0.165) * 0.98;
+      lastTheta = lurePhi;
     }
 
     // ---- Strike passes: the first two slashes are smaller versions of the cleave ----
@@ -1485,6 +1648,8 @@
     // path, when not led from the orbit), zPeak/zBase (depth swing toward the camera), wavePx,
     // grow (thickness), front (draw over everything incl. KPR), fromOrbit.
     let pass = null, growNow = 1;
+    let depthCueNow = 1.0; // smoothly fades 1 -> 0 when breaking out of deep orbit into Slash 1 (no 1-frame brightness pop!)
+    let camKickX = 0, camKickY = 0; // directional subtle 3D camera recoil synced with each slash impact
     function screenToWorld(px, py, z) {
       const k = (9.2 - z) / 9.2; // lands exactly on (px, py) after perspective
       return { x: pxToWorldX(px) * k, y: pxToWorldY(py) * k, z };
@@ -1574,11 +1739,17 @@
         const C0 = cut[0], tIn = norm3(sub3(cut[1], cut[0]));
         // The break-away is the shortest flight from where the head is, the way it's heading, to the
         // start of the cut lined up with the cut, never turning tighter than RMIN (a Dubins path:
-        // arc, straight, arc). So any change of course is a sweeping arc, never a pivot or a loop.
-        // It flies the screen plane; its depth eases over to the cut's.
-        const curve = dubins2D(P, Math.atan2(hDir.y, hDir.x), C0, Math.atan2(tIn.y, tIn.x), 0.9, 0.04);
+        // arc, straight, arc). Scales turn radius cleanly to narrow portrait viewports while staying
+        // wide & sweeping (1.22) on desktop, and lifts Z ahead of the tail so it never crosses the face!
+        const dubinsR = Math.min(1.22, Math.max(0.65, HALF_H_AT_Z0 * (W / H) * 0.48));
+        const curve = dubins2D(P, Math.atan2(hDir.y, hDir.x), C0, Math.atan2(tIn.y, tIn.x), dubinsR, 0.04);
         const total = curve.length || 1;
-        curve.forEach((q, k) => { const f = (k + 1) / total; q.z = lerp(P.z, C0.z, f * f * (3 - 2 * f)); });
+        const zLift = Math.max(0, P.z - C0.z) * 0.45;
+        curve.forEach((q, k) => {
+          const f = (k + 1) / total;
+          const sF = f * f * (3 - 2 * f);
+          q.z = lerp(P.z, C0.z, sF) + Math.sin(f * Math.PI) * (0.42 + zLift);
+        });
         lead = body.concat(curve);
         headIndex = body.length - 1;
         v0 = (speed * ring.r) / 1000; // it leaves the ring at the speed it was flying (world per ms)
@@ -1595,32 +1766,60 @@
       for (let k = 1; k <= 16; k++) sHit += len3(sub3(cut[k], cut[k - 1]));
       const sExit = len[len.length - 1];
       const s0 = len[headIndex];
+      const sCutStart = len[lead.length];
+      const sCutEnd = len[lead.length + 32];
       // Led from the orbit the body keeps its length as it peels off; diving in, it's a share of the path.
       const bodyLen = opts.fromOrbit && headIndex > 0 ? s0 : opts.bodyFrac * sExit;
       const T = Math.max(60, opts.leadMs);
-      // From s0 at speed v0, accelerating evenly, to land on the hit point at the hit.
-      const acc = Math.max(0, (2 * (sHit - s0 - v0 * T)) / (T * T));
-      const vHit = v0 + acc * T;
-      const vOut = vHit * 1.25; // it tears away a little faster after the freeze
+      // Smooth ease-in whip acceleration into the strike (no rubber-band overshoot if orbit speed is high!)
+      const distIn = Math.max(0.2, sHit - s0);
+      const vAvg = distIn / T;
+      const vStart = opts.fromOrbit ? clamp(v0, vAvg * 0.35, vAvg * 0.92) : vAvg * 0.42;
+      const acc = (2 * (distIn - vStart * T)) / (T * T);
+      const vHit = Math.max(vAvg * 1.15, vStart + acc * T);
+      const vOut = vHit * (opts.exitBoost || 1.32);
+      const stopMs = opts.stopMs || 0;
       pass = {
-        start: nowMs, hitAt: nowMs + T, T, stopMs: opts.stopMs || 0, s0, v0, acc, sHit, vOut,
+        start: nowMs, hitAt: nowMs + T, T, stopMs, s0, v0: vStart, acc, sHit, vHit, vOut,
+        sCutStart, sCutEnd,
         pts, len, bodyLen, sEnd: sExit + bodyLen,
         tN: norm3(sub3(pts[1], pts[0])), tX: norm3(sub3(pts[pts.length - 1], pts[pts.length - 2])),
         wave: (opts.wavePx || 0) / (H / (2 * HALF_H_AT_Z0)), grow: opts.grow || 1, front: !!opts.front,
         growFrom: opts.fromOrbit ? growNow : (opts.grow || 1),
       };
-      pass.end = pass.hitAt + pass.stopMs + (pass.sEnd - sHit) / vOut;
+      pass.end = pass.hitAt + stopMs + (pass.sEnd - sHit) / vOut + 60;
+      if (!opts.fromOrbit) {
+        headUpState.init = false;
+        lastHeadPos = null;
+      }
       power = 1.0;
       alpha = 1;
     }
-    // Arc length of the head along the path at time t.
+    // Arc length of the head along the path at time t:
+    // Organic martial-arts kinetic bite instead of a dead brick-wall freeze:
+    // accelerates cleanly into impact -> slows to a heavy 0.08x micro-crawl through the blade bite ->
+    // surges smoothly back up to explosive follow-through (zero frame-drop hitch!).
     function passHeadS(P, tMs) {
       if (tMs <= P.hitAt) {
         const t = clamp(tMs - P.start, 0, P.T);
         return Math.min(P.sHit, P.s0 + P.v0 * t + 0.5 * P.acc * t * t);
       }
-      const after = Math.max(0, tMs - P.hitAt - P.stopMs);
-      return Math.min(P.sEnd, P.sHit + after * P.vOut);
+      const post = tMs - P.hitAt;
+      const biteSpeed = P.vHit * 0.08;
+      if (post <= P.stopMs) {
+        return Math.min(P.sEnd, P.sHit + biteSpeed * post);
+      }
+      const sAfterBite = P.sHit + biteSpeed * P.stopMs;
+      const after = post - P.stopMs;
+      const rampMs = 38;
+      if (after < rampMs) {
+        // Smooth C1 acceleration out of the hit-stop bite into full follow-through speed
+        const k = after / rampMs;
+        const avgV = biteSpeed + (P.vOut - biteSpeed) * (0.5 * k * k * (2 - k));
+        return Math.min(P.sEnd, sAfterBite + avgV * after);
+      }
+      const rampDist = (biteSpeed + (P.vOut - biteSpeed) * 0.5) * rampMs;
+      return Math.min(P.sEnd, sAfterBite + rampDist + (after - rampMs) * P.vOut);
     }
     // The point at arc length s, and the path's direction there; past either end it carries on.
     function passPointS(P, s) {
@@ -1636,10 +1835,10 @@
     function updatePass(nowMs) {
       const P = pass;
       const sHead = passHeadS(P, nowMs);
-      const frozen = nowMs > P.hitAt && nowMs < P.hitAt + P.stopMs;
-      const wavePhase = (frozen ? P.hitAt : nowMs) * 0.018;
+      const inBite = nowMs > P.hitAt && nowMs < P.hitAt + P.stopMs;
+      const wavePhase = (inBite ? P.hitAt + (nowMs - P.hitAt) * 0.14 : nowMs) * 0.018;
       // The swim and the extra size come in over the break-away, so the first frame matches the orbit.
-      const ramp = smoothstep(0, 1, (nowMs - P.start) / Math.max(1, P.T * 0.8));
+      const ramp = smoothstep(0, 1, (nowMs - P.start) / Math.max(1, P.T * 0.85));
       hist.length = 0;
       for (let i = 0; i < BODY_RINGS; i++) {
         const ub = i / (BODY_RINGS - 1);
@@ -1652,38 +1851,78 @@
       growNow = lerp(P.growFrom, P.grow, ramp);
       power = 1.0;
       alpha = 1;
+      recordTravel();
+    }
+
+    // Nonlinear whip-snap progress curve for Slash 3's single colossal dragon:
+    // accelerates cleanly into KPR (p = 0..0.28 -> headU = 0.50), holds a micro kinetic bite right on
+    // impact so you feel the heavy cleave resistance, then surges explosively through into the wipe!
+    function lungeEase(p) {
+      const t = clamp(p, 0, 1);
+      // Blended whip curve: fast snap acceleration -> subtle impact tension near p = 0.28 -> sweeping glide out
+      const base = t + 0.085 * Math.sin(t * Math.PI) - 0.032 * Math.sin(t * Math.PI * 2.0);
+      const bite = -0.022 * Math.exp(-Math.pow((t - 0.31) / 0.075, 2));
+      return clamp(base + bite, 0, 1);
     }
 
     function updateState(dt, nowMs, phase, phaseAtMs) {
       const tSec = nowMs * 0.001;
+      // Decay directional 3D camera recoil smoothly every frame
+      if (dt > 0) {
+        const camDecay = Math.exp(-dt * 15.0);
+        camKickX *= camDecay;
+        camKickY *= camDecay;
+      }
       if (debugOverride) {
         alpha = 1;
         return;
       }
 
+      // Smoothly transition depthCueNow (1 during orbit -> 0 during strikes/lunge) so Slash 1 never
+      // flashes from shadowed deep-orbit jade to bright strike jade in a single jarring frame!
+      const targetDepthCue = (!lunge && !pass) ? 1.0 : 0.0;
+      if (dt > 0) {
+        depthCueNow += (targetDepthCue - depthCueNow) * Math.min(1, dt * 11.0);
+      } else if (lunge) {
+        depthCueNow = 0.0;
+      }
+
       if (lunge) {
         pass = null;
-        const p = clamp((nowMs - lunge.start) / lunge.dur, 0, 1);
-        // It swells as it bursts in from the top-right (from a little past slash 2's size), so
-        // the screen fills from that corner rather than all at once; full size before it covers.
-        growNow = lerp(2.6, lunge.grow, smoothstep(0.02, 0.3, p));
+        const pRaw = clamp((nowMs - lunge.start) / lunge.dur, 0, 1);
+        const p = lungeEase(pRaw);
+        // True 3D depth-ramped swoop: dives cleanly at dramatic readable scale right into KPR dead-center
+        // at HIT3 (pRaw ~ 0.26 -> headU = 0.50), then surges toward the lens & swells across the full screen
+        // right behind the roaring jaws so ONE dragon delivers both the heroic cleave and the site wipe!
+        const strikeScale = lerp(2.05, 2.38, smoothstep(0.0, 0.27, pRaw));
+        const swellMix = smoothstep(0.26, 0.36, pRaw);
+        growNow = lerp(strikeScale, lunge.grow, swellMix);
         power = 1.0;
         if (dt > 0 && nowMs > lunge.start + lunge.dur + 130) {
           alpha = Math.max(0, alpha - dt / 0.34);
         }
         const aspect = W / H;
+        const yComp = aspect < 0.95 ? Math.max(0.46, aspect * 1.08) : 1.0;
+        const portraitScale = aspect < 0.95 ? lerp(0.56, 1.0, smoothstep(0.42, 0.95, aspect)) : 1.0;
         const spanX = HALF_H_AT_Z0 * aspect * 1.45;
-        const spanY = HALF_H_AT_Z0 * 1.18;
+        const spanY = HALF_H_AT_Z0 * 1.18 * yComp;
         const headU = LUNGE.headFrom + p * (LUNGE.headTo - LUNGE.headFrom);
         hist.length = 0;
         for (let i = 0; i < BODY_RINGS; i++) {
-          const u = headU - (i / (BODY_RINGS - 1)) * LUNGE.body;
-          const sWave = Math.sin(u * 5.2 - p * 4.0) * 0.32;
-          const bx = lerp(spanX, -spanX, u) - sWave * 0.45;
-          const by = lerp(spanY, -spanY, u) + sWave * 0.82;
-          const bz = Math.sin(clamp(u, 0, 1) * Math.PI) * LUNGE.zPeak - 0.3;
+          const uBody = i / (BODY_RINGS - 1);
+          const u = headU - uBody * LUNGE.body;
+          // Guided katana strike aim at the head (zero wobble off KPR!) + flowing serpentine torso undulation!
+          const bow = Math.sin(clamp(u, 0, 1) * Math.PI) * 0.14 * portraitScale * (1 - 0.55 * swellMix);
+          const waveEnv = smoothstep(0.06, 0.28, uBody) * portraitScale * (1 - 0.55 * swellMix);
+          const sWave = Math.sin(u * 5.8 - pRaw * 5.2) * 0.38 * waveEnv;
+          const bx = lerp(spanX, -spanX, u) - bow * 0.42 - sWave * 0.45;
+          const by = lerp(spanY, -spanY, u) + bow * 0.72 + sWave * 0.82;
+          const zApproach = lerp(0.45, 2.35, smoothstep(0.0, 0.52, u));
+          const zSwell = Math.sin(clamp(u, 0, 1) * Math.PI) * LUNGE.zPeak - 0.3;
+          const bz = lerp(zApproach, zSwell, swellMix);
           hist.push({ x: bx, y: by, z: bz });
         }
+        recordTravel();
         return;
       }
       // A strike pass (and, once it is through, waiting off-screen for the next strike).
@@ -1692,13 +1931,13 @@
       if (dt > 0) {
         if (phase === 'charge') {
           const p = clamp((nowMs - phaseAtMs) / 820, 0, 1);
-          speed = 0.88 + 3.2 * (p * p * p);
+          speed = 1.05 + 3.4 * (p * p * p);
           squeeze = 1.0 - 0.22 * (1 - Math.pow(1 - p, 3));
           power = p;
         } else if (phase === 'strike') {
           power = Math.max(0.55, power);
         } else {
-          speed = 0.88;
+          speed = 1.05;
           squeeze += (1.0 - squeeze) * Math.min(1, dt * 4);
           power *= Math.max(0, 1 - dt * 3);
         }
@@ -1708,36 +1947,21 @@
       updateRingFrame();
       if (!head.p) placeOnRing(orbitAngle);
       if (dt > 0) {
-        // Ease the ring toward its new tilt, so the change reads as the dragon banking.
-        const k = Math.min(1, dt * 0.9);
-        ring.alpha += (ring.alphaT - ring.alpha) * k;
-        ring.tau += (ring.tauT - ring.tau) * k;
+        steerDempsey(dt, speed * ring.r);
 
-        uturnLeft = Math.max(0, uturnLeft - dt);
-        const theta = steer(dt, speed * ring.r);
-        let d = theta - lastTheta;
-        d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
-        lapProgress += d * ring.dir;
-        lastTheta = theta;
-        // No turning back once the strikes have started: it just speeds round.
-        if (phase !== 'charge' && phase !== 'strike' && lapProgress > lapGoal) newLap();
-
-        trail.unshift({ x: head.p.x, y: head.p.y, z: head.p.z });
-        const keep = bodyLength() * 1.2;
+        const keep = bodyLength() * 1.24;
         let acc = 0;
         for (let i = 1; i < trail.length; i++) {
           acc += Math.hypot(trail[i].x - trail[i - 1].x, trail[i].y - trail[i - 1].y, trail[i].z - trail[i - 1].z);
           if (acc > keep) { trail.length = i + 1; break; }
         }
-        if (trail.length > 3000) trail.length = 3000;
+        if (trail.length > 3600) trail.length = 3600;
       }
 
       const spine = resampleSpine(trail, bodyLength(), BODY_RINGS);
-      // A gentle swimming wave travels from the neck to the tail (side to side, with a little
-      // rise and fall), so the body ripples like something alive instead of riding the head's
-      // path like a train on a track. It fades in behind the neck so the head stays on course.
-      const n = ringNormal();
-      const amp = ring.r * 0.045;
+      // A gentle serpentine swimming ripple travels from the neck to the tail, computed in a
+      // flip-free screen-plane lateral basis so steep vertical Dempsey Roll dives stay silky smooth.
+      const amp = Math.min(ring.rx, ring.ry) * 0.036;
       hist.length = 0;
       for (let i = 0; i < BODY_RINGS; i++) {
         const u = i / (BODY_RINGS - 1);
@@ -1747,12 +1971,16 @@
         const a = spine[Math.max(0, i - 1)], b = spine[Math.min(BODY_RINGS - 1, i + 1)];
         let tx = a.x - b.x, ty = a.y - b.y, tz = a.z - b.z;
         const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
-        let sx = ty * n.z - tz * n.y, sy = tz * n.x - tx * n.z, sz = tx * n.y - ty * n.x;
-        const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
-        const side = Math.sin(u * 13.0 - tSec * 3.4) * amp * env;
-        const rise = Math.cos(u * 9.0 - tSec * 2.7) * amp * 0.45 * env;
-        hist.push({ x: sp.x + sx * side + n.x * rise, y: sp.y + sy * side + n.y * rise, z: sp.z + sz * side + n.z * rise });
+        // Lateral axis perp to tangent and view-Z (attenuated cleanly if flying straight along Z)
+        let sx = -ty, sy = tx;
+        const sl = Math.hypot(sx, sy);
+        const waveFade = smoothstep(0.12, 0.48, sl);
+        if (sl > 1e-4) { sx /= sl; sy /= sl; } else { sx = 0; sy = 0; }
+        const side = Math.sin(u * 13.0 - tSec * 3.8) * amp * env * waveFade;
+        const depthW = Math.cos(u * 9.0 - tSec * 2.9) * amp * 0.42 * env;
+        hist.push({ x: sp.x + sx * side, y: sp.y + sy * side, z: sp.z + depthW });
       }
+      recordTravel();
     }
 
     function resampleSpine(pts, targetLen, count) {
@@ -1805,13 +2033,21 @@
       dynVerts[o + 9] = cav;
     }
 
+    // Shared base head scale: identical to desktop on landscape (aspect >= 0.95), and proportionally
+    // scaled on narrow portrait phones so the roaring skull frames cleanly without clipping off edges!
+    function dragonBaseScale() {
+      const aspect = W / H;
+      const portraitScale = aspect < 0.95 ? lerp(0.56, 1.0, smoothstep(0.42, 0.95, aspect)) : 1.0;
+      return clamp(Math.min(W, H) / 860, 0.64, 1.15) * 0.74 * (0.72 + 0.28 * fitScale) * portraitScale;
+    }
+
     const spineFrames = new Array(BODY_RINGS);
     const bank = { x: 0, y: 0, z: 0, t: 0 }; // the head's smoothed lean into turns
     function buildDynamicGeometry(nowMs) {
       const tSec = nowMs * 0.001;
       const headScale = debugOverride
         ? debugOverride.headScale
-        : clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale) * growNow;
+        : dragonBaseScale() * growNow;
       const bodyLen = debugOverride ? debugOverride.bodyLen : 11.4 * (0.74 + 0.26 * fitScale);
 
       const spinePts = debugOverride
@@ -1858,11 +2094,67 @@
             worldUpX += bank.x; worldUpY += bank.y; worldUpZ += bank.z;
           }
           const dotFU = fx * worldUpX + fy * worldUpY + fz * worldUpZ;
-          ux = worldUpX - fx * dotFU;
-          uy = worldUpY - fy * dotFU;
-          uz = worldUpZ - fz * dotFU;
-          const ul = Math.hypot(ux, uy, uz) || 1;
-          ux /= ul; uy /= ul; uz /= ul;
+          let tux = worldUpX - fx * dotFU;
+          let tuy = worldUpY - fy * dotFU;
+          let tuz = worldUpZ - fz * dotFU;
+          const tLen = Math.hypot(tux, tuy, tuz);
+          if (debugOverride || !headUpState.init) {
+            if (tLen > 1e-4) {
+              ux = tux / tLen; uy = tuy / tLen; uz = tuz / tLen;
+            } else {
+              // Near-vertical fallback orthogonal to f
+              const dzF = fz;
+              ux = -fx * dzF; uy = -fy * dzF; uz = 1 - fz * dzF;
+              const ul = Math.hypot(ux, uy, uz) || 1;
+              ux /= ul; uy /= ul; uz /= ul;
+            }
+            if (!debugOverride) {
+              headUpState.x = ux; headUpState.y = uy; headUpState.z = uz;
+              headUpState.init = true; headUpState.t = tSec;
+            }
+          } else {
+            // Temporally parallel-transport previous headUp perpendicular to new forward direction
+            // so steep vertical climbs/dives and U-turns never trigger a 180deg gimbal-lock flip!
+            const dP = headUpState.x * fx + headUpState.y * fy + headUpState.z * fz;
+            let pux = headUpState.x - fx * dP;
+            let puy = headUpState.y - fy * dP;
+            let puz = headUpState.z - fz * dP;
+            let pLen = Math.hypot(pux, puy, puz);
+            if (pLen > 1e-4) {
+              pux /= pLen; puy /= pLen; puz /= pLen;
+            } else {
+              pux = tLen > 1e-4 ? tux / tLen : 0;
+              puy = tLen > 1e-4 ? tuy / tLen : 1;
+              puz = tLen > 1e-4 ? tuz / tLen : 0;
+            }
+            const dtU = clamp(tSec - headUpState.t, 0, 0.08);
+            const horizonWeight = smoothstep(0.25, 0.72, tLen);
+            // Gentle, liquid-smooth horizon leveling so roll flows organically without ever snap-resetting!
+            const alphaU = (1 - Math.exp(-dtU * 1.85)) * horizonWeight;
+            if (tLen > 1e-4 && alphaU > 1e-5) {
+              tux /= tLen; tuy /= tLen; tuz /= tLen;
+              const align = pux * tux + puy * tuy + puz * tuz;
+              if (align < -0.82) {
+                // Gently break antiparallel lock sideways around f rather than collapsing through 0
+                const sx = fy * puz - fz * puy, sy = fz * pux - fx * puz, sz = fx * puy - fy * pux;
+                ux = pux + sx * 0.25 * alphaU;
+                uy = puy + sy * 0.25 * alphaU;
+                uz = puz + sz * 0.25 * alphaU;
+              } else {
+                ux = pux * (1 - alphaU) + tux * alphaU;
+                uy = puy * (1 - alphaU) + tuy * alphaU;
+                uz = puz * (1 - alphaU) + tuz * alphaU;
+              }
+            } else {
+              ux = pux; uy = puy; uz = puz;
+            }
+            const d2 = ux * fx + uy * fy + uz * fz;
+            ux -= fx * d2; uy -= fy * d2; uz -= fz * d2;
+            const ul = Math.hypot(ux, uy, uz) || 1;
+            ux /= ul; uy /= ul; uz /= ul;
+            headUpState.x = ux; headUpState.y = uy; headUpState.z = uz;
+            headUpState.t = tSec;
+          }
         } else {
           const prev = spineFrames[i - 1];
           const dotPU = prev.ux * fx + prev.uy * fy + prev.uz * fz;
@@ -1895,16 +2187,16 @@
       matHead[8] = f0.fx * headScale; matHead[9] = f0.fy * headScale; matHead[10] = f0.fz * headScale; matHead[11] = 0;
       matHead[12] = hx; matHead[13] = hy; matHead[14] = hz; matHead[15] = 1;
 
-      // Calm, dignified poised jaw while peacefully gliding; roars wide open as it charges and strikes!
+      // Fierce Overwatch spirit-dragon roar: wide-open roaring jaw matching the original game silhouette!
       const baseJaw = debugOverride && debugOverride.jawRad !== undefined
         ? debugOverride.jawRad
-        : (0.44 + Math.sin(tSec * 2.4) * 0.045 + power * 0.34);
+        : (0.64 + Math.sin(tSec * 2.4) * 0.05 + power * 0.26);
       const cj = Math.cos(baseJaw), sj = Math.sin(baseJaw);
       const localJaw = new Float32Array([
         1, 0, 0, 0,
         0, cj, sj, 0,
         0, -sj, cj, 0,
-        0, -0.05, -0.06, 1,
+        0, -0.04, -0.04, 1,
       ]);
       mat4Mul(matJaw, matHead, localJaw);
 
@@ -1988,18 +2280,18 @@
         writeVert(b + 6, apexX, apexY, apexZ, fr.ux, fr.uy, fr.uz, 1.0, 0.5, MAT_CREST, 0.88);
       }
 
-      // --- C) 2 Iconic Long Calligraphic Ribbon Snout Whiskers (anchored cleanly at the sleek Ruyi nose pad - Ref 1, 3, 4!) ---
+      // --- C) 2 Sleek Overwatch Horizontal-Swept Snout Whiskers (anchored cleanly behind the flared nostril lip) ---
       for (let w = 0; w < 2; w++) {
         const sd = w === 0 ? 1 : -1;
         const wPts = [];
         for (let r = 0; r < WHISK_RINGS; r++) {
           const t = r / (WHISK_RINGS - 1);
-          const wave1 = Math.sin(t * 4.2 - tSec * 3.6 + w * 0.75) * 0.14 * t;
-          const wave2 = Math.cos(t * 3.0 - tSec * 2.9) * 0.11 * t;
-          // Smooth C2-continuous calligraphic S-wave sweeping wide from the Ruyi nose and rising gracefully at the brush-tip!
-          const lx = sd * (0.27 + Math.pow(t, 0.82) * 1.92);
-          const ly = 0.19 - Math.sin(t * Math.PI * 1.15) * 0.14 + Math.pow(t, 2.35) * 0.52 + wave1;
-          const lz = 1.14 - Math.pow(t, 1.18) * 1.16 + wave2;
+          const wave1 = Math.sin(t * 3.8 - tSec * 3.4 + w * 0.75) * 0.10 * t;
+          const wave2 = Math.cos(t * 2.8 - tSec * 2.7) * 0.08 * t;
+          // Sleek sweeping ribbon whiskers curving out horizontally along the cheek line (matching both Overwatch refs!)
+          const lx = sd * (0.30 + Math.pow(t, 0.80) * 1.85);
+          const ly = 0.14 - Math.sin(t * Math.PI * 0.95) * 0.08 + Math.pow(t, 2.2) * 0.32 + wave1;
+          const lz = 1.18 - Math.pow(t, 1.12) * 1.48 + wave2;
           wPts.push({
             x: hx + (f0.rx * lx + f0.ux * ly + f0.fx * lz) * headScale,
             y: hy + (f0.ry * lx + f0.uy * ly + f0.fy * lz) * headScale,
@@ -2018,9 +2310,9 @@
           const nl = Math.hypot(nx, ny, nz) || 1;
           nx /= nl; ny /= nl; nz /= nl;
           const bx = ty * nz - tz * ny, by = tz * nx - tx * nz, bz = tx * ny - ty * nx;
-          // Slightly ribbon-flattened oval cross-section for sleek calligraphic elegance
-          const radW = headScale * lerp(0.058, 0.005, Math.pow(t, 0.78));
-          const radH = radW * 0.68;
+          // Refined slim Overwatch whisker ribbon (never clunky pipes blocking the face!)
+          const radW = headScale * lerp(0.036, 0.004, Math.pow(t, 0.78));
+          const radH = radW * 0.65;
           for (let s = 0; s < WHISK_SEGS; s++) {
             const a = (s / WHISK_SEGS) * TAU;
             const ca = Math.cos(a), sa = Math.sin(a);
@@ -2037,33 +2329,335 @@
         }
       }
 
-      // --- D) Ethereal Spirit-Flame Wisps streaming from the cheek-mane, crown & serpentine coils (Ref 4!) ---
+      // --- D) Continuous Camera-Billboarded Volumetric Spirit-Chi Streams ---
+      // Smoothly interpolated along the spine (zero integer ring snapping) with a seamless wake past u=1,
+      // scaled strictly to the local body taper and advected backward by true travel distance.
+      // Measure the tail's local curvature so the trailing wake past u=1 continues curving smoothly
+      // along the arc the tail just swept (never shooting off as a stiff straight tangent needle!).
+      const tailFr = spineFrames[BODY_RINGS - 1];
+      const preTailFr = spineFrames[BODY_RINGS - 2];
+      const tailSegLen = Math.hypot(
+        preTailFr.p.x - tailFr.p.x,
+        preTailFr.p.y - tailFr.p.y,
+        preTailFr.p.z - tailFr.p.z
+      );
+      const wakeUnitLen = tailSegLen * (BODY_RINGS - 1);
+      const tailMidFr = spineFrames[BODY_RINGS - 5];
+      const tailPrevFr = spineFrames[BODY_RINGS - 9];
+      const tailSpanDist = Math.max(1e-4, tailSegLen * 4);
+      // Curvature acceleration vector (d^2p/ds^2) at the tail tip, clamped for stability
+      let tCurvX = (tailFr.p.x - 2 * tailMidFr.p.x + tailPrevFr.p.x) / (tailSpanDist * tailSpanDist);
+      let tCurvY = (tailFr.p.y - 2 * tailMidFr.p.y + tailPrevFr.p.y) / (tailSpanDist * tailSpanDist);
+      let tCurvZ = (tailFr.p.z - 2 * tailMidFr.p.z + tailPrevFr.p.z) / (tailSpanDist * tailSpanDist);
+      const tCurvLen = Math.hypot(tCurvX, tCurvY, tCurvZ);
+      const maxCurv = 1.6;
+      if (tCurvLen > maxCurv) {
+        const sc = maxCurv / tCurvLen;
+        tCurvX *= sc; tCurvY *= sc; tCurvZ *= sc;
+      }
+
+      const sampledFr = { px: 0, py: 0, pz: 0, fx: 0, fy: 0, fz: 1, ux: 0, uy: 1, uz: 0, rx: 1, ry: 0, rz: 0 };
+      function sampleSpine(uFloat) {
+        if (uFloat <= 1.0) {
+          const cu = clamp(uFloat, 0, 1);
+          const fIdx = cu * (BODY_RINGS - 1);
+          const i0 = Math.floor(fIdx);
+          const i1 = Math.min(BODY_RINGS - 1, i0 + 1);
+          const frac = fIdx - i0;
+          const a = spineFrames[i0], b = spineFrames[i1];
+          sampledFr.px = a.p.x + (b.p.x - a.p.x) * frac;
+          sampledFr.py = a.p.y + (b.p.y - a.p.y) * frac;
+          sampledFr.pz = a.p.z + (b.p.z - a.p.z) * frac;
+          let fx = a.fx + (b.fx - a.fx) * frac;
+          let fy = a.fy + (b.fy - a.fy) * frac;
+          let fz = a.fz + (b.fz - a.fz) * frac;
+          const fl = Math.hypot(fx, fy, fz) || 1;
+          fx /= fl; fy /= fl; fz /= fl;
+          let ux = a.ux + (b.ux - a.ux) * frac;
+          let uy = a.uy + (b.uy - a.uy) * frac;
+          let uz = a.uz + (b.uz - a.uz) * frac;
+          const du = ux * fx + uy * fy + uz * fz;
+          ux -= fx * du; uy -= fy * du; uz -= fz * du;
+          const ul = Math.hypot(ux, uy, uz) || 1;
+          ux /= ul; uy /= ul; uz /= ul;
+          sampledFr.fx = fx; sampledFr.fy = fy; sampledFr.fz = fz;
+          sampledFr.ux = ux; sampledFr.uy = uy; sampledFr.uz = uz;
+          sampledFr.rx = uy * fz - uz * fy;
+          sampledFr.ry = uz * fx - ux * fz;
+          sampledFr.rz = ux * fy - uy * fx;
+        } else {
+          // Seamless C2-curved slipstream wake trailing off the whip tail tip along the tail's arc!
+          const extra = (uFloat - 1.0) * wakeUnitLen;
+          const halfE2 = 0.5 * extra * extra;
+          sampledFr.px = tailFr.p.x - tailFr.fx * extra + tCurvX * halfE2;
+          sampledFr.py = tailFr.p.y - tailFr.fy * extra + tCurvY * halfE2;
+          sampledFr.pz = tailFr.p.z - tailFr.fz * extra + tCurvZ * halfE2;
+          let fx = tailFr.fx - tCurvX * extra;
+          let fy = tailFr.fy - tCurvY * extra;
+          let fz = tailFr.fz - tCurvZ * extra;
+          const fl = Math.hypot(fx, fy, fz) || 1;
+          fx /= fl; fy /= fl; fz /= fl;
+          let ux = tailFr.ux, uy = tailFr.uy, uz = tailFr.uz;
+          const du = ux * fx + uy * fy + uz * fz;
+          ux -= fx * du; uy -= fy * du; uz -= fz * du;
+          const ul = Math.hypot(ux, uy, uz) || 1;
+          ux /= ul; uy /= ul; uz /= ul;
+          sampledFr.fx = fx; sampledFr.fy = fy; sampledFr.fz = fz;
+          sampledFr.ux = ux; sampledFr.uy = uy; sampledFr.uz = uz;
+          sampledFr.rx = uy * fz - uz * fy;
+          sampledFr.ry = uz * fx - ux * fz;
+          sampledFr.rz = ux * fy - uy * fx;
+        }
+        return sampledFr;
+      }
+
+      function bodyRadiusAt(uFloat) {
+        const cu = clamp(uFloat, 0, 1);
+        const nb = lerp(0.86, 1.0, smoothstep(0.0, 0.08, cu));
+        return neckRadius * Math.pow(Math.max(0.025, 1 - cu * 0.97), 0.74) * nb;
+      }
+
+      const adv = travelDist * 1.05 + tSec * 1.25;
+      const ribPts = new Array(RIBBON_RINGS);
+      for (let r = 0; r < RIBBON_RINGS; r++) ribPts[r] = { x: 0, y: 0, z: 0, rw: 0, cav: 0, ux: 0, uy: 1, uz: 0 };
+
+      // Smooth curvature-based centrifugal drift helper: when the dragon whips around a bend,
+      // trailing spirit flames flare naturally toward the outside of the curve (inertia!) + rise slightly (+Y).
+      const driftOut = { x: 0, y: 0, z: 0 };
+      function calcCentrifugal(uFloat) {
+        const uC = clamp(uFloat, 0.04, 0.96);
+        const fA = sampleSpine(uC - 0.04);
+        const ax = fA.px, ay = fA.py, az = fA.pz;
+        const fM = sampleSpine(uC);
+        const mx = fM.px, my = fM.py, mz = fM.pz;
+        const fB = sampleSpine(uC + 0.04);
+        // -accel points to the outside of the curve!
+        let ox = 2 * mx - ax - fB.px;
+        let oy = 2 * my - ay - fB.py;
+        let oz = 2 * mz - az - fB.pz;
+        const ol = Math.hypot(ox, oy, oz);
+        const cap = Math.min(ol * 1.65, headScale * 0.32);
+        if (ol > 1e-5) {
+          ox = (ox / ol) * cap; oy = (oy / ol) * cap; oz = (oz / ol) * cap;
+        } else {
+          ox = 0; oy = 0; oz = 0;
+        }
+        driftOut.x = ox; driftOut.y = oy; driftOut.z = oz;
+        return driftOut;
+      }
+
+      // 12 cohesive anatomical energy streams:
+      // 0-1: Twin sleek helical full-body chi currents wrapping tightly around the sculpted jade scales
+      // 2-3: Sweeping cheek-mane spirit plumes streaming off the collar with gentle thermal rise
+      // 4-5: Sleek dorsal crest spirit-flame mantle tracing the swept dorsal blades
+      // 6-9: Four slender aerodynamic flank slipstream filaments flaring subtly on turns
+      // 10-11: Twin whip-tail slipstream ribbons dissolving smoothly past the tail tip
+      const FLANK_CFG = [
+        { u0: 0.06, u1: 0.56, side: 1 },
+        { u0: 0.16, u1: 0.68, side: -1 },
+        { u0: 0.40, u1: 1.02, side: 1 },
+        { u0: 0.50, u1: 1.08, side: -1 },
+      ];
+
       for (let rb = 0; rb < RIBBON_COUNT; rb++) {
-        const mane = rb < 8;
-        const side = rb % 2 === 0 ? 1 : -1;
         const baseV = ribbonBaseV + rb * RIBBON_RINGS * 2;
-        const rate = mane ? 0.48 : 0.30;
-        const life = ((tSec * rate + rb * 0.618) % 1 + 1) % 1;
-        const env = Math.sin(life * Math.PI);
-        const startRing = mane ? 1 + rb * 1.4 + life * 6 : 14 + ((rb - 8) / 8) * 58 + life * 18;
-        const span = (mane ? 15 : 20) * (0.62 + 0.38 * env);
-        const maxRibbonW = headScale * (mane ? 0.34 : 0.24) * (0.52 + 0.48 * env);
+        const matSeed = MAT_SPIRIT + rb * 0.37;
 
         for (let r = 0; r < RIBBON_RINGS; r++) {
           const t = r / (RIBBON_RINGS - 1);
-          const spIdx = Math.max(0, Math.min(BODY_RINGS - 1, Math.round(startRing + t * span)));
-          const fr = spineFrames[spIdx];
-          const curl = Math.sin(tSec * 5.2 - t * 6.4 + rb * 2.3) * headScale * 0.28 * t;
-          const liftOut = headScale * (0.28 + t * (0.52 + 0.42 * env)) + curl;
-          const rise = headScale * (0.18 + t * 0.52 * env) + Math.cos(tSec * 3.9 - t * 4.8 + rb) * headScale * 0.14 * t;
-          const cx = fr.p.x + fr.rx * side * liftOut + fr.ux * rise;
-          const cy = fr.p.y + fr.ry * side * liftOut + fr.uy * rise;
-          const cz = fr.p.z + fr.rz * side * liftOut + fr.uz * rise;
-          const rw = maxRibbonW * Math.sin(Math.max(0.05, t) * Math.PI);
+          const envShape = Math.sin(Math.max(0.015, Math.min(0.985, t)) * Math.PI);
+          let u, cx, cy, cz, rw, cav;
 
-          writeVert(baseV + r * 2, cx - fr.ux * rw, cy - fr.uy * rw, cz - fr.uz * rw, fr.rx * side, fr.ry * side, fr.rz * side, t, 0, MAT_SPIRIT, env);
-          writeVert(baseV + r * 2 + 1, cx + fr.ux * rw, cy + fr.uy * rw, cz + fr.uz * rw, fr.rx * side, fr.ry * side, fr.rz * side, t, 1, MAT_SPIRIT, env);
+          if (rb < 2) {
+            // Twin sleek helical full-body chi currents
+            const phase0 = rb * Math.PI;
+            u = lerp(0.025, 1.10, t);
+            const fr = sampleSpine(u);
+            const bR = bodyRadiusAt(u);
+            const hAng = u * 11.2 - adv * 0.72 + phase0;
+            const rDist = bR * (1.14 + 0.18 * Math.sin(u * 5.6 - adv * 0.78 + phase0)) + (u > 1 ? (u - 1) * headScale * 0.10 : 0);
+            const ca = Math.cos(hAng), sa = Math.sin(hAng);
+            cx = fr.px + (fr.rx * ca + fr.ux * sa) * rDist;
+            cy = fr.py + (fr.ry * ca + fr.uy * sa) * rDist;
+            cz = fr.pz + (fr.rz * ca + fr.uz * sa) * rDist;
+            rw = Math.max(headScale * 0.052, bR * 0.72) * (0.48 + 0.52 * Math.pow(envShape, 0.70));
+            cav = 0.72;
+          } else if (rb < 4) {
+            // Sweeping cheek-mane spirit plumes (L/R) with gentle upward flame buoyancy & turn inertia
+            const side = rb === 2 ? 1 : -1;
+            u = lerp(0.010, 0.36, t);
+            const cft = calcCentrifugal(u);
+            const fr = sampleSpine(u);
+            const bR = bodyRadiusAt(u);
+            const wave = Math.sin(t * 5.2 - adv * 1.45 + rb * 2.1) * bR * 0.32 * t;
+            const outS = side * bR * (0.86 + 0.92 * Math.pow(t, 0.92)) + wave;
+            const outU = bR * (0.20 + 0.58 * Math.pow(t, 0.88)) + Math.cos(t * 4.2 - adv * 1.1 + rb) * bR * 0.18 * t;
+            const t2 = t * t;
+            cx = fr.px + fr.rx * outS + fr.ux * outU + cft.x * 0.45 * t2;
+            cy = fr.py + fr.ry * outS + fr.uy * outU + cft.y * 0.45 * t2 + bR * 0.38 * t2;
+            cz = fr.pz + fr.rz * outS + fr.uz * outU + cft.z * 0.45 * t2;
+            rw = bR * (0.72 + 0.36 * t) * Math.pow(envShape, 0.70);
+            cav = 0.78;
+          } else if (rb < 6) {
+            // Sleek dorsal crest spirit-flame mantle tracing the dorsal ridge (no bulky pillow hump!)
+            u = rb === 4 ? lerp(0.03, 0.54, t) : lerp(0.30, 0.96, t);
+            const cft = calcCentrifugal(u);
+            const fr = sampleSpine(u);
+            const bR = bodyRadiusAt(u);
+            const sway = Math.sin(t * 5.8 - adv * 1.32 + rb * 1.9) * bR * 0.28 * t;
+            const outU = bR * (0.98 + 0.68 * Math.pow(t, 0.86)) + Math.cos(t * 4.4 - adv * 0.95 + rb) * bR * 0.14 * t;
+            const t2 = t * t;
+            cx = fr.px + fr.rx * sway + fr.ux * outU + cft.x * 0.35 * t2;
+            cy = fr.py + fr.ry * sway + fr.uy * outU + cft.y * 0.35 * t2 + bR * 0.26 * t2;
+            cz = fr.pz + fr.rz * sway + fr.uz * outU + cft.z * 0.35 * t2;
+            rw = Math.max(headScale * 0.046, bR * (0.64 + 0.30 * t)) * Math.pow(envShape, 0.72);
+            cav = 0.68;
+          } else if (rb < 10) {
+            // Slender aerodynamic flank slipstream filaments with turn inertia & buoyancy
+            const cfg = FLANK_CFG[rb - 6];
+            u = lerp(cfg.u0, cfg.u1, t);
+            const cft = calcCentrifugal(u);
+            const fr = sampleSpine(u);
+            const bR = bodyRadiusAt(u);
+            const curlS = Math.sin(t * 4.8 - adv * 1.25 + rb * 2.4) * bR * 0.36 * t;
+            const curlU = Math.cos(t * 3.8 - adv * 1.02 + rb * 1.7) * bR * 0.24 * t;
+            const outS = cfg.side * bR * (0.82 + 0.86 * Math.pow(t, 1.10)) + curlS;
+            const outU = bR * (0.12 + 0.34 * Math.pow(t, 1.05)) + curlU;
+            const t2 = t * t;
+            cx = fr.px + fr.rx * outS + fr.ux * outU + cft.x * 0.55 * t2;
+            cy = fr.py + fr.ry * outS + fr.uy * outU + cft.y * 0.55 * t2 + bR * 0.28 * t2;
+            cz = fr.pz + fr.rz * outS + fr.uz * outU + cft.z * 0.55 * t2;
+            rw = Math.max(headScale * 0.044, bR * (0.62 + 0.36 * t)) * Math.pow(envShape, 0.74);
+            cav = 0.58;
+          } else {
+            // Twin graceful whip-tail slipstream trails curving smoothly off the tip into misty vapor
+            const side = rb === 10 ? 1 : -1;
+            u = lerp(0.66, 1.15, t);
+            const cft = calcCentrifugal(Math.min(u, 0.96));
+            const fr = sampleSpine(u);
+            const bR = bodyRadiusAt(u);
+            const wakeT = Math.max(0, (u - 0.86) / 0.29);
+            const sway = Math.sin(t * 5.2 - adv * 1.45 + rb * 3.1) * headScale * 0.085 * wakeT;
+            const outS = side * (bR * 0.62 + headScale * 0.075 * wakeT * wakeT) + sway;
+            const outU = bR * 0.28 + Math.cos(t * 4.0 - adv * 1.12 + rb) * headScale * 0.055 * wakeT;
+            cx = fr.px + fr.rx * outS + fr.ux * outU + cft.x * 0.35 * wakeT;
+            cy = fr.py + fr.ry * outS + fr.uy * outU + cft.y * 0.35 * wakeT + headScale * 0.05 * wakeT * wakeT;
+            cz = fr.pz + fr.rz * outS + fr.uz * outU + cft.z * 0.35 * wakeT;
+            // Bloom softly wider as wispy mist beyond the tail tip so it never looks like a stiff needle
+            rw = Math.max(headScale * 0.055, bR * 0.92 + headScale * 0.14 * wakeT) * Math.pow(envShape, 0.72);
+            cav = 0.66 * (1.0 - 0.35 * wakeT);
+          }
+
+          const pt = ribPts[r];
+          pt.x = cx; pt.y = cy; pt.z = cz; pt.rw = rw; pt.cav = cav;
+          pt.ux = sampledFr.ux; pt.uy = sampledFr.uy; pt.uz = sampledFr.uz;
         }
+
+        // Camera-facing billboard expansion along the smooth stream tangent:
+        // guarantees ribbons NEVER fold edge-on into flat tape strips at any 3D curve angle!
+        let prevSx = 0, prevSy = 1, prevSz = 0;
+        for (let r = 0; r < RIBBON_RINGS; r++) {
+          const t = r / (RIBBON_RINGS - 1);
+          const p = ribPts[r];
+          const pA = ribPts[Math.max(0, r - 1)];
+          const pB = ribPts[Math.min(RIBBON_RINGS - 1, r + 1)];
+          let tx = pB.x - pA.x, ty = pB.y - pA.y, tz = pB.z - pA.z;
+          const tl = Math.hypot(tx, ty, tz) || 1;
+          tx /= tl; ty /= tl; tz /= tl;
+
+          let vx = camPos[0] - p.x, vy = camPos[1] - p.y, vz = camPos[2] - p.z;
+          const vl = Math.hypot(vx, vy, vz) || 1;
+          vx /= vl; vy /= vl; vz /= vl;
+
+          let sx = ty * vz - tz * vy;
+          let sy = tz * vx - tx * vz;
+          let sz = tx * vy - ty * vx;
+          const sl = Math.hypot(sx, sy, sz);
+          if (sl > 0.08) {
+            sx /= sl; sy /= sl; sz /= sl;
+          } else {
+            // Tangent aimed directly at camera: smoothly inherit previous side (or spine up) perp to T
+            const bx = r > 0 ? prevSx : p.ux;
+            const by = r > 0 ? prevSy : p.uy;
+            const bz = r > 0 ? prevSz : p.uz;
+            const d = bx * tx + by * ty + bz * tz;
+            sx = bx - tx * d; sy = by - ty * d; sz = bz - tz * d;
+            const fl = Math.hypot(sx, sy, sz) || 1;
+            sx /= fl; sy /= fl; sz /= fl;
+          }
+          if (r > 0 && sx * prevSx + sy * prevSy + sz * prevSz < -0.15) {
+            sx = -sx; sy = -sy; sz = -sz;
+          }
+          prevSx = sx; prevSy = sy; prevSz = sz;
+
+          const rw = p.rw;
+          writeVert(baseV + r * 2, p.x - sx * rw, p.y - sy * rw, p.z - sz * rw, vx, vy, vz, t, 0, matSeed, p.cav);
+          writeVert(baseV + r * 2 + 1, p.x + sx * rw, p.y + sy * rw, p.z + sz * rw, vx, vy, vz, t, 1, matSeed, p.cav);
+        }
+      }
+
+      // --- E) Detached 3D World-Space Spirit Embers / Chi Motes ---
+      // Physically shed off the dragon's mane, spine, and whip tail, then drift freely in 3D space
+      // with gentle upward thermal buoyancy so the aura visibly lingers in the air behind the dragon!
+      const dtEm = lastEmberMs ? clamp((nowMs - lastEmberMs) * 0.001, 0, 0.05) : 0.016;
+      lastEmberMs = nowMs;
+      const emberScale = Math.min(headScale, 1.35);
+
+      for (let i = 0; i < EMBER_COUNT; i++) {
+        const em = embers[i];
+        em.age += dtEm;
+        if (!em.active || em.age >= em.life) {
+          // Spawn continuously along the mane, body crest, and tail tip
+          const spawnU = (i % 5 === 0) ? (0.72 + Math.random() * 0.28) : (0.04 + Math.random() * 0.84);
+          const fr = sampleSpine(spawnU);
+          const bR = bodyRadiusAt(spawnU);
+          const ang = Math.random() * TAU;
+          const dist = bR * (0.95 + Math.random() * 0.75);
+          em.x = fr.px + (fr.rx * Math.cos(ang) + fr.ux * Math.sin(ang)) * dist;
+          em.y = fr.py + (fr.ry * Math.cos(ang) + fr.uy * Math.sin(ang)) * dist;
+          em.z = fr.pz + (fr.rz * Math.cos(ang) + fr.uz * Math.sin(ang)) * dist;
+          // Drift gently backward in the slipstream + subtle radial scatter + upward flame buoyancy
+          const backSpd = 0.22 + Math.random() * 0.34;
+          const outSpd = 0.10 + Math.random() * 0.22;
+          em.vx = -fr.fx * backSpd + (fr.rx * Math.cos(ang) + fr.ux * Math.sin(ang)) * outSpd;
+          em.vy = -fr.fy * backSpd + (fr.ry * Math.cos(ang) + fr.uy * Math.sin(ang)) * outSpd + 0.18 + Math.random() * 0.22;
+          em.vz = -fr.fz * backSpd + (fr.rz * Math.cos(ang) + fr.uz * Math.sin(ang)) * outSpd;
+          em.life = 0.85 + Math.random() * 1.15;
+          em.age = em.active ? 0 : Math.random() * em.life;
+          em.size = (0.036 + Math.random() * 0.042) * emberScale;
+          em.active = true;
+        } else {
+          // Smooth air drag + curl drift + upward buoyancy
+          const drag = Math.exp(-dtEm * 1.15);
+          em.vx *= drag;
+          em.vy = em.vy * drag + 0.14 * dtEm;
+          em.vz *= drag;
+          const curl = Math.sin(tSec * 2.6 + em.phase) * 0.14;
+          em.x += (em.vx + curl) * dtEm;
+          em.y += em.vy * dtEm;
+          em.z += (em.vz + Math.cos(tSec * 2.1 + em.phase) * 0.12) * dtEm;
+        }
+
+        const pLife = clamp(em.age / em.life, 0, 1);
+        const fade = smoothstep(0.0, 0.14, pLife) * Math.pow(1.0 - pLife, 1.45);
+        const twinkle = 0.78 + 0.22 * Math.sin(tSec * 7.5 + em.phase);
+        const cav = fade * twinkle * (lunge ? 0.35 : 0.92);
+        const sz = em.size * (0.65 + 0.35 * (1.0 - pLife));
+
+        // Camera-facing quad basis (camRight, camUp perpendicular to view vector)
+        let vx = camPos[0] - em.x, vy = camPos[1] - em.y, vz = camPos[2] - em.z;
+        const vl = Math.hypot(vx, vy, vz) || 1;
+        vx /= vl; vy /= vl; vz /= vl;
+        let rx = vz, ry = 0, rz = -vx;
+        const rl = Math.hypot(rx, ry, rz) || 1;
+        rx /= rl; ry /= rl; rz /= rl;
+        const ux = vy * rz - vz * ry, uy = vz * rx - vx * rz, uz = vx * ry - vy * rx;
+
+        const b = emberBaseV + i * 4;
+        writeVert(b + 0, em.x + (-rx - ux) * sz, em.y + (-ry - uy) * sz, em.z + (-rz - uz) * sz, vx, vy, vz, 0, 0, MAT_EMBER, cav);
+        writeVert(b + 1, em.x + (rx - ux) * sz, em.y + (ry - uy) * sz, em.z + (rz - uz) * sz, vx, vy, vz, 1, 0, MAT_EMBER, cav);
+        writeVert(b + 2, em.x + (rx + ux) * sz, em.y + (ry + uy) * sz, em.z + (rz + uz) * sz, vx, vy, vz, 1, 1, MAT_EMBER, cav);
+        writeVert(b + 3, em.x + (-rx + ux) * sz, em.y + (-ry + uy) * sz, em.z + (-rz + uz) * sz, vx, vy, vz, 0, 1, MAT_EMBER, cav);
       }
 
       gl.bindBuffer(gl.ARRAY_BUFFER, dynVbo);
@@ -2112,9 +2706,12 @@
       gl.uniform3fv(uDragon.uCamPos, camPos);
       gl.uniform3fv(uDragon.uMouthPos, mouthWorldPos);
       gl.uniform1f(uDragon.uTime, nowMs * 0.001);
+      gl.uniform1f(uDragon.uTravel, travelDist);
       gl.uniform1f(uDragon.uAlpha, alpha);
       gl.uniform1f(uDragon.uPower, power);
+      const depthCueOn = (!debugOverride && Math.abs(clipSide) > 0.5) ? depthCueNow : 0.0;
       gl.uniform1f(uDragon.uClipSide, clipSide);
+      gl.uniform1f(uDragon.uDepthCue, depthCueOn);
       gl.uniform1f(uDragon.uHasDeriv, hasDeriv ? 1.0 : 0.0);
       // Fallback exact-letter logo mask only when no dedicated mid canvas sits under .intro-mark--logo.
       const maskOn = !!useLogoMask && clipSide > 0.5 && logoTex && logoRectPx;
@@ -2145,7 +2742,16 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lowerGpu.ibo);
       gl.drawElements(gl.TRIANGLES, lowerGpu.count, gl.UNSIGNED_SHORT, 0);
 
+      // Volumetric Spirit-Chi Aura: render into dedicated additive auraFbo sharing sceneFbo's depth buffer
+      // so spirit streams behind the dragon are cleanly occluded in 3D while never darkening anything!
+      const useAuraFbo = !!(auraFbo && auraFbo.complete);
+      if (useAuraFbo) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, auraFbo.fbo);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT); // preserve shared solid-body depth!
+      }
       gl.depthMask(false);
+      gl.blendFunc(gl.ONE, gl.ONE);
       gl.uniformMatrix4fv(uDragon.uModel, false, matIdentity);
       bindDragonVbo(dynVbo);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dynIbo);
@@ -2160,56 +2766,72 @@
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.BLEND);
 
-      // Selective HDR Bloom
+      // Selective HDR Bloom (combines crisp scene highlights + soft optical glow from spirit aura)
       gl.bindFramebuffer(gl.FRAMEBUFFER, bloomA.fbo);
       gl.viewport(0, 0, bloomW, bloomH);
       gl.useProgram(progBright);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, sceneFbo.tex);
-      gl.uniform1i(gl.getUniformLocation(progBright, 'uTex'), 0);
-      drawQuad(progBright, gl.getAttribLocation(progBright, 'aQuad'));
+      gl.uniform1i(uBright.uTex, 0);
+      gl.uniform1f(uBright.uHasAura, useAuraFbo ? 1.0 : 0.0);
+      if (useAuraFbo) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, auraFbo.tex);
+        gl.uniform1i(uBright.uAuraTex, 1);
+        gl.activeTexture(gl.TEXTURE0);
+      }
+      drawQuad(progBright, uBright.aQuad);
 
       gl.useProgram(progBlur);
-      const uBlurTex = gl.getUniformLocation(progBlur, 'uTex');
-      const uBlurDir = gl.getUniformLocation(progBlur, 'uDir');
-      const aBlurQuad = gl.getAttribLocation(progBlur, 'aQuad');
-      gl.uniform1i(uBlurTex, 0);
+      gl.uniform1i(uBlur.uTex, 0);
 
       for (let pass = 0; pass < 2; pass++) {
         const radius = pass === 0 ? 1.0 : 2.2;
         gl.bindFramebuffer(gl.FRAMEBUFFER, bloomB.fbo);
         gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
-        gl.uniform2f(uBlurDir, radius / bloomW, 0);
-        drawQuad(progBlur, aBlurQuad);
+        gl.uniform2f(uBlur.uDir, radius / bloomW, 0);
+        drawQuad(progBlur, uBlur.aQuad);
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, bloomA.fbo);
         gl.bindTexture(gl.TEXTURE_2D, bloomB.tex);
-        gl.uniform2f(uBlurDir, 0, radius / bloomH);
-        drawQuad(progBlur, aBlurQuad);
+        gl.uniform2f(uBlur.uDir, 0, radius / bloomH);
+        drawQuad(progBlur, uBlur.aQuad);
       }
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, fboW, fboH);
       gl.useProgram(progBlit);
-      const uBlitTex = gl.getUniformLocation(progBlit, 'uTex');
-      const uBlitMode = gl.getUniformLocation(progBlit, 'uMode');
-      const aBlitQuad = gl.getAttribLocation(progBlit, 'aQuad');
-      gl.uniform1i(uBlitTex, 0);
+      gl.uniform1i(uBlit.uTex, 0);
 
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, sceneFbo.tex);
-      gl.uniform1f(uBlitMode, 0.0);
-      drawQuad(progBlit, aBlitQuad);
+      // Subtle optical depth-of-field soft focus & subdued bloom on the far pass (scales cleanly with depthCueNow!)
+      const farCue = (clipSide < -0.5) ? depthCueOn : 0.0;
+      const dofR = 1.75 * farCue;
+      gl.uniform2f(uBlit.uDofPx, dofR / fboW, dofR / fboH);
+      gl.uniform1f(uBlit.uBloomGain, lerp(0.44, 0.25, farCue));
+      gl.uniform1f(uBlit.uHasAura, 0.0);
+      gl.uniform1f(uBlit.uMode, 0.0);
+      drawQuad(progBlit, uBlit.aQuad);
 
       const prevComp = targetCtx.globalCompositeOperation;
       targetCtx.globalCompositeOperation = 'source-over';
       targetCtx.drawImage(glCanvas, 0, 0, W, H);
 
       gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
-      gl.uniform1f(uBlitMode, 1.0);
-      drawQuad(progBlit, aBlitQuad);
+      gl.uniform1f(uBlit.uHasAura, useAuraFbo ? 1.0 : 0.0);
+      if (useAuraFbo) {
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, auraFbo.tex);
+        gl.uniform1i(uBlit.uAuraTex, 1);
+        gl.activeTexture(gl.TEXTURE0);
+      }
+      gl.uniform1f(uBlit.uMode, 1.0);
+      drawQuad(progBlit, uBlit.aQuad);
 
       targetCtx.globalCompositeOperation = 'lighter';
       targetCtx.drawImage(glCanvas, 0, 0, W, H);
@@ -2227,8 +2849,8 @@
         camPos[2] = debugOverride.eye[2];
         mat4LookAt(matView, debugOverride.eye, debugOverride.target || [0, 0, 0], [0, 1, 0]);
       } else {
-        camPos[0] = 0; camPos[1] = 0; camPos[2] = 9.2;
-        mat4LookAt(matView, camPos, [0, 0, 0], [0, 1, 0]);
+        camPos[0] = camKickX; camPos[1] = camKickY; camPos[2] = 9.2;
+        mat4LookAt(matView, camPos, [camKickX * 0.25, camKickY * 0.25, 0], [0, 1, 0]);
       }
       mat4Mul(matVP, matProj, matView);
 
@@ -2241,10 +2863,10 @@
         // orbit it peels out of: behind the diamond where it is far, in front of it where near.)
         renderPassToTarget(frontCtx, 0.0, nowMs, false);
       } else {
-        // Far side (z <= 0) behind diamond and KPR; near side (z >= 0) on mid canvas in front of
-        // diamond and strictly behind the KPR logo DOM layer.
+        // True 3D occlusion around KPR: far side (z <= 0) draws on backCtx behind diamond & KPR;
+        // near side (z >= 0) draws on frontCtx above KPR so the dragon obstructs KPR ONLY when in front!
         renderPassToTarget(backCtx, -1.0, nowMs, false);
-        renderPassToTarget(midCtx || frontCtx, 1.0, nowMs, !midCtx);
+        renderPassToTarget(frontCtx, 1.0, nowMs, false);
       }
     }
 
@@ -2253,28 +2875,68 @@
     // that, as the thick front of its body crosses the middle, it covers every corner; then its
     // tapering tail sweeps on past and off the screen, uncovering the site from the corners in.
     // (headTo carries the whole body, tail included, off the far side.)
-    const LUNGE = { dur: 680, headFrom: -0.32, headTo: 2.3, body: 1.12, zPeak: 4.6 };
+    const LUNGE = { dur: 740, headFrom: -0.22, headTo: 2.38, body: 1.18, zPeak: 4.6 };
     function triggerLunge(nowMs) {
-      const base = clamp(Math.min(W, H) / 860, 0.68, 1.15) * 0.74 * (0.72 + 0.28 * fitScale);
+      const base = dragonBaseScale();
       const neckR = base * 0.34;
       const zMid = LUNGE.zPeak - 0.3;
       const pxPerWorld = (H / (2 * HALF_H_AT_Z0)) * (9.2 / (9.2 - zMid));
-      // The farthest any screen corner sits from the top-right/bottom-left diagonal, with margin
-      // for the body's swim and its taper just behind the neck.
-      const reachPx = ((W * H) / Math.hypot(W, H)) * 1.2;
+      // Exact perpendicular distance from the farthest screen corner to the lunge's actual diagonal
+      // (accounts for portrait yComp too!) so the swollen torso blankets every corner 100% cleanly!
+      const aspect = W / H;
+      const yComp = aspect < 0.95 ? Math.max(0.46, aspect * 1.08) : 1.0;
+      const dirX = W * 1.45, dirY = H * 1.18 * yComp;
+      const dirL = Math.hypot(dirX, dirY) || 1;
+      const maxCornerPx = (W * 0.5) * (dirY / dirL) + (H * 0.5) * (dirX / dirL);
+      const reachPx = maxCornerPx * 1.48;
       lunge = {
         start: nowMs,
         dur: LUNGE.dur,
         grow: reachPx / pxPerWorld / (neckR * 0.9),
       };
       pass = null;
+      headUpState.init = false;
+      lastHeadPos = null;
       power = 1.0;
       alpha = 1;
     }
-    // When (ms after the lunge starts) the thick front of the body is across the middle and the
-    // screen is fully covered: the moment to swap the splash for the site underneath.
+    // Solve exact ms after lunge.start when eased headU crosses targetU (binary search for sub-ms precision!)
+    function solveLungeMs(targetU) {
+      const targetP = clamp((targetU - LUNGE.headFrom) / (LUNGE.headTo - LUNGE.headFrom), 0, 1);
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 18; i++) {
+        const mid = (lo + hi) * 0.5;
+        if (lungeEase(mid) < targetP) lo = mid; else hi = mid;
+      }
+      return ((lo + hi) * 0.5) * LUNGE.dur;
+    }
+    // When (ms after the lunge starts) the dragon's head hits dead-center (u = 0.50) right on KPR!
+    function lungeHitMs() {
+      return solveLungeMs(0.50);
+    }
+    // When (ms after the lunge starts) the swollen mid-body crosses dead-center covering every corner.
     function lungeCoverMs() {
-      return ((0.65 - LUNGE.headFrom) / (LUNGE.headTo - LUNGE.headFrom)) * LUNGE.dur;
+      return solveLungeMs(0.84);
+    }
+    // Returns the dragon head's live normalized progress [0..1] along the current slash arc so the 2D
+    // katana blade crescent physically sweeps OUT OF the dragon's jaws instead of popping in separately!
+    function strikeProgress(nowMs) {
+      if (lunge) {
+        const pRaw = clamp((nowMs - lunge.start) / lunge.dur, 0, 1);
+        const headU = LUNGE.headFrom + lungeEase(pRaw) * (LUNGE.headTo - LUNGE.headFrom);
+        // Map visible viewport crossing [0.12..0.88] -> [0..1] so t=0.50 lands dead-center on KPR!
+        return clamp((headU - 0.12) / 0.76, 0, 1);
+      }
+      if (pass) {
+        const sHead = passHeadS(pass, nowMs);
+        const span = Math.max(1e-4, pass.sCutEnd - pass.sCutStart);
+        return clamp((sHead - pass.sCutStart) / span, 0, 1);
+      }
+      return -1;
+    }
+    function impulseCamera(dx, dy, strength) {
+      camKickX += dx * strength;
+      camKickY -= dy * strength; // screen Y down -> world Y up
     }
 
     function sampleTrailPointScreen() {
@@ -2314,7 +2976,8 @@
           maxZ = Math.max(maxZ, p.z);
         }
         return { dir: ring.dir, alpha: ring.alpha, tau: ring.tau, r: ring.r,
-          clearPx: minDistPx, minZ, maxZ, lunge: !!lunge, pass: !!pass, drawnHead: hist[0] && { ...hist[0] }, spine: hist.filter((_, i) => i % 4 === 0).map((p) => ({ ...p })), head: head.p && { ...head.p },
+          clearPx: minDistPx, minZ, maxZ, lunge: !!lunge, pass: !!pass, auraFbo: !!(auraFbo && auraFbo.complete),
+          drawnHead: hist[0] && { ...hist[0] }, spine: hist.filter((_, i) => i % 4 === 0).map((p) => ({ ...p })), head: head.p && { ...head.p },
           heading: head.h && { ...head.h }, turnRate: head.w ? Math.hypot(head.w.x, head.w.y, head.w.z) : 0, theta: lastTheta };
       },
       reset() {
@@ -2322,7 +2985,6 @@
         trail.length = 0;
         head.p = null;
         ring.dir = 1;
-        uturnLeft = 0;
         orbitAngle = 0.85;
         speed = 0.88;
         squeeze = 1.0;
@@ -2331,20 +2993,29 @@
         lunge = null;
         pass = null;
         growNow = 1;
+        travelDist = 0;
+        lastHeadPos = null;
+        lastEmberMs = 0;
+        headUpState.init = false;
+        for (let i = 0; i < embers.length; i++) embers[i].active = false;
         randomStart();
       },
       update: updateState,
       render,
       triggerLunge,
+      lungeHitMs,
       lungeCoverMs,
       lungeMs: () => LUNGE.dur,
       triggerPass,
+      strikeProgress,
+      impulseCamera,
       isPassing: (nowMs) => !!pass && nowMs < pass.end,
       sampleTrailPointScreen,
       setDebugPose(pose) {
         debugOverride = pose;
       },
       dispose() {
+        disposeFbo(gl, auraFbo);
         disposeFbo(gl, sceneFbo);
         disposeFbo(gl, bloomA);
         disposeFbo(gl, bloomB);
