@@ -9,6 +9,9 @@
   const { gsap, ScrollTrigger, SplitText } = window;
   if (!gsap || !ScrollTrigger || !SplitText) { window.kprMotionOff(); return; }
   gsap.registerPlugin(...[ScrollTrigger, SplitText, window.Flip, window.ScrambleTextPlugin].filter(Boolean));
+  // Prevent iOS/Android URL-bar show/hide height changes from triggering full-page ScrollTrigger.refresh() mid-scroll!
+  ScrollTrigger.config({ ignoreMobileResize: true });
+  const isTouchMobile = matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   let ready = false;
   const all = (sel, scope) => [...(scope || document).querySelectorAll(sel)];
@@ -27,23 +30,21 @@
 
     const cards = inScope(CARDS);
     cards.forEach((card) => {
-      gsap.fromTo(card,
-        { autoAlpha: 0, y: 40, clipPath: 'inset(0% 0% 100% 0%)' },
-        {
-          autoAlpha: 1, y: 0, clipPath: 'inset(0% 0% 0% 0%)',
-          duration: 1, ease: 'power3.out',
-          // nothing left on the card afterwards: a transform here would trap the game's fullscreen
-          clearProps: 'transform,clipPath,opacity,visibility',
-          scrollTrigger: { trigger: card, start: 'top 90%', once: true },
-          onStart: () => show([card]),
+      // On touch mobile, skip expensive clipPath rasterization for pure compositor transform + opacity
+      const fromVars = isTouchMobile ? { autoAlpha: 0, y: 24 } : { autoAlpha: 0, y: 40, clipPath: 'inset(0% 0% 100% 0%)' };
+      const toVars = isTouchMobile
+        ? { autoAlpha: 1, y: 0, duration: 0.72, ease: 'power3.out', clearProps: 'transform,opacity,visibility', scrollTrigger: { trigger: card, start: 'top 92%', once: true }, onStart: () => show([card]) }
+        : { autoAlpha: 1, y: 0, clipPath: 'inset(0% 0% 0% 0%)', duration: 1, ease: 'power3.out', clearProps: 'transform,clipPath,opacity,visibility', scrollTrigger: { trigger: card, start: 'top 90%', once: true }, onStart: () => show([card]) };
+      gsap.fromTo(card, fromVars, toVars);
+    });
+    if (!isTouchMobile) {
+      inScope('.feature-media .shot').forEach((shot) => {
+        gsap.fromTo(shot, { '--par-y': '18px' }, {
+          '--par-y': '-18px', ease: 'none',
+          scrollTrigger: { trigger: shot.closest('.feature-media') || shot, start: 'top bottom', end: 'bottom top', scrub: true },
         });
-    });
-    inScope('.feature-media .shot').forEach((shot) => {
-      gsap.fromTo(shot, { '--par-y': '18px' }, {
-        '--par-y': '-18px', ease: 'none',
-        scrollTrigger: { trigger: shot.closest('.feature-media') || shot, start: 'top bottom', end: 'bottom top', scrub: true },
       });
-    });
+    }
 
     const rest = inScope('.reveal').filter((el) => !cards.includes(el) && !el.classList.contains('is-visible'));
     if (rest.length) {
@@ -57,18 +58,25 @@
             if (el.classList.contains('stack-group')) setTimeout(() => el.classList.add('is-settled'), 650);
           });
           // opacity is cleared too, so classes (the process rail's dimmed steps) can set it
-          gsap.to(batch, { autoAlpha: 1, y: 0, duration: 0.8, stagger: 0.08, ease: 'power3.out', clearProps: 'transform,opacity,visibility' });
+          gsap.to(batch, { autoAlpha: 1, y: 0, duration: isTouchMobile ? 0.6 : 0.8, stagger: 0.06, ease: 'power3.out', clearProps: 'transform,opacity,visibility' });
         },
       });
     }
 
     inScope('.context-title, .cta-title').forEach((title) => {
-      const words = SplitText.create(title, { type: 'words' }).words;
-      gsap.fromTo(words, { opacity: 0.18 }, {
-        opacity: 1, stagger: 0.1, ease: 'none',
-        // clamp(): the contact headline sits near the page's end, so finish by the last scroll
-        scrollTrigger: { trigger: title, start: 'top 85%', end: 'clamp(top 55%)', scrub: true },
-      });
+      if (isTouchMobile) {
+        gsap.fromTo(title, { autoAlpha: 0.25, y: 14 }, {
+          autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out', clearProps: 'transform,opacity,visibility',
+          scrollTrigger: { trigger: title, start: 'top 90%', once: true },
+        });
+      } else {
+        const words = SplitText.create(title, { type: 'words' }).words;
+        gsap.fromTo(words, { opacity: 0.18 }, {
+          opacity: 1, stagger: 0.1, ease: 'none',
+          // clamp(): the contact headline sits near the page's end, so finish by the last scroll
+          scrollTrigger: { trigger: title, start: 'top 85%', end: 'clamp(top 55%)', scrub: true },
+        });
+      }
     });
   }
 
@@ -126,13 +134,15 @@
       });
     }
 
-    // Re-measure scroll positions whenever the page's height changes after this (late images,
-    // the video, the game panel, switching modules), or end-of-page effects stop short.
+    // Re-measure scroll positions only when document height materially changes (ignores minor mobile URL-bar jitter).
     if ('ResizeObserver' in window) {
-      let pending;
+      let pending, lastH = document.body.scrollHeight;
       new ResizeObserver(() => {
+        const nextH = document.body.scrollHeight;
+        if (Math.abs(nextH - lastH) < 24) return;
+        lastH = nextH;
         clearTimeout(pending);
-        pending = setTimeout(() => ScrollTrigger.refresh(), 200);
+        pending = setTimeout(() => ScrollTrigger.refresh(), 240);
       }).observe(document.body);
     }
 

@@ -73,6 +73,7 @@ window.kprStartReveals = function () {
 if (!root.classList.contains('motion')) window.kprStartReveals();
 
 const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isTouchMobile = window.matchMedia && matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 // ---- Smooth, eased scrolling for in-page links ("Get in touch", nav, back to top) ----
 (function () {
@@ -598,9 +599,8 @@ window.kprIntro = (function () {
       c.restore();
     }
 
-    // Renders the exact green-cyan gradient KPR logo onto an offscreen HiDPI canvas (for incisions & sliced slabs)
-    function makeKprSprite(w, h) {
-      const sc = 2;
+    // Renders the exact green-cyan gradient KPR logo onto an offscreen canvas (for incisions & sliced slabs)
+    function makeKprSprite(w, h, sc = 2) {
       const c = document.createElement('canvas');
       c.width = Math.max(2, Math.round(w * sc));
       c.height = Math.max(2, Math.round(h * sc));
@@ -751,24 +751,26 @@ window.kprIntro = (function () {
       const r = logoMarkEl ? logoMarkEl.getBoundingClientRect() : null;
       const rect = (r && r.width > 4) ? { left: r.left, top: r.top, width: r.width, height: r.height } : logoDamage.rect;
       if (!rect || rect.width < 4) return;
+      const isMobShatter = isTouchMobile || Math.min(W, H) <= 760;
       const { left, top, width: w, height: h } = rect;
-      const { canvas: sprite, sc } = makeKprSprite(w, h);
-      const sg = sprite.getContext('2d');
-      const imgData = sg.getImageData(0, 0, sprite.width, sprite.height).data;
-
+      const { canvas: sprite, sc } = makeKprSprite(w, h, isMobShatter ? 1 : 2);
+      // Pre-render ONE dark obsidian letter silhouette once so every slab gets a crisp letter-only rim
+      // with zero software shadowBlur AND zero polygon bounding-box artifacts!
+      const darkSprite = document.createElement('canvas');
+      darkSprite.width = sprite.width;
+      darkSprite.height = sprite.height;
+      const dg = darkSprite.getContext('2d');
+      dg.fillStyle = 'rgba(2, 8, 4, 0.92)';
+      dg.fillRect(0, 0, darkSprite.width, darkSprite.height);
+      dg.globalCompositeOperation = 'destination-in';
+      dg.drawImage(sprite, 0, 0);
+      // Pure geometric ink check (replaces synchronous sg.getImageData() GPU->CPU pipeline flush that stalled HIT3!)
       const hasInk = (poly) => {
-        let minX = w, minY = h, maxX = 0, maxY = 0;
-        for (const p of poly) {
-          if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-          if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-        }
-        let hits = 0;
-        for (let sy = Math.max(0, Math.floor(minY * sc)); sy < Math.min(sprite.height, Math.ceil(maxY * sc)); sy += 3) {
-          for (let sx = Math.max(0, Math.floor(minX * sc)); sx < Math.min(sprite.width, Math.ceil(maxX * sc)); sx += 3) {
-            if (imgData[(sy * sprite.width + sx) * 4 + 3] > 35) { hits++; if (hits >= 4) return true; }
-          }
-        }
-        return false;
+        if (polyArea(poly) < 34) return false;
+        let cx = 0, cy = 0;
+        for (const p of poly) { cx += p.x; cy += p.y; }
+        cx /= poly.length; cy /= poly.length;
+        return cx > w * 0.03 && cx < w * 0.97 && cy > h * 0.06 && cy < h * 0.94;
       };
 
       const cut1 = logoDamage.scar1 || computeLogoCut(rect, at(STRIKES[0].p0), at(STRIKES[0].p1));
@@ -782,10 +784,7 @@ window.kprIntro = (function () {
         { poly: cut2.botHalf.pts, half: 1 },
       ];
 
-      // 8 dead-straight katana cut planes slicing cleanly through K, P, R:
-      // #1 = Slash 1's exact `/` cut finally opening clean across both halves!
-      // #2 = Slash 3's exact `/` cleave slicing cleanly right beside it!
-      // #3-#8 = razor-clean intersecting Dragonblade flurry cuts dicing K, P, R into sleek geometric slabs!
+      // Dead-straight katana cut planes slicing cleanly through K, P, R (6 cuts on mobile -> ~16 crisp slabs; 8 on desktop):
       const makePlane = (px, py, ang, delay, halfLen) => {
         const dx = Math.cos(ang), dy = Math.sin(ang);
         return { px, py, dx, dy, nx: -dy, ny: dx, delay, halfLen };
@@ -801,9 +800,13 @@ window.kprIntro = (function () {
         makePlane(w * 0.77, h * 0.52, ang3 - 0.07, 36, diag * 0.85),
         makePlane(w * 0.46, h * 0.26, ang2 - 0.09, 48, diag * 0.92),
         makePlane(w * 0.54, h * 0.74, ang2 + 0.08, 60, diag * 0.92),
-        makePlane(w * 0.50, h * 0.52, -0.14, 72, diag * 1.05),
-        makePlane(w * 0.38, h * 0.48, ang1 + 0.42, 84, diag * 0.78),
       ];
+      if (!isMobShatter) {
+        cutPlanes.push(
+          makePlane(w * 0.50, h * 0.52, -0.14, 72, diag * 1.05),
+          makePlane(w * 0.38, h * 0.48, ang1 + 0.42, 84, diag * 0.78),
+        );
+      }
 
       // Sequentially bisect every piece with each straight blade plane!
       for (const pl of cutPlanes) {
@@ -833,45 +836,45 @@ window.kprIntro = (function () {
         }
         cx /= poly.length; cy /= poly.length;
 
-        const pad = 8;
+        const pad = isMobShatter ? 4 : 6;
         const bx = minX - pad, by = minY - pad;
         const bw = Math.max(8, (maxX + pad) - bx);
         const bh = Math.max(8, (maxY + pad) - by);
 
-        // Pre-render each razor-sliced KPR slab once with surgical `source-atop` cut-steel edges
-        // AND a crisp dark obsidian backing shadow so every tumbling slab pops cleanly even over the dragon!
-        const inner = document.createElement('canvas');
-        inner.width = Math.max(2, Math.ceil(bw * sc));
-        inner.height = Math.max(2, Math.ceil(bh * sc));
-        const ig = inner.getContext('2d');
-        ig.scale(sc, sc);
-        ig.beginPath();
-        ig.moveTo(poly[0].x - bx, poly[0].y - by);
-        for (let i = 1; i < poly.length; i++) ig.lineTo(poly[i].x - bx, poly[i].y - by);
-        ig.closePath();
-        ig.save();
-        ig.clip();
-        ig.drawImage(sprite, -bx, -by, w, h);
-        ig.restore();
-        ig.globalCompositeOperation = 'source-atop';
-        ig.lineJoin = 'miter';
-        ig.strokeStyle = 'rgba(40, 240, 180, 0.68)';
-        ig.lineWidth = 2.6;
-        ig.stroke();
-        ig.strokeStyle = 'rgba(246, 255, 250, 0.96)';
-        ig.lineWidth = 1.35;
-        ig.stroke();
-        ig.globalCompositeOperation = 'source-over';
-
+        // Single-canvas razor-sliced KPR slab: letter-only obsidian offset shadow + surgical cut-steel bevels!
         const tc = document.createElement('canvas');
-        tc.width = inner.width;
-        tc.height = inner.height;
+        tc.width = Math.max(2, Math.ceil(bw * sc));
+        tc.height = Math.max(2, Math.ceil(bh * sc));
         const tg = tc.getContext('2d');
-        tg.shadowColor = 'rgba(2, 8, 4, 0.92)';
-        tg.shadowBlur = 7 * sc;
-        tg.drawImage(inner, 0, 0);
-        tg.shadowBlur = 0;
-        tg.drawImage(inner, 0, 0);
+        tg.scale(sc, sc);
+        tg.beginPath();
+        tg.moveTo(poly[0].x - bx, poly[0].y - by);
+        for (let i = 1; i < poly.length; i++) tg.lineTo(poly[i].x - bx, poly[i].y - by);
+        tg.closePath();
+        tg.save();
+        tg.clip();
+        tg.drawImage(sprite, -bx, -by, w, h);
+        tg.restore();
+        tg.globalCompositeOperation = 'source-atop';
+        tg.lineJoin = 'miter';
+        tg.strokeStyle = 'rgba(40, 240, 180, 0.72)';
+        tg.lineWidth = 2.6;
+        tg.stroke();
+        tg.strokeStyle = 'rgba(246, 255, 250, 0.96)';
+        tg.lineWidth = 1.35;
+        tg.stroke();
+        // Fast crisp letter-shaped obsidian drop-rim behind the slab (zero polygon box lines, zero shadowBlur!)
+        tg.globalCompositeOperation = 'destination-over';
+        tg.save();
+        tg.translate(1.6, 1.8);
+        tg.beginPath();
+        tg.moveTo(poly[0].x - bx, poly[0].y - by);
+        for (let i = 1; i < poly.length; i++) tg.lineTo(poly[i].x - bx, poly[i].y - by);
+        tg.closePath();
+        tg.clip();
+        tg.drawImage(darkSprite, -bx, -by, w, h);
+        tg.restore();
+        tg.globalCompositeOperation = 'source-over';
 
         const shBase = pc.half === 0 ? cut2.shiftTop : cut2.shiftBot;
         const rx = (cx - w * 0.5) / (w * 0.5);
@@ -1071,16 +1074,20 @@ window.kprIntro = (function () {
     window.__kprDragon3D = dragon3d;
     const dragon = { hist: [], angle: rand(0, TAU), speed: 0.75, squeeze: 1, alpha: 0, len: 0, lunge: null };
 
+    let ringDirty = true, mctxDirty = false;
     function size() {
-      W = innerWidth; H = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
+      W = innerWidth; H = innerHeight;
+      const isMob = isTouchMobile || Math.min(W, H) <= 760;
+      dpr = Math.min(devicePixelRatio || 1, isMob ? 1.25 : 2);
       [[canvas, ctx2d], [midCanvas, mctx], [backCanvas, bctx]].forEach(([c, x]) => {
         if (!c || !x) return;
         c.width = Math.max(1, Math.round(W * dpr));
         c.height = Math.max(1, Math.round(H * dpr));
         x.setTransform(dpr, 0, 0, dpr, 0, 0);
       });
-      if (dragon3d) dragon3d.resize(W, H, dpr);
+      if (dragon3d) dragon3d.resize(W, H, devicePixelRatio || 1);
       dragon.len = Math.min(W, H) * (dragon.lunge ? 2 : 1.35);
+      ringDirty = true;
     }
     // Maps normalized strike coordinates to CSS px: unchanged on landscape (aspect >= 0.95), and
     // compresses vertical span around center on tall portrait phones so slashes keep sleek katana diagonals!
@@ -1129,13 +1136,13 @@ window.kprIntro = (function () {
     function updateDragon(dt, now) {
       if (dragon3d) {
         dragon3d.setLift(lift, fit);
-        if (reticleEl) {
+        // Only measure reticleEl when resizing or actively gliding lift (eliminates 2x per-frame forced layout!)
+        if (reticleEl && (ringDirty || Math.abs(lift - liftTarget) > 0.25)) {
           const r = reticleEl.getBoundingClientRect();
-          if (r.width > 2) dragon3d.setRing(r.left + r.width / 2, r.top + r.height / 2, r.width / 2);
-        }
-        if (logoEl) {
-          const r = logoEl.getBoundingClientRect();
-          dragon3d.setLogo(r.left, r.top, r.right, r.bottom);
+          if (r.width > 2) {
+            dragon3d.setRing(r.left + r.width / 2, r.top + r.height / 2, r.width / 2);
+            ringDirty = false;
+          }
         }
         dragon3d.update(dt, now, phase, phaseAt);
         const passing = dragon3d.isPassing && dragon3d.isPassing(now);
@@ -1386,6 +1393,10 @@ window.kprIntro = (function () {
       c.save();
       c.globalCompositeOperation = 'lighter';
       const headP = outerPts[outerPts.length - 1], tailP = outerPts[0];
+      if (!headP || !tailP || !isFinite(headP.x) || !isFinite(headP.y) || !isFinite(tailP.x) || !isFinite(tailP.y)) {
+        c.restore();
+        return;
+      }
       // Directional luminous energy gradient: dissolves softly at the trailing wake -> white-hot at the cutting tip!
       const wakeGrad = c.createLinearGradient(tailP.x, tailP.y, headP.x, headP.y);
       wakeGrad.addColorStop(0, 'rgba(68, 214, 44, 0)');
@@ -1610,7 +1621,11 @@ window.kprIntro = (function () {
     }
     function render(now) {
       ctx2d.clearRect(0, 0, W, H);
-      if (mctx) mctx.clearRect(0, 0, W, H);
+      // Only clear midCanvas while Stage 1/2 logo scars are active (plus one final clear when entering Stage 3)
+      if (mctx && (logoDamage.stage === 1 || logoDamage.stage === 2 || mctxDirty)) {
+        mctx.clearRect(0, 0, W, H);
+        mctxDirty = logoDamage.stage === 1 || logoDamage.stage === 2;
+      }
       if (bctx) bctx.clearRect(0, 0, W, H);
       const amb = bctx || ctx2d;
 
@@ -1688,9 +1703,9 @@ window.kprIntro = (function () {
           const isLatest = i === slashes.length - 1;
           if (isLatest && liveT > 0.01) s.maxEnd = Math.max(s.maxEnd, Math.min(1, liveT + snoutLead));
           if (s.hitAt) {
-            const postAge = (now - s.hitAt) / 1000;
+            const postAge = Math.max(0, (now - s.hitAt) / 1000);
             if (postAge > s.life) { slashes.splice(i, 1); continue; }
-            const prog = postAge / s.life;
+            const prog = Math.min(1, postAge / s.life);
             tEnd = Math.max(s.maxEnd, Math.min(1, 0.58 + easeOutCubic(Math.min(1, prog * 3.6)) * 0.42));
             // Trailing wake whips swiftly out behind the blade so zero stale sliver lingers into the next slash!
             tStart = Math.max(0, Math.min(tEnd - 0.02, Math.pow(prog, 0.92) * 1.18));
@@ -1714,9 +1729,9 @@ window.kprIntro = (function () {
             spawnSparks(tipPt.x, tipPt.y, nextPt.x - tipPt.x, nextPt.y - tipPt.y, s.cleave ? 4 : 2, s.cleave ? 1.1 : 0.85);
           }
         } else {
-          const age = (now - s.born) / 1000;
+          const age = Math.max(0, (now - s.born) / 1000);
           if (age > s.life) { slashes.splice(i, 1); continue; }
-          const prog = age / s.life;
+          const prog = Math.min(1, age / s.life);
           tEnd = easeOutCubic(Math.min(1, prog * 3.2));
           tStart = Math.max(0, (prog - 0.14) * 1.15);
           alpha = Math.max(0, 1 - Math.pow(prog, 1.7));
@@ -1799,6 +1814,7 @@ window.kprIntro = (function () {
       setLift(px, instant, halfSpace) {
         liftTarget = px;
         fitHalf = halfSpace;
+        ringDirty = true;
         // the tilted orbit reaches about 0.72 rx above and below its centre, plus the body's width
         const rx = Math.min(W * 0.44, H * 0.42, 360);
         fitTarget = Math.min(1, Math.max(0.35, (fitHalf - Math.min(W, H) * 0.035) / (rx * 0.72)));
@@ -2066,12 +2082,11 @@ window.kprIntro = (function () {
   };
 })();
 
-// ---- Lenis: smooth, weighted scrolling across the whole page ----
-// Wheel and trackpad input glide instead of jumping; touch keeps the phone's own native
-// scrolling. Off with reduced motion, and simply absent if the CDN script didn't load.
+// ---- Lenis: smooth, weighted scrolling on desktop wheel/trackpad ----
+// Touch mobile keeps hardware-accelerated native scrolling directly (no idle RAF or lagSmoothing(0) jank!).
 window.kprLenis = null;
 (function () {
-  if (reduceMotion || typeof window.Lenis !== 'function') return;
+  if (reduceMotion || isTouchMobile || typeof window.Lenis !== 'function') return;
   const lenis = new Lenis({ lerp: 0.1, smoothWheel: true, wheelMultiplier: 1 });
   window.kprLenis = lenis;
 
@@ -2104,30 +2119,51 @@ window.kprLenis = null;
   const progress = document.querySelector('.scroll-progress');
   const floatTop = document.querySelector('.float-top');
   const footer = document.querySelector('.site-footer');
-  let ticking = false;
+  let ticking = false, maxScroll = 0, rootFont = 16, floatH = 44, lastScrolled = false;
+  function measureScroll() {
+    maxScroll = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+    rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    if (floatTop && !root.classList.contains('has-dock')) floatH = floatTop.offsetHeight || 44;
+  }
   function onScroll() {
     ticking = false;
-    const max = document.documentElement.scrollHeight - innerHeight;
-    if (progress) progress.style.setProperty('--progress', max > 0 ? Math.min(1, scrollY / max) : 0);
-    if (header) header.classList.toggle('is-scrolled', scrollY > 24);
-    if (floatTop) {
-      floatTop.classList.toggle('is-visible', scrollY > innerHeight);
-      // Once the footer scrolls into view, the button stops on the footer's centre line,
-      // level with the "2026 Ken Patrick Ranis" text, instead of floating over the page.
-      const rest = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.25;
-      let bottom = rest;
+    const y = scrollY;
+    const needFloat = !!floatTop && !root.classList.contains('has-dock');
+    // Batch all DOM reads BEFORE any DOM writes (eliminates forced synchronous layout thrashing!)
+    let bottom = 0;
+    if (needFloat) {
+      const rest = rootFont * 1.25;
+      bottom = rest;
       if (footer) {
         const f = footer.getBoundingClientRect();
-        const docked = innerHeight - (f.top + f.height / 2) - floatTop.offsetHeight / 2;
+        const docked = innerHeight - (f.top + f.height / 2) - floatH / 2;
         bottom = Math.max(rest, docked);
       }
+    }
+    if (progress) progress.style.setProperty('--progress', maxScroll > 0 ? Math.min(1, y / maxScroll) : 0);
+    const isScrolled = y > 24;
+    if (header && isScrolled !== lastScrolled) {
+      lastScrolled = isScrolled;
+      header.classList.toggle('is-scrolled', isScrolled);
+    }
+    if (needFloat) {
+      floatTop.classList.toggle('is-visible', y > innerHeight);
       floatTop.style.bottom = bottom + 'px';
     }
   }
-  window.addEventListener('resize', onScroll);
+  const onResize = () => { measureScroll(); onScroll(); };
+  window.addEventListener('resize', onResize, { passive: true });
+  if ('ResizeObserver' in window) {
+    let rTimer = 0;
+    new ResizeObserver(() => {
+      clearTimeout(rTimer);
+      rTimer = setTimeout(measureScroll, 120);
+    }).observe(document.body);
+  }
   window.addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(onScroll); }
   }, { passive: true });
+  measureScroll();
   onScroll();
 
   // A soft light follows the cursor across cards (mouse and trackpad only). It's a
@@ -2204,28 +2240,43 @@ window.kprLenis = null;
   let current = 0;
   let switching = null;
 
-  // ---- gliders: the lit block behind the active tab, the underline under the header link ----
-  function moveTo(el, x, w, instant, vars) {
-    if (!el) return;
+  // ---- gliders: compositor-only x + scaleX (zero per-frame width layout reflows!) ----
+  let gliderBaseW = 0, navGliderBaseW = 100;
+  function moveTo(el, x, w, baseW, instant, vars) {
+    if (!el || !baseW) return;
+    const sx = w / baseW;
     if (G()) {
-      if (instant || !canAnimate()) G().set(el, { x, width: w });
-      else G().to(el, Object.assign({ x, width: w, overwrite: true }, vars));
+      if (instant || !canAnimate()) G().set(el, { x, scaleX: sx, transformOrigin: '0 50%' });
+      else G().to(el, Object.assign({ x, scaleX: sx, transformOrigin: '0 50%', overwrite: true }, vars));
     } else {
-      el.style.transform = 'translateX(' + x + 'px)';
-      el.style.width = w + 'px';
+      el.style.transformOrigin = '0 50%';
+      el.style.transform = 'translateX(' + x + 'px) scaleX(' + sx + ')';
     }
   }
   function placeGliders(instant) {
     const t = tabs[current];
-    moveTo(glider, t.offsetLeft, t.offsetWidth, instant, { duration: 0.62, ease: 'expo.inOut' });
+    if (glider && t) {
+      if (instant || !gliderBaseW) {
+        gliderBaseW = Math.max(1, tabs[0].offsetWidth || t.offsetWidth);
+        glider.style.width = gliderBaseW + 'px';
+      }
+      moveTo(glider, t.offsetLeft, t.offsetWidth, gliderBaseW, instant, { duration: 0.56, ease: 'expo.inOut' });
+    }
     const a = navLinks[current];
     if (a && navGlider) {
-      moveTo(navGlider, a.offsetLeft, a.offsetWidth, instant, { duration: 0.55, ease: 'power3.inOut' });
+      if (instant || navGlider.style.width !== navGliderBaseW + 'px') {
+        navGlider.style.width = navGliderBaseW + 'px';
+      }
+      moveTo(navGlider, a.offsetLeft, a.offsetWidth, navGliderBaseW, instant, { duration: 0.48, ease: 'power3.inOut' });
       nav.classList.add('has-glider');
     }
   }
   if ('ResizeObserver' in window) {
-    const ro = new ResizeObserver(() => placeGliders(true));
+    let roTimer = 0;
+    const ro = new ResizeObserver(() => {
+      clearTimeout(roTimer);
+      roTimer = setTimeout(() => placeGliders(true), 50);
+    });
     ro.observe(tabList);
     if (nav) ro.observe(nav);
   }
@@ -2237,10 +2288,10 @@ window.kprLenis = null;
       .observe(deck);
   }
 
-  // ---- labels decode like a cipher when hovered ----
+  // ---- labels decode like a cipher on desktop hover/switch (skipped on touch mobile to prevent auto-column & wrap reflows) ----
   function scramble(el, text, duration) {
     if (!el) return;
-    if (canAnimate() && window.ScrambleTextPlugin) {
+    if (finePointer && canAnimate() && window.ScrambleTextPlugin) {
       G().to(el, { duration: duration || 0.55, scrambleText: { text, chars: 'upperCase', speed: 0.7 }, overwrite: true });
     } else {
       el.textContent = text;
@@ -2280,7 +2331,7 @@ window.kprLenis = null;
     nextBtn.setAttribute('aria-label', 'Next up: ' + names[next]);
     const text = panels[current].dataset.status || '';
     statusLive.textContent = text;
-    if (canAnimate() && window.ScrambleTextPlugin) {
+    if (finePointer && canAnimate() && window.ScrambleTextPlugin) {
       G().to(status, { duration: 0.9, scrambleText: { text, chars: 'lowerCase', speed: 0.6, revealDelay: 0.2 }, overwrite: true });
     } else {
       status.textContent = text;
@@ -2373,23 +2424,38 @@ window.kprLenis = null;
     const tl = g.timeline({
       onComplete: () => {
         if (switching === tl) switching = null;
+        if (!finePointer && window.ScrollTrigger) window.ScrollTrigger.refresh();
       },
     });
     switching = tl;
-    tl.to(from, { autoAlpha: 0, x: -24, duration: 0.16, ease: 'power2.in' })
-      .add(() => {
-        if (switching !== tl) return;
-        clearPanelAnims(from);
-        show(to);
-        afterShow(to, firstVisit);
-        if (opts.then) opts.then();
-      })
-      .set(beam, { autoAlpha: 1, x: 0 })
-      .fromTo(to, { clipPath: 'inset(0% 100% 0% 0%)' },
-        { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.52, ease: 'power3.inOut', clearProps: 'clipPath' }, '<')
-      .to(beam, { x: () => stage.clientWidth, duration: 0.52, ease: 'power3.inOut' }, '<')
-      .to(beam, { autoAlpha: 0, duration: 0.2, ease: 'power1.out' }, '-=0.14')
-      .set(beam, { x: 0 }); // park it at the left edge so it never widens the page
+    if (!finePointer) {
+      // Touch mobile: pure GPU compositor fade + subtle slide (avoids full-panel clipPath rasterization jank!)
+      tl.to(from, { autoAlpha: 0, x: -12, duration: 0.12, ease: 'power2.in' })
+        .add(() => {
+          if (switching !== tl) return;
+          clearPanelAnims(from);
+          show(to);
+          if (window.kprMotion && window.kprMotion.armPanel) window.kprMotion.armPanel(to);
+          if (opts.then) opts.then();
+        })
+        .fromTo(to, { autoAlpha: 0, x: 14 },
+          { autoAlpha: 1, x: 0, duration: 0.30, ease: 'power3.out', clearProps: 'transform,opacity,visibility' });
+    } else {
+      tl.to(from, { autoAlpha: 0, x: -24, duration: 0.16, ease: 'power2.in' })
+        .add(() => {
+          if (switching !== tl) return;
+          clearPanelAnims(from);
+          show(to);
+          afterShow(to, firstVisit);
+          if (opts.then) opts.then();
+        })
+        .set(beam, { autoAlpha: 1, x: 0 })
+        .fromTo(to, { clipPath: 'inset(0% 100% 0% 0%)' },
+          { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.52, ease: 'power3.inOut', clearProps: 'clipPath' }, '<')
+        .to(beam, { x: () => stage.clientWidth, duration: 0.52, ease: 'power3.inOut' }, '<')
+        .to(beam, { autoAlpha: 0, duration: 0.2, ease: 'power1.out' }, '-=0.14')
+        .set(beam, { x: 0 }); // park it at the left edge so it never widens the page
+    }
   }
 
   const indexOf = (id) => ids.indexOf(id);
@@ -2914,7 +2980,7 @@ window.kprLenis = null;
   document.querySelectorAll('[data-slides]').forEach((box, n) => {
     const slides = [...box.querySelectorAll('.slide')];
     if (slides.length < 2) return;
-    let index = 0, timer = null, paused = false;
+    let index = 0, timer = null, paused = false, inView = !('IntersectionObserver' in window);
     const dots = document.createElement('div');
     dots.className = 'slide-dots';
     const buttons = slides.map((_, i) => {
@@ -2933,9 +2999,16 @@ window.kprLenis = null;
     }
     function restart() {
       clearInterval(timer);
-      if (!paused) timer = setInterval(() => show(index + 1), 3200);
+      if (!paused && inView) timer = setInterval(() => show(index + 1), 3200);
     }
-    // Pause while the visitor is looking closely (hover or keyboard focus).
+    // Pause while off-screen or while the visitor is looking closely (hover or keyboard focus).
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(([entry]) => {
+        inView = entry.isIntersecting;
+        if (inView) restart();
+        else clearInterval(timer);
+      }).observe(box);
+    }
     box.addEventListener('mouseenter', () => { paused = true; clearInterval(timer); });
     box.addEventListener('mouseleave', () => { paused = false; restart(); });
     box.addEventListener('focusin', () => { paused = true; clearInterval(timer); });
@@ -3067,8 +3140,13 @@ function kprAfterIntro(fn) {
       span.textContent = chars[shown];
       typed.appendChild(span);
       if (span.animate) {
-        span.animate([{ opacity: 0, filter: 'blur(0.3em)' }, { opacity: 1, filter: 'blur(0em)' }],
-          { duration: 520, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+        if (isTouchMobile) {
+          span.animate([{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'none' }],
+            { duration: 320, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+        } else {
+          span.animate([{ opacity: 0, filter: 'blur(0.3em)' }, { opacity: 1, filter: 'blur(0em)' }],
+            { duration: 520, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+        }
       }
       shown++;
       placeCursor(false);
@@ -3105,7 +3183,8 @@ function kprAfterIntro(fn) {
 // light following the pointer but drops the tilt and the photo parallax.
 (function () {
   const card = document.querySelector('[data-profile-card]');
-  if (!card) return;
+  // On touch-only mobile, skip spring tilt & 13-CSS-var foil repaints so swiping past the portrait stays 60fps
+  if (!card || isTouchMobile) return;
   const TILT = 10, DEPTH = 6;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const size = { width: card.offsetWidth, height: card.offsetHeight };

@@ -439,9 +439,8 @@ sup { font-size: .45em; vertical-align: super; line-height: 0; }
   animation: pulse 2.4s infinite;
 }
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(68, 214, 44, .5); }
-  70% { box-shadow: 0 0 0 .5rem rgba(68, 214, 44, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(68, 214, 44, 0); }
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.28); opacity: .55; }
 }
 
 /* ---------- Work: Split-Pane File Explorer ---------- */
@@ -2285,4 +2284,69 @@ html.site-blur-hold.site-glimpse .site-footer {
 }
 @media (hover: none) {
   .intro-skip kbd { display: none; }
+}
+
+/* ---------- Mobile / Touch GPU & Compositor Optimizations ----------
+   Desktop keeps full frosted backdrop-filter glass, multi-layer foil shaders, and 26px full-page blur.
+   Touch mobile drops expensive real-time backdrop blurs, full-<main> blur transitions, and sticky header
+   scroll reflows so scrolling, tab switching, and the 3D dragon reveal stay locked near 60fps! */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) {
+  /* Keep sticky header padding constant on scroll (zero full-page layout reflow at scrollY = 24px)
+     and use crisp translucent obsidian glass instead of real-time per-frame backdrop-filter blur. */
+  .site-header.is-scrolled {
+    padding-block: .85rem;
+    background: rgba(5, 6, 5, .94);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .dock::before {
+    background: rgba(11, 14, 11, .92);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .rv-backdrop,
+  .rv-bar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* Replace full-<main> 26px Gaussian blur animation during Slash 3 wipe with compositor-only opacity + scale! */
+  html.site-blur-hold .site-header,
+  html.site-blur-hold main,
+  html.site-blur-hold .site-footer {
+    filter: none;
+    opacity: .14;
+    transform: scale(.985);
+    transform-origin: 50% 18vh;
+  }
+  html.site-unblurring .site-header,
+  html.site-unblurring main,
+  html.site-unblurring .site-footer {
+    filter: none;
+    opacity: 1;
+    transform: none;
+    transition: opacity .55s cubic-bezier(.16, 1, .3, 1), transform .55s cubic-bezier(.16, 1, .3, 1);
+  }
+  html.site-unblurring.site-wipe .site-header,
+  html.site-unblurring.site-wipe main,
+  html.site-unblurring.site-wipe .site-footer {
+    transition: opacity .35s cubic-bezier(.16, 1, .3, 1), transform .38s cubic-bezier(.16, 1, .3, 1);
+  }
+  /* Lighter drop-shadow and compositor-only gate breathe on mobile intro mark */
+  .intro-logo {
+    filter: drop-shadow(0 0 12px rgba(68, 214, 44, .55));
+  }
+  @keyframes mark-breathe-mob {
+    0%, 100% { opacity: .92; }
+    50% { opacity: 1; }
+  }
+  .intro-splash.is-gate .intro-whole .intro-mark { animation: mark-breathe-mob 3.2s ease-in-out infinite; }
+  .intro-splash.is-powering .intro-whole .intro-mark { animation: none; }
+}
+@media (hover: none) and (pointer: coarse) {
+  /* Skip heavy 500% multi-gradient blend-mode + dynamic CSS filter layers on touch-only mobile */
+  .profile-card__body { will-change: auto; }
+  .profile-card__holo,
+  .profile-card__glare,
+  .profile-card__sheen,
+  .profile-card__shade { display: none; }
 }

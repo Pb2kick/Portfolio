@@ -81,7 +81,7 @@
   }
 
   // -------------------- Indexed Mesh Builder --------------------
-  function createMeshBuilder() {
+  function createMeshBuilder(isMobile) {
     const pos = [];
     const uv = [];
     const mat = [];
@@ -121,8 +121,12 @@
 
     // Loft sculpted horn / blade / ear / fang along a 3D centerline with optional concave scoop
     function addSculptedSpike(opts) {
+      const rawRings = opts.rings || 10;
+      const rawSegs = opts.segs || 12;
+      const rings = isMobile ? Math.max(6, Math.round(rawRings * 0.68)) : rawRings;
+      const segs = isMobile ? Math.max(6, Math.round(rawSegs * 0.65)) : rawSegs;
       const {
-        rings = 10, segs = 12, matId = MAT_HEAD,
+        matId = MAT_HEAD,
         sample,
         mirrorX = false,
       } = opts;
@@ -233,14 +237,13 @@
   }
 
   // -------------------- Sculpt Authentic Overwatch Genji Spirit Dragon Head --------------------
-  function buildDragonHeadMeshes() {
-    const upper = createMeshBuilder();
+  function buildDragonHeadMeshes(isMobile) {
+    const upper = createMeshBuilder(isMobile);
 
     // High-density sculpted Overwatch Genji cranium & chiseled boxy snarling muzzle:
-    // high domed forehead -> 45-deg step-down with deep diagonal snarl folds -> flat-bridged boxy
-    // overhanging snout with flared squared nasal wings & deep forward teardrop nostrils!
-    const Z_RINGS = 76;
-    const RAD_SEGS = 56;
+    // adaptive LOD keeps desktop full-resolution (76x56) and mobile nimble (~44x32) with identical silhouette!
+    const Z_RINGS = isMobile ? 44 : 76;
+    const RAD_SEGS = isMobile ? 32 : 56;
     const skullRings = [];
 
     for (let r = 0; r < Z_RINGS; r++) {
@@ -567,9 +570,9 @@
     }
 
     // === 2. ARTICULATED OVERWATCH LOWER JAW (CLEAN BLOCKY UPTURNED CHIN-PROW + BLAZING TONGUE + CARVED TUSKS) ===
-    const lower = createMeshBuilder();
-    const J_RINGS = 36;
-    const J_SEGS = 36;
+    const lower = createMeshBuilder(isMobile);
+    const J_RINGS = isMobile ? 22 : 36;
+    const J_SEGS = isMobile ? 22 : 36;
     const jawRings = [];
 
     for (let r = 0; r < J_RINGS; r++) {
@@ -744,11 +747,17 @@
     float fbm(vec2 p) {
       float v = 0.0;
       float amp = 0.5;
+      #ifdef MOBILE_GPU
+      v += amp * noise2(p);
+      p *= 2.07; amp *= 0.5;
+      v += amp * noise2(p);
+      #else
       for (int i = 0; i < 3; i++) {
         v += amp * noise2(p);
         p *= 2.07;
         amp *= 0.5;
       }
+      #endif
       return v;
     }
 
@@ -851,11 +860,18 @@
         float signedV = vUv.y * 2.0 - 1.0;
         float across = abs(signedV);
 
-        // Domain-warped two-octave FBM: breaks edges into wisps and snakes the core energy filament.
+        // Domain-warped FBM on desktop; fast 1-FBM + trig turbulence on mobile (~70% lower ALU!)
+        #ifdef MOBILE_GPU
+        float warp = sin(flowU * 1.15 + seed * 2.71) * 0.28 + cos(signedV * 2.4 - uTime * 1.1) * 0.16;
+        float n1 = fbm(vec2(flowU + warp, signedV * 1.9 + warp * 0.7));
+        float n2 = 0.5 + 0.5 * sin(flowU * 3.1 - uTime * 1.4 + signedV * 4.2);
+        float turb = n1 * 0.74 + n2 * 0.26;
+        #else
         float warp = fbm(vec2(flowU * 0.62, signedV * 1.15 + seed * 2.71)) - 0.5;
         float n1 = fbm(vec2(flowU + warp * 1.15, signedV * 1.9 + warp * 0.90));
         float n2 = fbm(vec2(flowU * 2.35 - uTime * 0.85, signedV * 3.6 - warp * 0.75));
         float turb = n1 * 0.62 + n2 * 0.38;
+        #endif
 
         // Sinuous displaced core centerline so bright calligraphic spirit threads dance inside the mist.
         float snakeCenter = sin(flowU * 1.75 + seed * 3.1) * 0.22 * (0.35 + 0.65 * vUv.x) + warp * 0.34;
@@ -944,7 +960,11 @@
       float sssMouth = exp(-mouthDist * 2.85) * (0.14 + 0.18 * (1.0 - ndv)) * smoothstep(0.18, 0.65, cavity);
 
       // Subtle drifting spirit chi along the scales
+      #ifdef MOBILE_GPU
+      float flowWave = 0.5 + 0.5 * sin(vUv.x * 11.0 - uTime * 3.2 + sin(vUv.y * 6.0));
+      #else
       float flowWave = fbm(vec2(vUv.x * 5.5 - uTime * 1.6, vUv.y * 3.2 + uTime * 0.18));
+      #endif
       float chiPulse = smoothstep(0.50, 0.92, flowWave) * (0.10 + 0.24 * uPower);
 
       // Calibrated directly to Ref 1-4 so EVERY brow ridge, nostril, ear scoop & mane blade reads sharply!
@@ -1058,7 +1078,13 @@
     uniform float uBloomGain;
     void main() {
       vec4 c = texture2D(uTex, vUv);
-      if (uMode < 0.5) {
+      if (uMode > 1.5) {
+        // Mobile fused single-pass composite: crisp scene + additive bloom in ONE blit & ONE drawImage!
+        vec3 bloom = texture2D(uAuraTex, vUv).rgb * uBloomGain;
+        vec3 rgb = min(c.rgb + bloom, vec3(1.0));
+        float a = clamp(max(c.a, max(bloom.r, max(bloom.g, bloom.b))), 0.0, 1.0);
+        gl_FragColor = vec4(min(rgb, vec3(a)), a);
+      } else if (uMode < 0.5) {
         // Subtle cinematic soft-focus bokeh when uDofPx > 0 (far pass deep behind KPR & diamond)
         if (uDofPx.x > 0.00001) {
           vec4 s = c * 0.28;
@@ -1151,11 +1177,13 @@
 
   // -------------------- Main 3D spirit dragon instance --------------------
   window.createSpiritDragon3D = function createSpiritDragon3D() {
+    const isMobile = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ||
+      Math.min(window.innerWidth, window.innerHeight) <= 760;
     const glCanvas = document.createElement('canvas');
     const gl = glCanvas.getContext('webgl', {
       alpha: true,
       premultipliedAlpha: true,
-      antialias: true,
+      antialias: false, // 3D geometry renders to FBOs, so default-framebuffer MSAA only wasted resolve bandwidth!
       depth: true,
       stencil: false,
       powerPreference: 'high-performance',
@@ -1163,9 +1191,13 @@
     if (!gl) return null;
 
     const hasDeriv = !!gl.getExtension('OES_standard_derivatives');
-    const fragSrc = hasDeriv
+    let fragSrc = hasDeriv
       ? DRAGON_FRAG
       : DRAGON_FRAG.replace('#extension GL_OES_standard_derivatives : enable', '').replace('dFdx(vWorldPos)', 'vec3(0.0)').replace('dFdy(vWorldPos)', 'vec3(0.0)');
+    if (isMobile) {
+      // Insert #define MOBILE_GPU right after any #extension directive so GLSL ES1 stays strictly valid!
+      fragSrc = fragSrc.replace('precision highp float;', '#define MOBILE_GPU 1\nprecision highp float;');
+    }
 
     const progDragon = linkProgram(gl, DRAGON_VERT, fragSrc);
     const progBright = linkProgram(gl, QUAD_VERT, BRIGHT_FRAG);
@@ -1232,7 +1264,7 @@
     };
     logoImg.src = 'kpr-logo.png';
 
-    const headData = buildDragonHeadMeshes();
+    const headData = buildDragonHeadMeshes(isMobile);
     function uploadStaticMesh(m) {
       const vbo = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -1245,14 +1277,14 @@
     const upperGpu = uploadStaticMesh(headData.upper);
     const lowerGpu = uploadStaticMesh(headData.lower);
 
-    const BODY_RINGS = 96;
-    const BODY_SEGS = 28;
-    const FIN_COUNT = 34; // bold, sculptural, clearly spaced swept dorsal blades (Ref 2!)
-    const WHISK_RINGS = 26;
-    const WHISK_SEGS = 8;
-    const RIBBON_COUNT = 12;
-    const RIBBON_RINGS = 34;
-    const EMBER_COUNT = 28;
+    const BODY_RINGS = isMobile ? 56 : 96;
+    const BODY_SEGS = isMobile ? 16 : 28;
+    const FIN_COUNT = isMobile ? 24 : 34; // bold, sculptural, clearly spaced swept dorsal blades (Ref 2!)
+    const WHISK_RINGS = isMobile ? 16 : 26;
+    const WHISK_SEGS = isMobile ? 6 : 8;
+    const RIBBON_COUNT = isMobile ? 6 : 12;
+    const RIBBON_RINGS = isMobile ? 20 : 34;
+    const EMBER_COUNT = isMobile ? 14 : 28;
     const MAT_EMBER = 20.0;
 
     const dynIndices = [];
@@ -1347,13 +1379,15 @@
     function resize(width, height, pixelRatio) {
       W = Math.max(1, width);
       H = Math.max(1, height);
-      dpr = Math.min(pixelRatio || 1, 2);
+      // Cap WebGL backing store at 1x on mobile (4x fewer shaded pixels on tile-based mobile GPUs!)
+      dpr = Math.min(pixelRatio || 1, isMobile ? 1.0 : 2);
       const nw = Math.max(2, Math.round(W * dpr));
       const nh = Math.max(2, Math.round(H * dpr));
       if (nw === fboW && nh === fboH && sceneFbo) return;
       fboW = nw; fboH = nh;
-      bloomW = Math.max(2, Math.round(nw * 0.36));
-      bloomH = Math.max(2, Math.round(nh * 0.36));
+      const bloomFrac = isMobile ? 0.25 : 0.36;
+      bloomW = Math.max(2, Math.round(nw * bloomFrac));
+      bloomH = Math.max(2, Math.round(nh * bloomFrac));
       glCanvas.width = nw;
       glCanvas.height = nh;
       disposeFbo(gl, auraFbo);
@@ -1361,9 +1395,14 @@
       disposeFbo(gl, bloomA);
       disposeFbo(gl, bloomB);
       sceneFbo = createFbo(gl, fboW, fboH, true);
-      auraFbo = createFbo(gl, fboW, fboH, true, sceneFbo.depthRb);
-      if (!auraFbo.complete) {
-        disposeFbo(gl, auraFbo);
+      // On mobile, blend spirit ribbons directly into sceneFbo (eliminates a full-screen FBO bind + resolve!)
+      if (!isMobile) {
+        auraFbo = createFbo(gl, fboW, fboH, true, sceneFbo.depthRb);
+        if (!auraFbo.complete) {
+          disposeFbo(gl, auraFbo);
+          auraFbo = null;
+        }
+      } else {
         auraFbo = null;
       }
       bloomA = createFbo(gl, bloomW, bloomH, false);
@@ -2742,20 +2781,24 @@
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lowerGpu.ibo);
       gl.drawElements(gl.TRIANGLES, lowerGpu.count, gl.UNSIGNED_SHORT, 0);
 
-      // Volumetric Spirit-Chi Aura: render into dedicated additive auraFbo sharing sceneFbo's depth buffer
-      // so spirit streams behind the dragon are cleanly occluded in 3D while never darkening anything!
+      // Volumetric Spirit-Chi Aura: render into dedicated additive auraFbo on desktop (or directly onto
+      // sceneFbo on mobile), and skip during colossal full-screen lunge wipe (growNow > 3.2) to prevent
+      // massive full-screen overlapping translucent ribbon overdraw & yellow blowout!
       const useAuraFbo = !!(auraFbo && auraFbo.complete);
+      const drawSpirit = !(lunge && growNow > 3.2);
       if (useAuraFbo) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, auraFbo.fbo);
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT); // preserve shared solid-body depth!
       }
-      gl.depthMask(false);
-      gl.blendFunc(gl.ONE, gl.ONE);
-      gl.uniformMatrix4fv(uDragon.uModel, false, matIdentity);
-      bindDragonVbo(dynVbo);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dynIbo);
-      gl.drawElements(gl.TRIANGLES, spiritIndexCount, gl.UNSIGNED_SHORT, spiritStartIdx * 2);
+      if (drawSpirit) {
+        gl.depthMask(false);
+        gl.blendFunc(gl.ONE, gl.ONE);
+        gl.uniformMatrix4fv(uDragon.uModel, false, matIdentity);
+        bindDragonVbo(dynVbo);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dynIbo);
+        gl.drawElements(gl.TRIANGLES, spiritIndexCount, gl.UNSIGNED_SHORT, spiritStartIdx * 2);
+      }
 
       gl.disableVertexAttribArray(uDragon.aPos);
       gl.disableVertexAttribArray(uDragon.aNormal);
@@ -2785,8 +2828,9 @@
       gl.useProgram(progBlur);
       gl.uniform1i(uBlur.uTex, 0);
 
-      for (let pass = 0; pass < 2; pass++) {
-        const radius = pass === 0 ? 1.0 : 2.2;
+      const blurPasses = isMobile ? 1 : 2;
+      for (let pass = 0; pass < blurPasses; pass++) {
+        const radius = isMobile ? 1.55 : (pass === 0 ? 1.0 : 2.2);
         gl.bindFramebuffer(gl.FRAMEBUFFER, bloomB.fbo);
         gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
         gl.uniform2f(uBlur.uDir, radius / bloomW, 0);
@@ -2807,16 +2851,37 @@
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, sceneFbo.tex);
-      // Subtle optical depth-of-field soft focus & subdued bloom on the far pass (scales cleanly with depthCueNow!)
       const farCue = (clipSide < -0.5) ? depthCueOn : 0.0;
-      const dofR = 1.75 * farCue;
+      const dofR = isMobile ? 0.0 : (1.75 * farCue);
       gl.uniform2f(uBlit.uDofPx, dofR / fboW, dofR / fboH);
-      gl.uniform1f(uBlit.uBloomGain, lerp(0.44, 0.25, farCue));
+      gl.uniform1f(uBlit.uBloomGain, lerp(isMobile ? 0.30 : 0.44, isMobile ? 0.18 : 0.25, farCue));
+
+      const prevComp = targetCtx.globalCompositeOperation;
+      if (isMobile) {
+        // Fused single-pass composite on mobile: cuts synchronous WebGL -> Canvas2D drawImage blits in HALF!
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, bloomA.tex);
+        gl.uniform1i(uBlit.uAuraTex, 1);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.uniform1f(uBlit.uHasAura, 0.0);
+        gl.uniform1f(uBlit.uMode, 2.0);
+        drawQuad(progBlit, uBlit.aQuad);
+
+        targetCtx.globalCompositeOperation = 'source-over';
+        targetCtx.drawImage(glCanvas, 0, 0, W, H);
+        targetCtx.globalCompositeOperation = prevComp;
+        // Unbind FBO textures from active texture units so the next sceneFbo bind never triggers a feedback loop!
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        return;
+      }
+
       gl.uniform1f(uBlit.uHasAura, 0.0);
       gl.uniform1f(uBlit.uMode, 0.0);
       drawQuad(progBlit, uBlit.aQuad);
 
-      const prevComp = targetCtx.globalCompositeOperation;
       targetCtx.globalCompositeOperation = 'source-over';
       targetCtx.drawImage(glCanvas, 0, 0, W, H);
 
@@ -2864,9 +2929,16 @@
         renderPassToTarget(frontCtx, 0.0, nowMs, false);
       } else {
         // True 3D occlusion around KPR: far side (z <= 0) draws on backCtx behind diamond & KPR;
-        // near side (z >= 0) draws on frontCtx above KPR so the dragon obstructs KPR ONLY when in front!
-        renderPassToTarget(backCtx, -1.0, nowMs, false);
-        renderPassToTarget(frontCtx, 1.0, nowMs, false);
+        // near side (z >= 0) draws on frontCtx above KPR — and skip whichever side has zero geometry!
+        let minZ = Infinity, maxZ = -Infinity;
+        for (let i = 0; i < hist.length; i++) {
+          const z = hist[i].z;
+          if (z < minZ) minZ = z;
+          if (z > maxZ) maxZ = z;
+        }
+        const zMargin = 1.15 * Math.max(1.0, growNow);
+        if (minZ - zMargin <= 0.05) renderPassToTarget(backCtx, -1.0, nowMs, false);
+        if (maxZ + zMargin >= -0.05) renderPassToTarget(frontCtx, 1.0, nowMs, false);
       }
     }
 
